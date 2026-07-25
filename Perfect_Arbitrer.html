@@ -1,0 +1,2481 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfect Arbiter — Satranç Hakemi</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#1b1d21; --panel:#26292f; --panel2:#2e323a; --line:#3a3f48;
+  --ink:#eef0f3; --muted:#9aa2ad; --accent:#6ea8fe; --accent2:#7bd88f;
+  --win:#7bd88f; --draw:#e0c46c; --lose:#e8867a; --lock:#8ee0d0;
+  --hl:#f2c14e; --hlbg:rgba(242,193,78,.28);
+  --sq-l:#c7cdd4; --sq-d:#6f7783;
+}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:960px; margin:0 auto; padding:1.25rem 1rem 3rem}
+h1{font-size:1.4rem; margin:0 0 .15rem; letter-spacing:-.02em}
+.sub{color:var(--muted); font-size:.85rem; margin:0 0 1.25rem}
+
+/* Sekmeler */
+.tabs{display:flex; gap:.25rem; border-bottom:1px solid var(--line); margin-bottom:1.25rem; flex-wrap:wrap}
+.tab{
+  appearance:none; background:none; border:none; color:var(--muted);
+  padding:.6rem .9rem; font-size:.9rem; font-weight:500; cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--ink); border-bottom-color:var(--accent)}
+.panel{display:none}
+.panel.active{display:block; animation:fade .15s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* Kartlar */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:.7rem; padding:1rem; margin-bottom:1rem}
+.card h2{font-size:1rem; margin:0 0 .75rem}
+.card h3{font-size:.85rem; color:var(--muted); margin:1rem 0 .5rem; text-transform:uppercase; letter-spacing:.04em; font-weight:600}
+
+/* Form öğeleri */
+label{font-size:.85rem; color:var(--muted)}
+input[type=text]{
+  width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
+  color:var(--ink); padding:.55rem .65rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.82rem;
+}
+input[type=text]:focus{outline:none; border-color:var(--accent)}
+select{
+  background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; color:var(--ink);
+  padding:.5rem .6rem; font-size:.85rem;
+}
+button.btn{
+  appearance:none; background:var(--accent); color:#0d1117; border:none; border-radius:.5rem;
+  padding:.6rem 1.1rem; font-size:.9rem; font-weight:600; cursor:pointer;
+}
+button.btn:hover{filter:brightness(1.08)}
+button.btn.ghost{background:var(--panel2); color:var(--ink); border:1px solid var(--line)}
+button.btn.ghost:hover{border-color:var(--accent)}
+button.btn:disabled{opacity:.5; cursor:not-allowed}
+.row{display:flex; gap:.6rem; flex-wrap:wrap; align-items:center}
+.row.tight{gap:.4rem}
+.grow{flex:1 1 auto; min-width:0}
+
+/* Sonuç kutusu */
+.verdict{
+  margin-top:1rem; border-radius:.6rem; padding:.9rem 1rem; border:1px solid var(--line);
+  background:var(--panel2); display:none;
+}
+.verdict.show{display:block}
+.verdict .headline{font-size:1.05rem; font-weight:700; margin:0 0 .3rem; display:flex; align-items:center; gap:.5rem}
+.verdict .reason{color:var(--muted); font-size:.85rem; margin:0}
+.verdict .meta{color:var(--muted); font-size:.78rem; margin-top:.5rem; font-family:ui-monospace,monospace}
+.pill{display:inline-block; padding:.12rem .5rem; border-radius:1rem; font-size:.72rem; font-weight:700; letter-spacing:.02em}
+.v-win .headline{color:var(--win)} .pill.win{background:rgba(123,216,143,.18); color:var(--win)}
+.v-draw .headline{color:var(--draw)} .pill.draw{background:rgba(224,196,108,.18); color:var(--draw)}
+.v-lose .headline{color:var(--lose)} .pill.lose{background:rgba(232,134,122,.18); color:var(--lose)}
+.v-lock .headline{color:var(--lock)} .pill.lock{background:rgba(142,224,208,.18); color:var(--lock)}
+.v-scope .headline{color:#b6a7e0} .pill.scope{background:rgba(155,140,214,.18); color:#b6a7e0; border:1px solid rgba(155,140,214,.4)}
+.pill.no{background:rgba(154,162,173,.16); color:var(--muted)}
+
+/* Tahta */
+.boardwrap{display:inline-block}
+.board{
+  display:grid; grid-template-columns:repeat(8,var(--sq,2.7rem)); grid-template-rows:repeat(8,var(--sq,2.7rem));
+  border:2px solid var(--line); border-radius:.35rem; overflow:hidden; user-select:none; touch-action:manipulation;
+}
+.sq{
+  display:flex; align-items:center; justify-content:center; font-size:1.7rem; line-height:1;
+  cursor:pointer; position:relative;
+}
+.sq.light{background:var(--sq-l)} .sq.dark{background:var(--sq-d)}
+.sq .p{
+  line-height:1;
+  /* Beyaz taşlar: açık dolgu + koyu dış hat → belirgin */
+  color:#fbfbfd;
+  text-shadow:
+    -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a,
+    -1px  1px 0 #1a1a1a, 1px  1px 0 #1a1a1a,
+     0   -1.5px 0 #1a1a1a, 0 1.5px 0 #1a1a1a,
+    -1.5px 0 0 #1a1a1a, 1.5px 0 0 #1a1a1a,
+     0 2px 3px rgba(0,0,0,.45);
+  font-weight:400;
+}
+.sq .p.black{
+  /* Siyah taşlar: koyu dolgu + ince açık hat → beyazdan net ayrılır */
+  color:#141414;
+  text-shadow:
+    -0.5px -0.5px 0 rgba(255,255,255,.25), 0.5px 0.5px 0 rgba(255,255,255,.25),
+     0 1px 2px rgba(0,0,0,.35);
+  font-weight:400;
+}
+.sq.hl::after{content:""; position:absolute; inset:0; background:var(--hlbg); box-shadow:inset 0 0 0 3px var(--hl)}
+.sq.sel::after{content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 3px var(--accent)}
+.sq.dot::before{content:""; width:26%; height:26%; border-radius:50%; background:rgba(0,0,0,.28); position:absolute}
+.coords{font-size:.7rem; color:var(--muted); margin-top:.35rem; font-family:ui-monospace,monospace}
+
+/* Yapılandırma */
+.opt{
+  display:flex; align-items:flex-start; gap:.65rem; padding:.7rem .8rem; border:1px solid var(--line);
+  border-radius:.55rem; background:var(--panel2); margin-bottom:.6rem;
+}
+.opt.locked-on{border-color:rgba(110,168,254,.5)}
+.opt input[type=checkbox]{width:1.1rem; height:1.1rem; margin-top:.15rem; accent-color:var(--accent); cursor:pointer}
+.opt .body{flex:1}
+.opt .t{font-size:.9rem; font-weight:600}
+.opt .d{font-size:.8rem; color:var(--muted); margin-top:.15rem}
+.opt .req{font-size:.68rem; font-weight:700; color:var(--accent); border:1px solid var(--accent); border-radius:1rem; padding:.05rem .45rem; margin-left:.4rem}
+.radiogrp{display:flex; gap:.5rem; margin-top:.45rem}
+.radiogrp label{display:flex; align-items:center; gap:.35rem; font-size:.82rem; color:var(--ink); cursor:pointer}
+.depthbox{margin-top:.55rem; display:flex; align-items:center; gap:.5rem; font-size:.82rem}
+.depthbox input[type=number]{
+  width:4rem; background:var(--panel); border:1px solid var(--line); border-radius:.4rem; color:var(--ink);
+  padding:.35rem .45rem; font-size:.85rem;
+}
+.depthbox input[type=number]:focus{outline:none; border-color:var(--accent)}
+.summary{font-size:.82rem; color:var(--muted); margin:.75rem 0 1rem; line-height:1.7}
+.summary code{background:var(--panel2); padding:.05rem .35rem; border-radius:.3rem; color:var(--ink)}
+.hint{font-size:.78rem; color:var(--muted); margin:.4rem 0 0}
+.presetbar{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.6rem}
+.presetbar button{
+  appearance:none; background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+  border-radius:1rem; padding:.3rem .7rem; font-size:.78rem; cursor:pointer;
+}
+.presetbar button:hover{color:var(--ink); border-color:var(--accent)}
+.turnsel{display:flex; gap:.4rem}
+.turnsel label{display:flex; align-items:center; gap:.3rem; font-size:.82rem; color:var(--ink); cursor:pointer}
+.status{font-size:.9rem; margin-top:.6rem; color:var(--muted)}
+.status b{color:var(--ink)}
+@media(max-width:520px){
+  :root{--sq:2.15rem}
+  .board{--sq:2.15rem}
+  .wrap{padding:1rem .75rem 2.5rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Perfect Arbiter</h1>
+  <p class="sub">Satranç kural motoru ve hakemi — kanıt temelli, hızlı hükümler.</p>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-panel="flag">Bayrak Düşmesi</button>
+    <button class="tab" data-panel="lock">Kilitli Pozisyon</button>
+    <button class="tab" data-panel="play">Serbest Oyun</button>
+    <button class="tab" data-panel="build">Motor Üretici</button>
+  </div>
+  <!-- ══════════ PANEL: BAYRAK DÜŞMESİ ══════════ -->
+  <section class="panel active" id="panel-flag">
+    <div class="card">
+      <h2>Bayrak Düşmesi vs. Materyal</h2>
+      <p class="hint">Bir pozisyon kurun, bir tarafın süresini düşürün. Hakem, karşı tarafın mat edecek materyali olup olmadığına göre <b>kazanç / berabere</b> hükmünü anında verir. Gri (belirsiz) durumlar forced-mate araması ile kesinleştirilir.</p>
+      <div class="row" style="margin-top:.8rem; align-items:flex-start">
+        <div class="boardwrap">
+          <div class="board" id="flagBoard"></div>
+          <div class="coords" id="flagCoords"></div>
+        </div>
+        <div class="grow" style="min-width:15rem">
+          <label>FEN</label>
+          <input type="text" id="flagFen" spellcheck="false">
+          <div class="presetbar" id="flagPresets"></div>
+          <div style="margin-top:.9rem">
+            <label>Hakemlik yaklaşımı</label>
+            <div class="turnsel" style="margin-top:.35rem; flex-wrap:wrap; gap:.6rem">
+              <label><input type="radio" name="flagMethod" value="fide" checked> FIDE</label>
+              <label><input type="radio" name="flagMethod" value="uscf"> USCF</label>
+            </div>
+            <p class="hint" id="flagMethodHint" style="margin:.35rem 0 0"></p>
+          </div>
+          <div class="depthbox" id="flagDepthBox">
+            <label>Arama derinliği (gri bölge)</label>
+            <input type="number" id="flagDepth" min="1" max="10" value="5">
+            <span class="hint" style="margin:0">yarım hamle</span>
+          </div>
+          <div class="row" style="margin-top:1rem">
+            <button class="btn" id="flagWhiteBtn">Beyaz düşürür</button>
+            <button class="btn ghost" id="flagBlackBtn">Siyah düşürür</button>
+          </div>
+        </div>
+      </div>
+      <div class="verdict" id="flagVerdict"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: KİLİTLİ POZİSYON ══════════ -->
+  <section class="panel" id="panel-lock">
+    <div class="card">
+      <h2>Kilitli Pozisyon Tespiti</h2>
+      <p class="hint">Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.</p>
+      <div class="row" style="margin-top:.8rem; align-items:flex-start">
+        <div class="boardwrap">
+          <div class="board" id="lockBoard"></div>
+          <div class="coords" id="lockCoords"></div>
+        </div>
+        <div class="grow" style="min-width:15rem">
+          <label>FEN</label>
+          <input type="text" id="lockFen" spellcheck="false">
+          <div class="presetbar" id="lockPresets"></div>
+          <div class="row" style="margin-top:1rem">
+            <button class="btn" id="lockBtn">🔒 Kilit Analizi Yap</button>
+          </div>
+        </div>
+      </div>
+      <div class="verdict" id="lockVerdict"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: SERBEST OYUN ══════════ -->
+  <section class="panel" id="panel-play">
+    <div class="card">
+      <h2>Serbest Oyun</h2>
+      <p class="hint">Motorun tüm kurallarıyla iki kişilik oyun. Bir taşa dokunun, sonra hedef kareye.</p>
+      <div class="row" style="margin-top:.8rem; align-items:flex-start">
+        <div class="boardwrap">
+          <div class="board" id="playBoard"></div>
+          <div class="coords" id="playCoords"></div>
+        </div>
+        <div class="grow" style="min-width:13rem">
+          <div class="status" id="playStatus"></div>
+          <div class="row" style="margin-top:1rem">
+            <button class="btn ghost" id="playReset">Yeni Oyun</button>
+            <button class="btn ghost" id="playFlip">Tahtayı Çevir</button>
+          </div>
+          <div style="margin-top:1rem">
+            <label>FEN</label>
+            <input type="text" id="playFen" spellcheck="false" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: MOTOR ÜRETİCİ ══════════ -->
+  <section class="panel" id="panel-build">
+    <div class="card">
+      <h2>Motor Üretici</h2>
+      <p class="hint">Hakem motorunu ihtiyacınıza göre yapılandırın ve tek dosya olarak indirin. Hazır bir preset seçebilir ya da seçenekleri elle karıştırıp özel bir motor üretebilirsiniz. Kod burada sergilenmez; yalnızca yapılandırılmış çalışan motoru indirebilirsiniz.</p>
+
+      <h3>Hazır presetler</h3>
+      <div class="presetbar" id="cfgPresets">
+        <button data-preset="fide">FIDE</button>
+        <button data-preset="uscf">USCF</button>
+        <button data-preset="ours">Bizim karma</button>
+      </div>
+
+      <h3>Beraberlik sınırları</h3>
+      <div class="opt" id="cfgClaimOpt">
+        <input type="checkbox" id="cfgClaim" checked>
+        <div class="body">
+          <div class="t">İddia alt sınırı — 50 hamle / 3 tekrar</div>
+          <div class="d">Oyuncu iddia ederse berabere (oyun otomatik bitmez). Kapatılırsa 50/3 ile beraberlik iddia edilemez — ör. K+R vs K+Q gibi uzun sonlarda kazanan matı bulana dek oynamak zorunda kalır.</div>
+        </div>
+      </div>
+      <div class="opt" id="cfgHardCapOpt">
+        <input type="checkbox" id="cfgHardCap" checked>
+        <div class="body">
+          <div class="t">Otomatik bitme üst sınırı — 75 hamle / 5 tekrar</div>
+          <div class="d">FIDE'nin zorunlu tavanı: iddiaya gerek kalmadan 75. hamlede / 5. tekrarda otomatik berabere. USCF için kapalı bırakın.</div>
+        </div>
+      </div>
+      <p class="hint" id="cfgDrawWarn" style="color:var(--lose); display:none">⚠ İddia veya otomatik bitme sınırından en az biri seçili olmalı.</p>
+
+      <h3>Bayrak düşmesi hakemliği</h3>
+      <div class="opt" id="cfgResignOpt">
+        <input type="checkbox" id="cfgResign" checked>
+        <div class="body">
+          <div class="t">Resign de bayrak düşmesi sayılır</div>
+          <div class="d">Açık (FIDE 5.1.2 / bizim karma): bir taraf terk ederse, rakip helper/forced mat kuramıyorsa berabere. Kapalı (USCF): terk doğrudan kayıp. <span class="hint" style="margin:0">(Arayüzde terk butonu henüz yok; bu bayrak üretilen motorun API davranışını belirler.)</span></div>
+        </div>
+      </div>
+      <div class="opt">
+        <input type="checkbox" checked disabled>
+        <div class="body">
+          <div class="t">Bayrak düşmesi vs. materyal — mat ölçütü</div>
+          <div class="d">Bir tarafın süresi bittiğinde karşı tarafın mat edebilirliği nasıl ölçülür.</div>
+          <div class="radiogrp">
+            <label><input type="radio" name="cfgMate" value="helper" checked> Helper mate <span class="hint" style="margin:0">(FIDE — saf geometri, arama yok)</span></label>
+          </div>
+          <div class="radiogrp">
+            <label><input type="radio" name="cfgMate" value="forced"> Forced mate <span class="hint" style="margin:0">(USCF / karma — hafif taşlarda arama gerekir)</span></label>
+          </div>
+          <div class="depthbox" id="cfgDepthBox" style="display:none">
+            <label>Forced mate derinliği</label>
+            <input type="number" id="cfgDepth" min="1" max="10" value="5">
+            <span class="hint" style="margin:0">yarım hamle (1–10)</span>
+          </div>
+        </div>
+      </div>
+
+      <h3>Kilitli pozisyon</h3>
+      <div class="opt" id="cfgLockOpt">
+        <input type="checkbox" id="cfgLock" checked>
+        <div class="body">
+          <div class="t">Kilitli pozisyon taraması</div>
+          <div class="d">Mutlak berabere (piyon-kilitli) pozisyonları %100 sound biçimde tanır ve otomatik berabere hükmeder (FIDE 5.2.2 / USCF 14D4). Motora dahil edilir.</div>
+        </div>
+      </div>
+
+      <div class="summary" id="cfgSummary"></div>
+
+      <div class="row">
+        <button class="btn" id="cfgDownload">⬇ Yapılandırılmış motoru indir</button>
+      </div>
+      <p class="hint" id="cfgFilename"></p>
+    </div>
+  </section>
+
+</div>
+  <script id="src-engine">
+const PA = (() => {
+  'use strict';
+
+  /* ── Taş kodları: tür 1..6, renk biti 8 (0=beyaz, 8=siyah) ── */
+  const EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6;
+  const WHITE = 0, BLACK = 1;                    // taraf indeksi (renkBiti = taraf<<3)
+  const CHAR_TO_PIECE = { P:1, N:2, B:3, R:4, Q:5, K:6, p:9, n:10, b:11, r:12, q:13, k:14 };
+  const PIECE_TO_CHAR = ['', 'P','N','B','R','Q','K','', '', 'p','n','b','r','q','k',''];
+
+  /* ── Geometri: sq = satır*16 + sütun; satır 0 = 8. sıra (üst), sütun 0 = 'a' ── */
+  const KNIGHT_OFF = [-33,-31,-18,-14, 14, 18, 31, 33];
+  const KING_OFF   = [-17,-16,-15, -1,  1, 15, 16, 17];
+  const DIAG = [-17,-15, 15, 17], ORTH = [-16, -1, 1, 16];
+  const OFF = 0x88; // 136 — tahta dışı maskesi
+
+  const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+  /* ── Rok hakkı bitleri: 1=K 2=Q 4=k 8=q. CMASK: kalkış/varış karesine göre düşen haklar ── */
+  const CMASK = new Int32Array(128).fill(15);
+  CMASK[116] = 12; /* e1 */ CMASK[119] = 14; /* h1 */ CMASK[112] = 13; /* a1 */
+  CMASK[4]   = 3;  /* e8 */ CMASK[7]   = 11; /* h8 */ CMASK[0]   = 7;  /* a8 */
+
+  /* ── Zobrist anahtarları (deterministik xorshift32 — tekrarlanabilir) ── */
+  let _seed = 0x2545F491 | 0;
+  function rnd32() { _seed ^= _seed << 13; _seed ^= _seed >>> 17; _seed ^= _seed << 5; return _seed | 0; }
+  const ZA = new Int32Array(16 * 128), ZB = new Int32Array(16 * 128);
+  for (let i = 0; i < ZA.length; i++) { ZA[i] = rnd32(); ZB[i] = rnd32(); }
+  const ZCA = new Int32Array(16), ZCB = new Int32Array(16);
+  for (let i = 0; i < 16; i++) { ZCA[i] = rnd32(); ZCB[i] = rnd32(); }
+  const ZEA = new Int32Array(8), ZEB = new Int32Array(8);
+  for (let i = 0; i < 8; i++) { ZEA[i] = rnd32(); ZEB[i] = rnd32(); }
+  const ZSA = rnd32(), ZSB = rnd32();
+
+  /* ── Hamle paketleme ── */
+  const FL_NONE = 0, FL_DOUBLE = 1, FL_EP = 2, FL_CASTLE = 3;
+  const mFrom  = m => m & 127;
+  const mTo    = m => (m >> 7) & 127;
+  const mPromo = m => (m >> 14) & 7;   // 0 = yok, aksi halde taş TÜRÜ (2..5)
+  const mFlag  = m => (m >> 17) & 3;
+  function packMove(from, to, promo, flag) { return from | (to << 7) | (promo << 14) | (flag << 17); }
+
+  /* ── Statik saldırı testi: sq karesi byIdx tarafınca vuruluyor mu? ──
+     Yönlü ve erken-çıkışlı; 64-kare tarama YOK. */
+  function attacked(bd, sq, byIdx) {
+    let t;
+    if (byIdx === WHITE) {           // beyaz piyon s'den s-15/s-17'yi vurur → saldıran kare sq+15/sq+17
+      t = sq + 15; if ((t & OFF) === 0 && bd[t] === 1) return true;
+      t = sq + 17; if ((t & OFF) === 0 && bd[t] === 1) return true;
+    } else {
+      t = sq - 15; if ((t & OFF) === 0 && bd[t] === 9) return true;
+      t = sq - 17; if ((t & OFF) === 0 && bd[t] === 9) return true;
+    }
+    const byBit = byIdx << 3;
+    const N = KNIGHT | byBit, K = KING | byBit;
+    for (let i = 0; i < 8; i++) {
+      t = sq + KNIGHT_OFF[i]; if ((t & OFF) === 0 && bd[t] === N) return true;
+      t = sq + KING_OFF[i];   if ((t & OFF) === 0 && bd[t] === K) return true;
+    }
+    const Bp = BISHOP | byBit, Q = QUEEN | byBit, R = ROOK | byBit;
+    for (let i = 0; i < 4; i++) {
+      const d = DIAG[i]; t = sq + d;
+      while ((t & OFF) === 0) { const p = bd[t]; if (p) { if (p === Bp || p === Q) return true; break; } t += d; }
+    }
+    for (let i = 0; i < 4; i++) {
+      const d = ORTH[i]; t = sq + d;
+      while ((t & OFF) === 0) { const p = bd[t]; if (p) { if (p === R || p === Q) return true; break; } t += d; }
+    }
+    return false;
+  }
+
+  /* ── Pozisyon nesnesi ── */
+  function createPosition() {
+    const bd = new Int8Array(128);
+    const kings = new Int32Array(2);            // [beyaz şah karesi, siyah şah karesi]
+    let side = WHITE, castle = 0, ep = -1, half = 0, full = 1;
+    let hashA = 0, hashB = 0, ply = 0;
+
+    /* Geri alma yığınları — gerektiğinde otomatik büyür */
+    let cap = 8192;
+    let uMove = new Int32Array(cap), uCap = new Int32Array(cap), uCast = new Int32Array(cap),
+        uEp = new Int32Array(cap), uHalf = new Int32Array(cap), uHA = new Int32Array(cap), uHB = new Int32Array(cap);
+    function grow() {
+      cap *= 2;
+      const g = a => { const n = new Int32Array(cap); n.set(a); return n; };
+      uMove = g(uMove); uCap = g(uCap); uCast = g(uCast); uEp = g(uEp);
+      uHalf = g(uHalf); uHA = g(uHA); uHB = g(uHB);
+    }
+
+    function computeHash() {
+      let a = 0, b = 0;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        const p = bd[sq];
+        if (p) { a ^= ZA[(p << 7) | sq]; b ^= ZB[(p << 7) | sq]; }
+      }
+      a ^= ZCA[castle]; b ^= ZCB[castle];
+      if (ep !== -1) { a ^= ZEA[ep & 7]; b ^= ZEB[ep & 7]; }
+      if (side === BLACK) { a ^= ZSA; b ^= ZSB; }
+      hashA = a | 0; hashB = b | 0;
+    }
+
+    /* ── make: hamleyi oyna (pseudo-legal kabul eder; yasallık dışarıda test edilir) ── */
+    function make(m) {
+      if (ply >= cap) grow();
+      uMove[ply] = m; uCast[ply] = castle; uEp[ply] = ep;
+      uHalf[ply] = half; uHA[ply] = hashA; uHB[ply] = hashB;
+
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = (m >> 17) & 3;
+      const us = side, them = us ^ 1, usBit = us << 3;
+      const piece = bd[from];
+
+      let captured, capSq;
+      if (flag === FL_EP) { captured = PAWN | (them << 3); capSq = us === WHITE ? to + 16 : to - 16; }
+      else                { captured = bd[to];             capSq = to; }
+      uCap[ply] = captured;
+      ply++;
+
+      if (ep !== -1) { hashA ^= ZEA[ep & 7]; hashB ^= ZEB[ep & 7]; ep = -1; }
+
+      half++;
+      if ((piece & 7) === PAWN) half = 0;
+
+      bd[from] = EMPTY;
+      hashA ^= ZA[(piece << 7) | from]; hashB ^= ZB[(piece << 7) | from];
+
+      if (captured) {
+        half = 0;
+        bd[capSq] = EMPTY;
+        hashA ^= ZA[(captured << 7) | capSq]; hashB ^= ZB[(captured << 7) | capSq];
+      }
+
+      const placed = promo ? (promo | usBit) : piece;
+      bd[to] = placed;
+      hashA ^= ZA[(placed << 7) | to]; hashB ^= ZB[(placed << 7) | to];
+
+      if ((piece & 7) === KING) {
+        kings[us] = to;
+        if (flag === FL_CASTLE) {
+          let rf, rt;
+          if ((to & 7) === 6) { rf = to + 1; rt = to - 1; }  // kısa rok: h→f
+          else                { rf = to - 2; rt = to + 1; }  // uzun rok: a→d
+          const rook = bd[rf];
+          bd[rf] = EMPTY; bd[rt] = rook;
+          hashA ^= ZA[(rook << 7) | rf] ^ ZA[(rook << 7) | rt];
+          hashB ^= ZB[(rook << 7) | rf] ^ ZB[(rook << 7) | rt];
+        }
+      }
+
+      if (flag === FL_DOUBLE) {
+        ep = (from + to) >> 1;
+        hashA ^= ZEA[ep & 7]; hashB ^= ZEB[ep & 7];
+      }
+
+      const nc = castle & CMASK[from] & CMASK[to];
+      if (nc !== castle) {
+        hashA ^= ZCA[castle] ^ ZCA[nc]; hashB ^= ZCB[castle] ^ ZCB[nc];
+        castle = nc;
+      }
+
+      side = them;
+      hashA ^= ZSA; hashB ^= ZSB;
+      if (side === WHITE) full++;
+    }
+
+    /* ── unmake: son hamleyi geri al ── */
+    function unmake() {
+      ply--;
+      const m = uMove[ply];
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = (m >> 17) & 3;
+      side ^= 1;
+      const us = side, usBit = us << 3;
+      if (us === BLACK) full--;
+      castle = uCast[ply]; ep = uEp[ply]; half = uHalf[ply];
+      hashA = uHA[ply]; hashB = uHB[ply];
+
+      const moved = promo ? (PAWN | usBit) : bd[to];
+      bd[from] = moved; bd[to] = EMPTY;
+
+      if ((moved & 7) === KING) {
+        kings[us] = from;
+        if (flag === FL_CASTLE) {
+          let rf, rt;
+          if ((to & 7) === 6) { rf = to + 1; rt = to - 1; }
+          else                { rf = to - 2; rt = to + 1; }
+          bd[rf] = bd[rt]; bd[rt] = EMPTY;
+        }
+      }
+
+      const captured = uCap[ply];
+      if (captured) {
+        const capSq = flag === FL_EP ? (us === WHITE ? to + 16 : to - 16) : to;
+        bd[capSq] = captured;
+      }
+    }
+
+    /* ── Pseudo-legal hamle üretimi: buf'a at'ten itibaren yazar, bitiş indeksini döner ── */
+    function genMoves(buf, at) {
+      const us = side, them = us ^ 1, usBit = us << 3, themBit = them << 3;
+      const dir = us === WHITE ? -16 : 16;
+      const startRow = us === WHITE ? 6 : 1;
+      const promoRow = us === WHITE ? 0 : 7;
+      let n = at;
+
+      for (let from = 0; from < 128; from++) {
+        if (from & OFF) { from += 7; continue; }
+        const p = bd[from];
+        if (p === 0 || (p & 8) !== usBit) continue;
+        const t = p & 7;
+
+        if (t === PAWN) {
+          const one = from + dir;
+          if ((one & OFF) === 0 && bd[one] === 0) {
+            if ((one >> 4) === promoRow) {
+              buf[n++] = packMove(from, one, QUEEN, 0);
+              buf[n++] = packMove(from, one, ROOK, 0);
+              buf[n++] = packMove(from, one, BISHOP, 0);
+              buf[n++] = packMove(from, one, KNIGHT, 0);
+            } else {
+              buf[n++] = packMove(from, one, 0, 0);
+              if ((from >> 4) === startRow) {
+                const two = one + dir;
+                if (bd[two] === 0) buf[n++] = packMove(from, two, 0, FL_DOUBLE);
+              }
+            }
+          }
+          for (let s = -1; s <= 1; s += 2) {
+            const cs = from + dir + s;
+            if (cs & OFF) continue;
+            const tp = bd[cs];
+            if (tp !== 0 && (tp & 8) === themBit) {
+              if ((cs >> 4) === promoRow) {
+                buf[n++] = packMove(from, cs, QUEEN, 0);
+                buf[n++] = packMove(from, cs, ROOK, 0);
+                buf[n++] = packMove(from, cs, BISHOP, 0);
+                buf[n++] = packMove(from, cs, KNIGHT, 0);
+              } else buf[n++] = packMove(from, cs, 0, 0);
+            } else if (cs === ep && tp === 0) {
+              // savunma: ep karesinin arkasında gerçekten rakip piyon olmalı
+              const behind = ep + (us === WHITE ? 16 : -16);
+              if ((behind & OFF) === 0 && bd[behind] === (PAWN | themBit))
+                buf[n++] = packMove(from, cs, 0, FL_EP);
+            }
+          }
+        } else if (t === KNIGHT) {
+          for (let i = 0; i < 8; i++) {
+            const to = from + KNIGHT_OFF[i];
+            if (to & OFF) continue;
+            const tp = bd[to];
+            if (tp === 0 || (tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0);
+          }
+        } else if (t === KING) {
+          for (let i = 0; i < 8; i++) {
+            const to = from + KING_OFF[i];
+            if (to & OFF) continue;
+            const tp = bd[to];
+            if (tp === 0 || (tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0);
+          }
+          // Rok — şah evinde, şahta değil, yol boş, geçiş karesi vurulmuyor, kale yerinde.
+          // (Varış karesinin güvenliği make+yasallık filtresince doğrulanır.)
+          const home = us === WHITE ? 116 : 4;
+          if (from === home && !attacked(bd, home, them)) {
+            if (us === WHITE) {
+              if ((castle & 1) && bd[117] === 0 && bd[118] === 0 && bd[119] === ROOK &&
+                  !attacked(bd, 117, them)) buf[n++] = packMove(116, 118, 0, FL_CASTLE);
+              if ((castle & 2) && bd[115] === 0 && bd[114] === 0 && bd[113] === 0 && bd[112] === ROOK &&
+                  !attacked(bd, 115, them)) buf[n++] = packMove(116, 114, 0, FL_CASTLE);
+            } else {
+              if ((castle & 4) && bd[5] === 0 && bd[6] === 0 && bd[7] === (ROOK | 8) &&
+                  !attacked(bd, 5, them)) buf[n++] = packMove(4, 6, 0, FL_CASTLE);
+              if ((castle & 8) && bd[3] === 0 && bd[2] === 0 && bd[1] === 0 && bd[0] === (ROOK | 8) &&
+                  !attacked(bd, 3, them)) buf[n++] = packMove(4, 2, 0, FL_CASTLE);
+            }
+          }
+        } else {
+          if (t !== ROOK) {   // fil / vezir: çapraz ışınlar
+            for (let i = 0; i < 4; i++) {
+              const d = DIAG[i]; let to = from + d;
+              while ((to & OFF) === 0) {
+                const tp = bd[to];
+                if (tp === 0) buf[n++] = packMove(from, to, 0, 0);
+                else { if ((tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0); break; }
+                to += d;
+              }
+            }
+          }
+          if (t !== BISHOP) { // kale / vezir: düz ışınlar
+            for (let i = 0; i < 4; i++) {
+              const d = ORTH[i]; let to = from + d;
+              while ((to & OFF) === 0) {
+                const tp = bd[to];
+                if (tp === 0) buf[n++] = packMove(from, to, 0, 0);
+                else { if ((tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0); break; }
+                to += d;
+              }
+            }
+          }
+        }
+      }
+      return n;
+    }
+
+    /* make sonrası: hamleyi yapan tarafın şahı vuruluyor mu? (yasallık testi) */
+    function legalAfterMake() { return !attacked(bd, kings[side ^ 1], side); }
+    function tryMoveLegal(m) { make(m); const ok = legalAfterMake(); unmake(); return ok; }
+
+    const GEN = new Int32Array(256); // oyun-hızı tamponu (arama perft yığınını kullanır)
+
+    function legalMoves() {
+      const end = genMoves(GEN, 0);
+      const out = [];
+      for (let i = 0; i < end; i++) {
+        const m = GEN[i];
+        make(m);
+        if (legalAfterMake()) out.push(m);
+        unmake();
+      }
+      return out;
+    }
+
+    function hasLegalMove() {
+      const end = genMoves(GEN, 0);
+      for (let i = 0; i < end; i++) {
+        make(GEN[i]);
+        const ok = legalAfterMake();
+        unmake();
+        if (ok) return true;
+      }
+      return false;
+    }
+
+    function inCheck() { return attacked(bd, kings[side], side ^ 1); }
+
+    /* ── perft: hamle üretiminin doğruluk + hız kanıtı ── */
+    const PSTACK = new Int32Array(224 * 128);
+    function _perft(depth, base) {
+      const end = genMoves(PSTACK, base);
+      let nodes = 0;
+      if (depth === 1) {
+        for (let i = base; i < end; i++) {
+          make(PSTACK[i]);
+          if (legalAfterMake()) nodes++;
+          unmake();
+        }
+        return nodes;
+      }
+      for (let i = base; i < end; i++) {
+        make(PSTACK[i]);
+        if (legalAfterMake()) nodes += _perft(depth - 1, end);
+        unmake();
+      }
+      return nodes;
+    }
+    function perft(depth) { return depth <= 0 ? 1 : _perft(depth, 0); }
+
+    /* ── Forced-mate çözücü (süre-bitimi / resign gri bölgesi ve locked position için) ──
+       "winnerIsWhite tarafı, rakip EN İYİ savunmayı yaparken, en fazla `plies`
+       KENDİ hamlesinde zorla mat edebilir mi?"  Boolean minimax (mate solver):
+         • Sıra kazanandaysa  → ∃ : bir hamlesi bile mata götürüyorsa yeter.
+         • Sıra kaybedendeyse → ∀ : TÜM hamlelerinde kazanan hâlâ zorlayabilmeli.
+         • Kaçan tarafta mat (hamle yok + şah) → kazanan için başarı.
+         • Kaçan tarafta pat (hamle yok + şah yok) → forced mate DEĞİL (berabere).
+       `plies` = kazananın hamle bütçesi. Düğüm bütçesi patolojik ağaçları sınırlar.
+       Not: perft yığınından (PSTACK) ayrı bir MSTACK kullanır ki iç içe girmesin. */
+    const MSTACK = new Int32Array(64 * 128);   // 64 yarım-hamle derinliği yeter (32 tam hamle)
+    let mateNodeBudget = 0;
+
+    function _mate(plies, base, winnerSide) {
+      if (--mateNodeBudget < 0) return false;    // bütçe aşıldı → "bulunamadı"
+      const winnerToMove = (side === winnerSide);
+      const end = genMoves(MSTACK, base);
+
+      let anyLegal = false;
+      if (winnerToMove) {
+        // ∃ — kazanan: bir hamle bile mata zorlarsa true.
+        // Kazanan hamle YAPTIĞINDA bütçe (plies) bir azalır.
+        if (plies === 0) return false;   // kazananın hamle bütçesi bitti, mat yok
+        for (let i = base; i < end; i++) {
+          const m = MSTACK[i];
+          make(m);
+          const legal = legalAfterMake();
+          if (legal) { anyLegal = true; const r = _mate(plies - 1, end, winnerSide); unmake(); if (r) return true; }
+          else unmake();
+        }
+        return false; // hiçbir kazanan hamlesi zorlayamadı
+      } else {
+        // ∀ — kaybeden (savunan): tüm yasal hamlelerinde kazanan hâlâ zorlamalı.
+        // Kaybeden savunurken kazananın bütçesi (plies) DEĞİŞMEZ.
+        for (let i = base; i < end; i++) {
+          const m = MSTACK[i];
+          make(m);
+          const legal = legalAfterMake();
+          if (legal) {
+            anyLegal = true;
+            const r = _mate(plies, end, winnerSide);
+            unmake();
+            if (!r) return false;   // bir kaçış bile kurtardıysa forced mate yok
+          } else unmake();
+        }
+        // Kaybedenin hiç yasal hamlesi yoksa: mat mı pat mı?
+        if (!anyLegal) {
+          return inCheck();          // şahta → mat (kazanan başardı); değil → pat (false)
+        }
+        return true;                 // tüm savunmalar mata çıktı
+      }
+    }
+
+    /* plies = kazananın hamle bütçesi (varsayılan 5). nodeBudget = güvenlik sınırı.
+       true → winnerIsWhite zorla mat edebilir; false → edemez (bu bütçede).
+       Varsayılan bütçe gri bölge (zayıf minör, küçük ağaç) için ayarlı; çok
+       hareketli taşlı patolojik pozisyonlarda budamasız arama şişebileceğinden
+       bütçe aşımı güvenle "mat bulunamadı" (berabere) sayılır. */
+    function forcedMate(winnerIsWhite, plies, nodeBudget) {
+      mateNodeBudget = (nodeBudget && nodeBudget > 0) ? nodeBudget : 3000000;
+      const winnerSide = winnerIsWhite ? WHITE : BLACK;
+      return _mate(plies | 0, 0, winnerSide);
+    }
+
+    /* Iterative deepening: 1..maxPlies arasında ilk forced mate'i bulur (en kısa).
+       Dönüş: mat bulunursa gereken hamle sayısı, yoksa 0. */
+    function forcedMateDepth(winnerIsWhite, maxPlies, nodeBudget) {
+      for (let d = 1; d <= (maxPlies | 0); d++) {
+        if (forcedMate(winnerIsWhite, d, nodeBudget)) return d;
+      }
+      return 0;
+    }
+
+    /* ── Mat dizisi (principal variation) — animasyon / gösterim için ──
+       forcedMateDepth mat bulduktan sonra, o matın SOMUT hamle dizisini üretir:
+         • Kazanan sırasında: forced mate'i koruyan (en kısa mata götüren) hamle.
+         • Kaybeden sırasında: EN UZUN direnen (matı en geç getiren) hamle.
+       Dönüş: hamle objeleri dizisi [{move, from, to, mate, stalemate}], ya da
+       mat yoksa null. Çağrı sonunda ORİJİNAL pozisyona döner. */
+
+    // Yardımcı: mevcut pozisyondan, kazanan EN FAZLA `plies` KENDİ hamlesinde
+    // zorla mat edebilir mi? (mateLine için taze bütçeyle; _mate'i sarar)
+    function mateInAtMost(plies, winnerSide) {
+      mateNodeBudget = 3000000;
+      return _mate(plies | 0, 0, winnerSide);
+    }
+    // Yardımcı: mevcut pozisyondan EN KISA forced mate kaç kazanan-hamlesi? (yoksa 0)
+    function shortestMate(maxPlies, winnerSide) {
+      for (let d = 1; d <= maxPlies; d++) {
+        if (mateInAtMost(d, winnerSide)) return d;
+      }
+      return 0;
+    }
+
+    function mateLine(winnerIsWhite, maxPlies, nodeBudget) {
+      const winnerSide = winnerIsWhite ? WHITE : BLACK;
+      const total = forcedMateDepth(winnerIsWhite, maxPlies, nodeBudget);
+      if (total === 0) return null;
+
+      const line = [];
+      let budget = total;                    // kazananın kalan hamle bütçesi
+      const guard = 2 * total + 2;
+
+      for (let step = 0; step < guard; step++) {
+        const moves = legalMoves();
+        if (moves.length === 0) break;
+        const winnerToMove = (side === winnerSide);
+        let chosen = moves[0];
+
+        if (winnerToMove) {
+          // forced mate'i koruyan, mata EN KISA götüren hamle
+          let best = Infinity;
+          for (const m of moves) {
+            make(m);
+            let val;
+            if (!hasLegalMove() && inCheck()) {
+              val = 0;                        // bu hamle doğrudan mat
+            } else {
+              // hamleden sonra sıra kaybende; kazanan kalan (budget-1) hamlede matlamalı
+              val = shortestMate(budget - 1, winnerSide); // 0 = bulunamadı
+              if (val === 0) val = Infinity;  // bu hamle forced mate'i korumuyor
+            }
+            unmake();
+            if (val < best) { best = val; chosen = m; if (best === 0) break; }
+          }
+        } else {
+          // kaybeden: mata EN GEÇ götüren (en uzun direnen) savunma
+          let longest = -1;
+          for (const m of moves) {
+            make(m);
+            const d = shortestMate(budget, winnerSide); // kazanan buradan kaç hamlede matlar
+            unmake();
+            const rank = (d === 0) ? Infinity : d;      // d=0 olmamalı (forced mate garantili)
+            if (rank > longest) { longest = rank; chosen = m; }
+          }
+        }
+
+        const from = mFrom(chosen), to = mTo(chosen);
+        make(chosen);
+        const isMate = (!hasLegalMove() && inCheck());
+        const isStale = (!hasLegalMove() && !inCheck());
+        line.push({ move: chosen, from, to, mate: isMate, stalemate: isStale });
+        if (side === winnerSide) {
+          // az önce kaybeden oynadı (sıra artık kazananda) → bütçe düşmez
+        } else {
+          budget--;                           // az önce kazanan oynadı
+        }
+        if (isMate || isStale) break;
+      }
+
+      for (let i = line.length - 1; i >= 0; i--) unmake();
+      return line;
+    }
+
+    /* ── Ölü pozisyon (materyal bazlı KESİN durumlar) ──
+       Ş-Ş, Ş+hafif-Ş, ve tüm filler aynı renk karede & at yok.
+       (Genel "kilitli pozisyon" tespiti hakem katmanında simülasyonla eklenecek.) */
+    function deadMaterial() {
+      let knights = 0, minors = 0, light = false, dark = false;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        const p = bd[sq];
+        if (!p) continue;
+        const t = p & 7;
+        if (t === PAWN || t === ROOK || t === QUEEN) return false;
+        if (t === KNIGHT) { knights++; minors++; }
+        else if (t === BISHOP) {
+          minors++;
+          if (((sq >> 4) + (sq & 7)) & 1) dark = true; else light = true;
+        }
+      }
+      if (minors <= 1) return true;
+      if (knights === 0 && !(light && dark)) return true;
+      return false;
+    }
+
+    /* ── Taraf bazlı materyal envanteri (süre-bitimi / resign hakemliği için) ──
+       Her taraf için: piyon/kale/vezir sayısı, at sayısı, açık/koyu fil sayısı.
+       byWhite=true → beyazın taşları. Kesin materyal kararları bunun üstünde
+       (motor dışı hakem katmanında) verilir; burada yalnızca sayım yapılır. */
+    function material(byWhite) {
+      const usBit = byWhite ? 0 : 8;
+      let pawns = 0, rooks = 0, queens = 0, knights = 0, lightB = 0, darkB = 0;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        const p = bd[sq];
+        if (!p || (p & 8) !== usBit) continue;
+        switch (p & 7) {
+          case PAWN:   pawns++;   break;
+          case ROOK:   rooks++;   break;
+          case QUEEN:  queens++;  break;
+          case KNIGHT: knights++; break;
+          case BISHOP:
+            if (((sq >> 4) + (sq & 7)) & 1) darkB++; else lightB++;
+            break;
+        }
+      }
+      const bishops = lightB + darkB;
+      return {
+        pawns, rooks, queens, knights, lightB, darkB, bishops,
+        minors: knights + bishops,
+        // fil renk çeşidi: 0 (yok), 1 (tek renk), 2 (iki renk = zıt filler mevcut)
+        bishopColors: (lightB > 0 ? 1 : 0) + (darkB > 0 ? 1 : 0),
+        // büyük/tam-güçlü materyal (tek başına mat edebilen sınıf hariç minörler)
+        heavy: pawns + rooks + queens,
+        total: pawns + rooks + queens + knights + bishops,
+      };
+    }
+
+    /* ── FIDE 9.2: tekrar için en passant yalnızca YASAL bir ep alımı varsa sayılır ── */
+    function epCaptureLegal() {
+      if (ep === -1) return false;
+      const us = side, usBit = us << 3;
+      const behind = ep + (us === WHITE ? 16 : -16);
+      if ((behind & OFF) || bd[behind] !== (PAWN | ((us ^ 1) << 3))) return false;
+      for (let s = -1; s <= 1; s += 2) {
+        const from = behind + s;
+        if (from & OFF) continue;
+        if (bd[from] === (PAWN | usBit)) {
+          if (tryMoveLegal(packMove(from, ep, 0, FL_EP))) return true;
+        }
+      }
+      return false;
+    }
+
+    /* Kesin tekrar anahtarı: taş dizilimi + sıra + rok hakları + (geçerliyse) ep dosyası.
+       Hash değil, birebir karşılaştırma → üç kez tekrar tespiti %100 sound. */
+    function repetitionKey() {
+      let s = '';
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        s += PIECE_TO_CHAR[bd[sq]] || '.';
+      }
+      s += side === WHITE ? ' w ' : ' b ';
+      s += castle.toString(16);
+      s += epCaptureLegal() ? (' ' + 'abcdefgh'[ep & 7]) : ' -';
+      return s;
+    }
+
+    /* ── FEN yükleme + doğrulama ── */
+    function loadFen(fen) {
+      const parts = String(fen).trim().split(/\s+/);
+      const rows = (parts[0] || '').split('/');
+      if (rows.length !== 8) return { ok: false, error: 'FEN: 8 sıra olmalı (/ ile ayrılmış).' };
+      const nb = new Int8Array(128);
+      let wK = 0, bK = 0, wKsq = -1, bKsq = -1;
+      for (let r = 0; r < 8; r++) {
+        let c = 0;
+        for (const ch of rows[r]) {
+          if (ch >= '1' && ch <= '8') c += ch.charCodeAt(0) - 48;
+          else {
+            const p = CHAR_TO_PIECE[ch];
+            if (!p) return { ok: false, error: `FEN: Bilinmeyen karakter '${ch}'.` };
+            if (c >= 8) return { ok: false, error: `FEN: ${r + 1}. sıra 8 kare olmalı.` };
+            if ((p & 7) === PAWN && (r === 0 || r === 7))
+              return { ok: false, error: 'FEN: Piyon 1. veya 8. sırada olamaz.' };
+            if (p === 6)  { wK++; wKsq = r * 16 + c; }
+            if (p === 14) { bK++; bKsq = r * 16 + c; }
+            nb[r * 16 + c] = p; c++;
+          }
+        }
+        if (c !== 8) return { ok: false, error: `FEN: ${r + 1}. sıra 8 kare olmalı.` };
+      }
+      if (wK !== 1) return { ok: false, error: 'FEN: Beyazın tam 1 şahı olmalı.' };
+      if (bK !== 1) return { ok: false, error: 'FEN: Siyahın tam 1 şahı olmalı.' };
+
+      const sideStr = parts[1] || 'w';
+      if (sideStr !== 'w' && sideStr !== 'b') return { ok: false, error: "FEN: Sıra 'w' veya 'b' olmalı." };
+      const stm = sideStr === 'w' ? WHITE : BLACK;
+
+      // Sırası OLMAYAN taraf şahta olamaz
+      const nmIdx = stm ^ 1;
+      const nmKing = nmIdx === WHITE ? wKsq : bKsq;
+      if (attacked(nb, nmKing, stm)) {
+        const who = nmIdx === WHITE ? 'Beyaz' : 'Siyah';
+        return { ok: false, error: `FEN: ${who} şahta ama sırası değil — geçersiz pozisyon.` };
+      }
+
+      // Rok hakları — şah/kale yerinde değilse sessizce iptal
+      const cs = parts[2] || '-';
+      let cst = 0;
+      if (cs.includes('K') && nb[116] === 6  && nb[119] === 4)  cst |= 1;
+      if (cs.includes('Q') && nb[116] === 6  && nb[112] === 4)  cst |= 2;
+      if (cs.includes('k') && nb[4]   === 14 && nb[7]   === 12) cst |= 4;
+      if (cs.includes('q') && nb[4]   === 14 && nb[0]   === 12) cst |= 8;
+
+      let nep = -1;
+      const eps = parts[3] || '-';
+      if (eps !== '-') {
+        const col = 'abcdefgh'.indexOf(eps[0]);
+        const rk = parseInt(eps[1], 10);
+        const row = Number.isFinite(rk) ? 8 - rk : -1;
+        if (col < 0 || row < 0 || row > 7) return { ok: false, error: 'FEN: Geçersiz en passant karesi.' };
+        nep = row * 16 + col;
+      }
+
+      const nh = parseInt(parts[4], 10);
+      const nf = parseInt(parts[5], 10);
+
+      // Onaylandı — durumu yaz
+      bd.set(nb);
+      kings[WHITE] = wKsq; kings[BLACK] = bKsq;
+      side = stm; castle = cst; ep = nep;
+      half = Number.isFinite(nh) && nh >= 0 ? nh : 0;
+      full = Number.isFinite(nf) && nf >= 1 ? nf : 1;
+      ply = 0;
+      computeHash();
+      return { ok: true };
+    }
+
+    function getFen() {
+      let out = '';
+      for (let r = 0; r < 8; r++) {
+        let e = 0;
+        for (let c = 0; c < 8; c++) {
+          const p = bd[r * 16 + c];
+          if (!p) e++;
+          else { if (e) { out += e; e = 0; } out += PIECE_TO_CHAR[p]; }
+        }
+        if (e) out += e;
+        if (r < 7) out += '/';
+      }
+      out += side === WHITE ? ' w ' : ' b ';
+      out += castle ? ((castle & 1 ? 'K' : '') + (castle & 2 ? 'Q' : '') + (castle & 4 ? 'k' : '') + (castle & 8 ? 'q' : '')) : '-';
+      out += ' ' + (ep === -1 ? '-' : ('abcdefgh'[ep & 7] + String(8 - (ep >> 4))));
+      out += ' ' + half + ' ' + full;
+      return out;
+    }
+
+    return {
+      /* durum okuma */
+      get side() { return side; },
+      get castle() { return castle; },
+      get ep() { return ep; },
+      get halfmove() { return half; },
+      get fullmove() { return full; },
+      get ply() { return ply; },
+      get hashA() { return hashA; },
+      get hashB() { return hashB; },
+      board: bd, kings,
+      turnWhite() { return side === WHITE; },
+      pieceCharAt(r, c) { return PIECE_TO_CHAR[bd[r * 16 + c]] || ''; },
+      /* çekirdek işlemler */
+      loadFen, getFen,
+      genMovesInto: genMoves,      // (buf, at) → end  — arama/simülasyon için sıfır-GC yol
+      legalMoves, hasLegalMove, tryMoveLegal,
+      make, unmake, inCheck,
+      attackedSq(sq, byWhite) { return attacked(bd, sq, byWhite ? WHITE : BLACK); },
+      /* hakem yardımcıları */
+      deadMaterial, epCaptureLegal, repetitionKey, material,
+      forcedMate, forcedMateDepth, mateLine,
+      /* doğrulama & ölçüm */
+      perft,
+    };
+  }
+
+  /* 8x8 karakter dizisi üzerinde şah-tehdit testi (FEN/editör doğrulaması için) */
+  function rowsInCheck(rows, kingIsWhite) {
+    const tb = new Int8Array(128);
+    let ks = -1;
+    const target = kingIsWhite ? 6 : 14;
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const ch = rows[r][c];
+      if (!ch) continue;
+      const p = CHAR_TO_PIECE[ch];
+      if (p) { tb[r * 16 + c] = p; if (p === target) ks = r * 16 + c; }
+    }
+    if (ks === -1) return false;
+    return attacked(tb, ks, kingIsWhite ? BLACK : WHITE);
+  }
+
+  return {
+    version: 'PerfectArbiter-core 1.0',
+    createPosition, rowsInCheck,
+    START_FEN,
+    mFrom, mTo, mPromo, mFlag,
+    FL_NONE, FL_DOUBLE, FL_EP, FL_CASTLE,
+    PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
+    PIECE_TO_CHAR, CHAR_TO_PIECE,
+    sqRow: sq => sq >> 4,
+    sqCol: sq => sq & 7,
+    toSq: (r, c) => r * 16 + c,
+  };
+})();
+
+</script>
+  <script id="src-lock">
+/* ═══════════════════════════════════════════════════════════════════════
+   KİLİTLİ POZİSYON TESPİTİ — ÇEKİRDEK (locked-legalite tabanlı)
+
+   Bir pozisyonun MUTLAK KİLİT olup olmadığını kanıtlar: helper iki taraf bile
+   hiçbir geri-dönülemez hamle (alım / piyon sürme-terfi) VE hiçbir mat açamıyorsa
+   → kesin berabere (FIDE 75-hamle/5-tekrar tavanı gereği).
+
+   %100 SOUND: "KİLİT" dediğinde kesin doğru. "kilit değil" = kanıtlayamadım.
+   Her belirsizlikte "kilit değil" tarafına düşülür (yanlış-negatif güvenli).
+
+   LOCKED-LEGALİTE: kendi geometrik hareket üreticimiz. Bir taşın hamlesi =
+   geometrinin izin verdiği + hedefte KENDİ taşı yok. Şah güvenliği (pin/açığa
+   çıkan şah/sıra geçerliliği) yok sayılır. Gevşetmeler soundness-güvenli yönde.
+
+   BEŞ KONTROL (sırayla; ilki eşleşince "kilit değil" döner):
+   K1: 8 ≤ taş ≤ 30, tam 1+1 şah, vezir yok, her taraf ≥3 piyon, terfi-tutarlı.
+   K2: piyon tuğlası (yön-duyarlı) + geometrik budama:
+       <3 tuğla yetersiz; tam 3 tuğla → sütun deseni {a,d,g|b,d,g|b,e,g|b,e,h}
+       + kavuşma eşitliği; ≥4 tuğla → bitişik+eşit-kavuşma çifti çapraz alım.
+   K3: at/kale locked-legalite'de hareketsiz (iki taraf) + fil erken-kırıcısı
+       (rakip eşik piyonu fille aynı renk + fil hareketli → kırıcı).
+   K4: üç ana düğüm (piyon/fil/şah) × iki taraf, (b) tipi iç içe dallanma,
+       her düğümde tüm kırıcılar (at/kale + piyon + fil alt-yayılım) + ep + mat.
+       Fil-void budaması: filler etkisiz + piyonlar sabitse ana dal P,B atlanır.
+   K5: şahın nihai soundness garantisi — figürler silinip yalnız piyon duvarı
+       kalınca şah karşı şaha ulaşabiliyorsa kilit değildir.
+   Sıra: her kontrol önce SIRASI OLAN tarafta, sonra rakipte aranır.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function makeLockDetector(PA) {
+  const FILES = 'abcdefgh';
+
+  function emptyBoard(){ const b=[]; for(let r=0;r<8;r++) b.push(['','','','','','','','']); return b; }
+  function cloneBoard(b){ return b.map(row=>row.slice()); }
+  function inB(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+  function isWhite(p){ return p && p===p.toUpperCase(); }
+  function isBlack(p){ return p && p===p.toLowerCase(); }
+  function sameSide(p,white){ return p && (isWhite(p)===white); }
+
+  function fenToBoard(fen){
+    const b=emptyBoard();
+    const rows=fen.split(/\s+/)[0].split('/');
+    if(rows.length!==8) return null;
+    for(let r=0;r<8;r++){ let c=0;
+      for(const ch of rows[r]){ if(/\d/.test(ch)) c+=+ch; else { if(c>7) return null; b[r][c]=ch; c++; } }
+      if(c!==8) return null;
+    }
+    return b;
+  }
+  function boardToPlacement(b){
+    const rows=[];
+    for(let r=0;r<8;r++){ let e=0,s='';
+      for(let c=0;c<8;c++){ if(!b[r][c]) e++; else { if(e){s+=e;e=0;} s+=b[r][c]; } }
+      if(e)s+=e; rows.push(s);
+    }
+    return rows.join('/');
+  }
+  function boardToFen(b,white,ep){
+    let epStr='-'; if(ep) epStr=FILES[ep.c]+(8-ep.r);
+    return boardToPlacement(b)+' '+(white?'w':'b')+' - '+epStr+' 0 1';
+  }
+
+  const KNIGHT_D=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+  const KING_D=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const BISHOP_D=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  const ROOK_D=[[-1,0],[1,0],[0,-1],[0,1]];
+  const QUEEN_D=BISHOP_D.concat(ROOK_D);
+
+  function slideMoves(b,r,c,dirs,white){
+    const out=[];
+    for(const [dr,dc] of dirs){ let nr=r+dr,nc=c+dc;
+      while(inB(nr,nc)){ const t=b[nr][nc];
+        if(!t){ out.push({r:nr,c:nc,capture:false}); }
+        else { if(isWhite(t)!==white) out.push({r:nr,c:nc,capture:true}); break; }
+        nr+=dr; nc+=dc;
+      }
+    }
+    return out;
+  }
+  function pawnMoves(b,r,c,white,ep){
+    const out=[];
+    const dir=white?-1:1, startRow=white?6:1, promoRow=white?0:7;
+    const fr=r+dir;
+    if(inB(fr,c) && !b[fr][c]){
+      out.push({r:fr,c,capture:false,promo:fr===promoRow});
+      const fr2=r+2*dir;
+      if(r===startRow && inB(fr2,c) && !b[fr2][c]) out.push({r:fr2,c,capture:false});
+    }
+    for(const dc of [-1,1]){ const nr=r+dir,nc=c+dc;
+      if(!inB(nr,nc)) continue;
+      const t=b[nr][nc];
+      if(t && isWhite(t)!==white) out.push({r:nr,c:nc,capture:true,promo:nr===promoRow});
+      else if(ep && ep.r===nr && ep.c===nc) out.push({r:nr,c:nc,capture:true,ep:true});
+    }
+    return out;
+  }
+  function pieceMoves(b,r,c,ep){
+    const p=b[r][c]; if(!p) return [];
+    const white=isWhite(p), t=p.toUpperCase();
+    switch(t){
+      case 'P': return pawnMoves(b,r,c,white,ep);
+      case 'N': return KNIGHT_D.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>inB(nr,nc)&&!sameSide(b[nr][nc],white)).map(([nr,nc])=>({r:nr,c:nc,capture:!!b[nr][nc]}));
+      case 'K': return KING_D.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>inB(nr,nc)&&!sameSide(b[nr][nc],white)).map(([nr,nc])=>({r:nr,c:nc,capture:!!b[nr][nc]}));
+      case 'B': return slideMoves(b,r,c,BISHOP_D,white);
+      case 'R': return slideMoves(b,r,c,ROOK_D,white);
+      case 'Q': return slideMoves(b,r,c,QUEEN_D,white);
+    }
+    return [];
+  }
+  function attackedByLL(b,r,c,byWhite){
+    for(const [dr,dc] of KNIGHT_D){ const nr=r+dr,nc=c+dc; if(inB(nr,nc)){const t=b[nr][nc]; if(t&&t.toUpperCase()==='N'&&isWhite(t)===byWhite) return true;} }
+    for(const [dr,dc] of KING_D){ const nr=r+dr,nc=c+dc; if(inB(nr,nc)){const t=b[nr][nc]; if(t&&t.toUpperCase()==='K'&&isWhite(t)===byWhite) return true;} }
+    const pr=byWhite?r+1:r-1;
+    for(const dc of [-1,1]){ const nc=c+dc; if(inB(pr,nc)){const t=b[pr][nc]; if(t&&t.toUpperCase()==='P'&&isWhite(t)===byWhite) return true;} }
+    for(const [dr,dc] of BISHOP_D){ let nr=r+dr,nc=c+dc; while(inB(nr,nc)){const t=b[nr][nc]; if(t){ if(isWhite(t)===byWhite&&(t.toUpperCase()==='B'||t.toUpperCase()==='Q')) return true; break;} nr+=dr;nc+=dc;} }
+    for(const [dr,dc] of ROOK_D){ let nr=r+dr,nc=c+dc; while(inB(nr,nc)){const t=b[nr][nc]; if(t){ if(isWhite(t)===byWhite&&(t.toUpperCase()==='R'||t.toUpperCase()==='Q')) return true; break;} nr+=dr;nc+=dc;} }
+    return false;
+  }
+  function findKing(b,white){ const k=white?'K':'k'; for(let r=0;r<8;r++)for(let c=0;c<8;c++) if(b[r][c]===k) return {r,c}; return null; }
+
+  function countMaterial(b){
+    const W={P:0,R:0,N:0,B:0,Q:0,K:0},B={P:0,R:0,N:0,B:0,Q:0,K:0};
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){ const ch=b[r][c]; if(!ch) continue; const up=ch.toUpperCase(); (ch===up?W:B)[up]++; }
+    return {W,B,total:W.P+W.R+W.N+W.B+W.Q+W.K+B.P+B.R+B.N+B.B+B.Q+B.K};
+  }
+  function promotionConsistent(c){
+    if(c.P>8) return false;
+    const extra=Math.max(0,c.R-2)+Math.max(0,c.N-2)+Math.max(0,c.B-2)+Math.max(0,c.Q-1);
+    return extra<=(8-c.P);
+  }
+  function check1(b){
+    const m=countMaterial(b);
+    if(m.total<8||m.total>30) return {ok:false,why:'taş sayısı '+m.total+' (8–30 dışı)'};
+    if(m.W.K!==1||m.B.K!==1) return {ok:false,why:'her tarafta tam 1 şah olmalı'};
+    if(m.W.Q>0||m.B.Q>0) return {ok:false,why:'vezir bulunamaz'};
+    if(m.W.P<3||m.B.P<3) return {ok:false,why:'her taraf en az 3 piyon'};
+    if(!promotionConsistent(m.W)) return {ok:false,why:'beyaz materyal terfi-tutarsız'};
+    if(!promotionConsistent(m.B)) return {ok:false,why:'siyah materyal terfi-tutarsız'};
+    return {ok:true};
+  }
+  // KONTROL 2 — Piyon tuğlası + geometrik budama.
+  //
+  //   Tuğla (yön-duyarlı): aynı sütunda siyah 'p' üstte (satır r), hemen altında
+  //   beyaz 'P' (satır r+1). İkisi de karşı karşıya kilitli — beyaz yukarı, siyah
+  //   aşağı ilerleyemez. Kavuşma satırı = r + 0.5 (r ile temsil edilir).
+  //
+  //   Budamalar (yalnız "kilit değil" yönünde erken karar → soundness-güvenli,
+  //   pahalı K4'e girmeden eler):
+  //     • bricks < 3                → yetersiz.
+  //     • bricks == 3               → sütunlar {a,d,g}|{b,d,g}|{b,e,g}|{b,e,h}
+  //                                   desenlerinden biri DEĞİLSE elenir (aksi halde
+  //                                   duvar tahtayı bölemez, ör. a,c,e → g,h boşluk).
+  //                                   Ayrıca üç kavuşma (r) eşit değilse elenir.
+  //     • bricks >= 4 (çoklu tuğla) → bitişik sütunda (|Δc|=1) ve eşit kavuşmada
+  //                                   (Δr=0) iki tuğla varsa çapraz alım açılır
+  //                                   (P@(r+1,c) ile p@(r,c±1) çapraz komşu) → elenir.
+  function check2(b){
+    const bricks = [];                       // {c, r}  (r = siyahın satırı; kavuşma r+0.5)
+    for(let c=0;c<8;c++) for(let r=0;r<7;r++)
+      if(b[r][c]==='p' && b[r+1][c]==='P') bricks.push({c, r});
+    const n = bricks.length;
+
+    if(n < 3) return {ok:false, bricks:n, why:'3 tuğla yok (bulunan: '+n+')'};
+
+    if(n === 3){
+      // Sütun deseni dört olası dizilimden biri mi? (0=a … 7=h)
+      const cols = bricks.map(x=>x.c).sort((a,b)=>a-b);
+      const key = cols.join(',');
+      const OK3 = new Set(['0,3,6','1,3,6','1,4,6','1,4,7']); // a,d,g | b,d,g | b,e,g | b,e,h
+      if(!OK3.has(key))
+        return {ok:false, bricks:n, why:'3 tuğla geçersiz sütun deseni ('+cols.map(c=>FILES[c]).join(',')+') — duvar tahtayı bölemez'};
+      // Kavuşma eşitliği: üç tuğla aynı r+0.5 hizasında olmalı.
+      const r0 = bricks[0].r;
+      if(!bricks.every(x=>x.r===r0))
+        return {ok:false, bricks:n, why:'3 tuğla kavuşma hizası farklı (r+0.5 eşit değil)'};
+      return {ok:true, bricks:n};
+    }
+
+    // n >= 4: çoklu tuğla — bitişik sütun + eşit kavuşma → çapraz alım → kilit değil.
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      if(Math.abs(bricks[i].c-bricks[j].c)===1 && bricks[i].r===bricks[j].r)
+        return {ok:false, bricks:n, why:'yan yana aynı hizada tuğla ('+FILES[bricks[i].c]+'/'+FILES[bricks[j].c]+' kavuşma '+(bricks[i].r+0.5)+') — çapraz alım'};
+    }
+    return {ok:true, bricks:n};
+  }
+  function knightRookHasMove(b,white){
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){ const p=b[r][c];
+      if(!p||isWhite(p)!==white) continue;
+      const t=p.toUpperCase();
+      if(t==='N'||t==='R'){ if(pieceMoves(b,r,c,null).length>0) return true; }
+    }
+    return false;
+  }
+
+  // KONTROL 3 — FİL ERKEN-KIRICISI (geometrik budama).
+  //
+  //   Eşik piyonları = tuğla oluşturan piyonlar (bitişik p/P çiftleri).
+  //   Fil yalnız KENDİ renginde gezer/alır ve KENDİ piyonunu alamaz.
+  //
+  //   Bir fil ETKİSİZDİR (kilit olma ihtimali sürer → arama devam) eğer:
+  //     • filin renginde KENDİ eşik piyonu varsa (o piyona dokunamaz), VEYA
+  //     • RAKİP eşik piyonları filden FARKLI renkteyse (o piyonlara asla erişemez).
+  //
+  //   Kilit KIRILIR (kilit değil) eğer bunun TERSİ olursa, yani:
+  //     • RAKİP eşik piyonu fille AYNI renkte (fil onu alabilir), VE
+  //     • o filin locked-legalite geometrik hamlesi > 0 (fil hareketli).
+  //
+  //   Yalnız "kilit değil" yönünde erken karar → soundness-güvenli. Nadir "renk
+  //   uyuşur ama fil yol tıkalı" durumları K4 tam taraması yakalar.
+  function bishopEarlyBreak(b){
+    // Eşik piyonları: HER SÜTUNDA tuğla varsa (hem siyah hem beyaz piyon mevcut),
+    // o sütunun EN İLERİ beyazı (r en küçük) ve EN İLERİ siyahı (r en büyük).
+    // Birikme olsa bile fil yalnız bu dış piyonları görür. Maskeler: bit0=light,1=dark.
+    let whitePawnMask = 0, blackPawnMask = 0;
+    for(let c=0;c<8;c++){
+      let mostAdvBlack = -1, mostAdvWhite = 8;
+      let hasBlack = false, hasWhite = false;
+      for(let r=0;r<8;r++){
+        if(b[r][c]==='p'){ hasBlack = true; if(r > mostAdvBlack) mostAdvBlack = r; }  // siyah ileri = büyük r
+        else if(b[r][c]==='P'){ hasWhite = true; if(r < mostAdvWhite) mostAdvWhite = r; } // beyaz ileri = küçük r
+      }
+      if(hasBlack && hasWhite){                        // sütunda tuğla (karşı karşıya piyon) var
+        blackPawnMask |= (1 << ((mostAdvBlack + c) & 1));
+        whitePawnMask |= (1 << ((mostAdvWhite + c) & 1));
+      }
+    }
+    if((whitePawnMask | blackPawnMask) === 0) return null;  // eşik piyonu yok
+
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const p = b[r][c];
+      if(p !== 'B' && p !== 'b') continue;
+      const bishopColorBit = 1 << ((r + c) & 1);
+      const oppMask = (p === 'B') ? blackPawnMask : whitePawnMask;  // RAKİP eşik piyonları
+      if(!(oppMask & bishopColorBit)) continue;        // rakip eşik piyonu filin renginde değil → etkisiz
+      if(pieceMoves(b, r, c, null).length > 0)         // fil hareketli mi
+        return { r, c, white: (p === 'B') };
+    }
+    return null;
+  }
+
+  // FİL-VOID BUDAMASI (K4 hızlandırma).
+  //   Koşul: (a) İKİ tarafın da TÜM filleri, kendi renginde HİÇBİR rakip taşa (piyon,
+  //   fil, at, kale) sahip değil → alacak hiçbir şey yok → hiçbir alım-kırıcısı üretemez
+  //   VE (b) İKİ tarafın da TÜM piyonları locked-legalite'de hareketsiz (0 hamle).
+  //   Sağlanırsa K4 ana dal 1 (P) ve 2 (B) atlanır; ana dal 3 (K) yine çalışır.
+  //   Yalnız gereksiz tekrarı eler; completeness ve soundness korunur.
+  //
+  //   NOT: Filin renginde rakip taş yoksa fil hiçbir alım yapamaz; mat da veremez
+  //   (fil şaha ancak kendi renginden bir kareden şah çeker, ama karşı şah da o an
+  //   fil-renginde değilse zaten şah yok; şah dalı K bu ince durumu yine sınar).
+  function bishopsFullyVoid(b){
+    // (a) Her fil için: filin renginde rakip taş var mı? Varsa void değil.
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const p = b[r][c];
+      if(p !== 'B' && p !== 'b') continue;
+      const bishopColor = (r + c) & 1;
+      const bishopWhite = (p === 'B');
+      // filin renginde herhangi bir rakip taş (piyon dahil) ara
+      for(let rr=0;rr<8;rr++) for(let cc=0;cc<8;cc++){
+        if(((rr + cc) & 1) !== bishopColor) continue;   // sadece fil rengindeki kareler
+        const q = b[rr][cc];
+        if(!q) continue;
+        const qWhite = (q === q.toUpperCase());
+        if(qWhite !== bishopWhite) return false;          // fil renginde rakip taş → void değil
+      }
+    }
+    // (b) Her piyon (iki taraf) locked-legalite'de hareketsiz mi?
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const p = b[r][c];
+      if(p !== 'P' && p !== 'p') continue;
+      if(pieceMoves(b, r, c, null).length > 0) return false;
+    }
+    return true;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // KİLİT-KIRICI TESTLERİ (locked-legalite tabanlı, belirli board üstünde)
+  // ─────────────────────────────────────────────────────────────────────
+
+  // At/kale HERHANGI bir tarafta hareketli mi?
+  function anyKnightRookMobile(b) {
+    return knightRookHasMove(b, true) || knightRookHasMove(b, false);
+  }
+
+  // (r,c) karesi byWhite PİYONU tarafından tehdit ediliyor mu?
+  function pawnAttacksSquare(b, r, c, byWhite) {
+    const pr = byWhite ? r+1 : r-1;
+    for (const dc of [-1,1]) { const nc=c+dc; if(inB(pr,nc)){ const t=b[pr][nc]; if(t&&t.toUpperCase()==='P'&&isWhite(t)===byWhite) return true; } }
+    return false;
+  }
+
+  // Fil şah çekiyor: gerçek satranç kurallarıyla mat mı? (algoritma↔gerçek köprü)
+  //
+  // Fil (fr,fc)'den karşı şahın karesine (tr,tc) "capture" hamlesi üretilmiştir —
+  // bu gerçekte şahı ALMAK değil, ŞAH ÇEKMEKTİR (fil şaha bakıyor). Doğru test:
+  // fil kaynağında (fr,fc) DURURKEN, karşı taraf sıradayken şah çekiliyor mu ve
+  // hiç yasal hamlesi yok mu (= mat)? Fili şahın karesine koymayız (o şahı silerdi
+  // ve geçersiz pozisyon üretirdi).
+  //
+  // Belirsizlik (pozisyon motorca geçersiz) → true (kilit değil = kilidi kırar).
+  function bishopCheckIsMate(b, fr, fc, tr, tc, white) {
+    // Şah ana düğüm simülasyonunda karşı şah SİLİNMİŞ olabilir. Şahsız bir board'da
+    // "mat" kavramı yoktur; bu bir locked-legalite artefaktıdır, gerçek mat değil.
+    // (Fil şah-çekme-mat kırıcısı zaten FİL ana düğümde, şahlar yerindeyken doğru
+    //  taranır.) Şahsızsa bu dal kırıcı değildir.
+    if (!findKing(b, true) || !findKing(b, false)) return false;
+    // Fil zaten (fr,fc)'de ve karşı şaha bakıyor. Sırayı karşı tarafa ver.
+    const fen = boardToFen(b, !white, null);
+    const p = PA.createPosition();
+    const r = p.loadFen(fen);
+    if (!r.ok) return true;                   // geçersiz → belirsizlik → kilidi kırar
+    if (!p.inCheck()) return false;           // aslında şah çekmiyormuş → mat değil
+    return p.legalMoves().length === 0;       // gerçek mat mı?
+  }
+
+  const MAX_NODES = 200000;   // ana ve alt yayılım için güvenlik tavanı
+
+  // ── ALT-YAYILIM: bir taş türü (P veya B), verilen board'da, DİĞER taşlar sabit
+  //    iken, çok-adımlı locked-legalite hareketiyle bir KİLİT-KIRICI açabiliyor mu?
+  //    (Bu, (b) tipi dallanmanın "iç dal"ıdır — piyon terfiye ilerleyebilir,
+  //     fil gezip taş yiyebilir.)
+  //
+  //    kind: 'P' | 'B',  moverWhite: hangi renk bu taşı oynatıyor
+  //    Döner: true = kırıcı açıldı.
+  function subSpreadBreaks(board0, kind, moverWhite, epRoot) {
+    const seen = new Set();
+    const key = (b)=>boardToPlacement(b);
+    // Stack: [board, epSq]. Ep hakkı YALNIZ kök düğümde geçerlidir (bir hamle sonrası
+    // kaybolur), o yüzden yalnız kök board'a epRoot bağlanır; türetilenlere null.
+    let stack = [[cloneBoard(board0), epRoot||null]];
+    seen.add(key(board0));
+    let nodes = 0;
+
+    while (stack.length) {
+      if (++nodes > MAX_NODES) return true;   // tavan → belirsizlik → kırıcı say
+      const [b, epSq] = stack.pop();
+
+      // Bu board'da bu taş türünün bir KIRICI hamlesi var mı? + at/kale legalitesi?
+      if (anyKnightRookMobile(b)) return true;
+
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++){
+        const p=b[r][c];
+        if(!p || p.toUpperCase()!==kind || isWhite(p)!==moverWhite) continue;
+        const moves = (kind==='P') ? pawnMoves(b,r,c,moverWhite,epSq) : slideMoves(b,r,c,BISHOP_D,moverWhite);
+        for (const mv of moves) {
+          if (kind==='P') {
+            if (mv.promo) return true;                       // terfi → kırıcı
+            if (mv.ep) return true;                          // en passant (sütun-değiştiren alım) → kırıcı
+            if (mv.capture && mv.c!==c) return true;         // çapraz alım → kırıcı
+            // düz ilerleme (geri-alınabilir): yeni node (ep hakkı düşer → null)
+            if (!mv.capture) {
+              const nb=cloneBoard(b); nb[mv.r][mv.c]=nb[r][c]; nb[r][c]='';
+              const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);}
+            }
+          } else { // fil
+            if (mv.capture) {
+              const target=b[mv.r][mv.c];
+              const oppKing = moverWhite ? 'k' : 'K';
+              if (target!==oppKing) return true;             // taş yer → kırıcı
+              if (bishopCheckIsMate(b,r,c,mv.r,mv.c,moverWhite)) return true; // şah çek+mat
+              // karşı şaha değme ama mat değil → o hamleye gidilmez (önemsiz)
+            } else {
+              // boş kareye kayma (geri-alınabilir): yeni node
+              const nb=cloneBoard(b); nb[mv.r][mv.c]=nb[r][c]; nb[r][c]='';
+              const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);}
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // ── Bir board'da, verilen (ana taş dışı) İKİ taş türü için alt-yayılım kırıcı arar.
+  //    otherKinds: ['P','B'] gibi — ana taş hangisiyse o hariç.
+  function otherPiecesBreak(b, otherKinds) {
+    for (const kind of otherKinds) {
+      // her iki renk için (piyon/fil iki tarafta da olabilir)
+      if (subSpreadBreaks(b, kind, true))  return true;
+      if (subSpreadBreaks(b, kind, false)) return true;
+    }
+    return false;
+  }
+
+  // ── ANA YAYILIM: ana taş çok-adımlı yayılır; HER node'da diğer iki taşın
+  //    alt-yayılımı (otherPiecesBreak) çağrılır.
+  //
+  //    moverKind: 'P' | 'B' | 'K'.  Şah ana düğümse karşı şah SİLİNİR ve şah
+  //    karşı PİYON tehdidine takılır (fil/şah tehdidi yok sayılır).
+  //    Şah alımla da ilerler (kırıcı değil); alımda ziyaret sıfırlanır.
+  //    Piyon/fil ana düğümde sadece geri-alınabilir hamlelerle gezer (kırıcı
+  //    hamleler zaten alt-yayılım/boardHasBreaker'da yakalanır).
+  function mainSpread(board0, moverKind, moverWhite, epSq, epWhite) {
+    let b0 = cloneBoard(board0);
+    if (moverKind === 'K') {
+      const ok = findKing(b0, !moverWhite);
+      if (ok) b0[ok.r][ok.c] = '';
+    }
+    const otherKinds = moverKind==='K' ? ['P','B'] : moverKind==='P' ? ['B'] : ['P'];
+    // NOT: ana taş ne olursa olsun, HER node'da anyBreakerFull(b) çağrılır (ana-taş
+    // hariç türler + o türün diğer örnekleri + at/kale). Ep hakkı yalnız KÖK düğümde
+    // geçerli (bir hamle sonrası düşer), o yüzden ep yalnız stack'teki kök board'a bağlanır.
+
+    const seen = new Set();
+    const key = (b)=>boardToPlacement(b);
+    let stack = [[b0, epSq||null]];         // [board, epSq]; kök ep taşır, türetilenler null
+    seen.add(key(b0));
+    let nodes = 0;
+
+    while (stack.length) {
+      if (++nodes > MAX_NODES) return true;
+      const [b, ep] = stack.pop();
+
+      // HER node'da: tüm kilit-kırıcılar. Ep yalnız kök düğümde (ep!=null) devrede.
+      if (anyBreakerFull(b, ep, epWhite)) return true;
+
+      // Ana taşı bir adım gezdir
+      if (moverKind === 'K') {
+        const k = findKing(b, moverWhite);
+        if (!k) continue;
+        for (const [dr,dc] of KING_D) {
+          const nr=k.r+dr, nc=k.c+dc;
+          if(!inB(nr,nc)) continue;
+          if(sameSide(b[nr][nc],moverWhite)) continue;
+          if(pawnAttacksSquare(b,nr,nc,!moverWhite)) continue;   // karşı piyon tehdidi
+          const cap = !!b[nr][nc];
+          const nb=cloneBoard(b); nb[nr][nc]=nb[k.r][k.c]; nb[k.r][k.c]='';
+          if (cap) { seen.clear(); const nk=key(nb); seen.add(nk); stack=[[nb,null]]; break; }
+          else { const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);} }
+        }
+      } else {
+        const kind = moverKind;
+        for (let r=0;r<8;r++) for (let c=0;c<8;c++){
+          const p=b[r][c];
+          if(!p || p.toUpperCase()!==kind || isWhite(p)!==moverWhite) continue;
+          const moves = (kind==='P') ? pawnMoves(b,r,c,moverWhite,null) : slideMoves(b,r,c,BISHOP_D,moverWhite);
+          for (const mv of moves) {
+            if (mv.capture || mv.promo) continue;   // kırıcılar anyBreakerFull'da
+            const nb=cloneBoard(b); nb[mv.r][mv.c]=nb[r][c]; nb[r][c]='';
+            const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);}
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // ── Bir board'da TÜM kilit-kırıcılar var mı? (at/kale + piyon + fil alt-yayılım)
+  //    Bu, her ana-node'da çağrılır. Piyon ve fil çok-adımlı alt-yayılımla aranır.
+  function anyBreakerFull(b, epSq, epWhite) {
+    if (anyKnightRookMobile(b)) return true;
+    // Ep hakkı yalnız SIRASI OLAN tarafındır → yalnız o tarafın piyon taramasına geçir.
+    if (subSpreadBreaks(b, 'P', true,  epWhite===true  ? epSq : null)) return true;
+    if (subSpreadBreaks(b, 'P', false, epWhite===false ? epSq : null)) return true;
+    if (subSpreadBreaks(b, 'B', true))  return true;
+    if (subSpreadBreaks(b, 'B', false)) return true;
+    return false;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // KONTROL 5 — ŞAHIN NİHAİ SOUNDNESS GARANTİSİ
+  //
+  //   Tahtadaki TÜM PİYONLAR hariç TÜM TAŞLAR silinir: her iki tarafın da
+  //   şah/fil/at/kalesi kaldırılır; her iki tarafın PİYONLARI (duvar) durur.
+  //   Geriye yalnızca piyonlar + sanal olarak konumlandırılan hareket eden şah
+  //   kalır. Test edilen şah:
+  //     • karşı piyonların TEHDİT ettiği karelere giremez (duvar),
+  //     • KENDİ piyonlarının bulunduğu karelere giremez (kendi duvarı),
+  //     • karşı piyonların bulunduğu karelere de giremez (dolu),
+  //   ve KARŞI ŞAHIN (orijinal) karesine ulaşabiliyor mu?  Ulaşabiliyorsa
+  //   → kilit DEĞİL. Sırayla iki şah için de bakılır.
+  //
+  //   Soundness: şaha karşı-figür engeli olmadan (yalnız piyon duvarları) hareket
+  //   serbestliği verilir; en iyi ihtimalde bile karşıya geçemiyorsa gerçek oyunda
+  //   da geçemez → yalnız ek bir GEREKLİLİK koşuludur (yanlış-pozitif üretmez).
+  //
+  //   Döner: true = karşı şahın karesine ulaştı (KIRICI). false = ulaşamadı.
+  function kingReachesOpponent(board0, moverWhite) {
+    const myK = findKing(board0, moverWhite);
+    const opK = findKing(board0, !moverWhite);
+    if (!myK || !opK) return true;            // belirsizlik → güvenli tarafa (kırıcı)
+    const target = opK.r + ',' + opK.c;
+
+    // TÜM piyonları bırak (iki taraf da), figürleri sil.
+    const b = emptyBoard();
+    for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+      const ch = board0[r][c];
+      if (ch === 'P' || ch === 'p') b[r][c] = ch;   // yalnız piyonlar durur
+    }
+
+    // BFS: şah myK'dan başlar; boş + iki-taraf-piyon-tehditsiz + dolu-olmayan
+    // karelere yayılır. Hedef karşı şahın karesi.
+    const seen = new Set();
+    let frontier = [[myK.r, myK.c]];
+    seen.add(myK.r + ',' + myK.c);
+    let nodes = 0;
+
+    while (frontier.length) {
+      const next = [];
+      for (const [r,c] of frontier) {
+        if (++nodes > MAX_NODES) return true;   // tavan → belirsizlik → kırıcı
+        for (const [dr,dc] of KING_D) {
+          const nr=r+dr, nc=c+dc;
+          if (!inB(nr,nc)) continue;
+          const kk = nr + ',' + nc;
+          if (seen.has(kk)) continue;
+          if (kk === target) return true;        // karşı şahın karesine ulaştı → kırıcı
+          if (b[nr][nc]) continue;               // dolu (herhangi bir piyon) → giremez
+          // karşı piyon tehdidi (duvar):
+          if (pawnAttacksSquare(b, nr, nc, !moverWhite)) continue;
+          seen.add(kk);
+          next.push([nr,nc]);
+        }
+      }
+      frontier = next;
+    }
+    return false;                                // karşıya hiç ulaşamadı → kilit lehine
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // TAM KİLİT TESPİTİ
+  // ─────────────────────────────────────────────────────────────────────
+  function isLocked(fen) {
+    const p = PA.createPosition();
+    const r = p.loadFen(fen);
+    if (!r.ok) return { locked:false, reason:'Geçersiz FEN: '+(r.error||'') };
+    const b = fenToBoard(p.getFen());
+    if (!b) return { locked:false, reason:'tahta ayrıştırılamadı' };
+
+    const k1 = check1(b);
+    if (!k1.ok) return { locked:false, reason:'K1 — '+k1.why };
+    const k2 = check2(b);
+    if (!k2.ok) return { locked:false, reason:'K2 — '+k2.why };
+
+    // Sıra düzeni: ilk hamleyi SIRASI OLAN taraf yapar; kırıcı önce onda aranır,
+    // sonra rakipte. (Kilit sonucu sıradan bağımsızdır ama doğru sıra + doğru
+    // gerekçe için: sideToMove önce.) side[0]=sıradaki, side[1]=rakip.
+    const stm = p.turnWhite();
+    const sides = [stm, !stm];
+    const nm = (w)=> w ? 'beyaz' : 'siyah';
+
+    // K3: at/kale hareketsiz (iki taraf) + fil erken-kırıcısı
+    for (const w of sides)
+      if (knightRookHasMove(b, w)) return { locked:false, reason:'K3 — '+nm(w)+' at/kale hareketli' };
+    const bEB = bishopEarlyBreak(b);
+    if (bEB) return { locked:false, reason:'K3 — '+nm(bEB.white)+' fil ('+FILES[bEB.c]+(8-bEB.r)+') eşik piyonuyla aynı renkte ve hareketli' };
+
+    // En passant: motorun ep karesi (p.ep) K4 KÖK düğümüne geçirilir; orada piyon
+    // çapraz-alım taraması ep alımını (mv.ep) kırıcı olarak yakalar. Ep hakkı yalnız
+    // sırası olan taraftadır (epWhite). Ayrı ep bloğuna gerek yok — doğal akışta.
+    const epSq = (p.ep !== -1) ? { r: (p.ep >> 4), c: (p.ep & 7) } : null;
+    const epWhite = stm;
+
+    // K4: üç ana düğüm × iki taraf (sıradaki önce). Fil-void ise ana dal 1 (P) ve
+    // 2 (B) atlanır, yalnız ana dal 3 (K) çalışır (gereksiz fil boyamasını eler).
+    const nodes = bishopsFullyVoid(b) ? ['K'] : ['P','B','K'];
+    for (const kind of nodes)
+      for (const w of sides)
+        if (mainSpread(b, kind, w, epSq, epWhite)) return { locked:false, reason:'K4 — '+nm(w)+' '+kind+' ana düğümünde kilit-kırıcı' };
+    // K5: şahın nihai soundness garantisi — sıradaki taraf önce, sonra rakip.
+    for (const w of sides)
+      if (kingReachesOpponent(b, w)) return { locked:false, reason:'K5 — '+nm(w)+' şah karşı şaha ulaşabiliyor' };
+
+    return { locked:true, reason:'K1–K5 geçti — MUTLAK KİLİT' };
+  }
+
+  return {
+    emptyBoard,cloneBoard,inB,isWhite,isBlack,sameSide,
+    fenToBoard,boardToPlacement,boardToFen,
+    pieceMoves,pawnMoves,slideMoves,attackedByLL,findKing,
+    countMaterial,promotionConsistent,check1,check2,knightRookHasMove,bishopEarlyBreak,bishopsFullyVoid,
+    anyKnightRookMobile,pawnAttacksSquare,bishopCheckIsMate,
+    subSpreadBreaks,otherPiecesBreak,anyBreakerFull,mainSpread,kingReachesOpponent,isLocked,
+    KNIGHT_D,KING_D,BISHOP_D,ROOK_D,QUEEN_D,FILES,
+  };
+}
+</script>
+  <script id="src-flag">
+/* ═══════════════════════════════════════════════════════════════════════
+   BAYRAK DÜŞMESİ SINIFLANDIRICISI — üç yaklaşım ortak EVRENSEL KATMANI paylaşır.
+   Bu blok hem arayüz hem indirilebilir motor tarafından KULLANILIR (tek kaynak).
+
+   makeFlagClassifier(PA) → { universalFlagLayer, classifyFideFlag,
+     classifyUscfFlag, classifyOursFlag, loserPawnFiles, bishopColorState }
+
+   Bayrağı düşen (süresi biten) = loser. Rakip (süresi bitmeyen) = winner.
+   win/lose objeleri: p.material(byWhite) çıktısıdır (pawns,rooks,queens,knights,
+   lightB,darkB,bishops,...).
+
+   Kod sırası: (1) EVRENSEL KATMAN — mutlak berabereler + hızlı kazanç hunisi +
+   geometrik kesin berabereler → 'draw'|'win'|'undecided'. (2) YAKLAŞIM: undecided
+   kalanı FIDE helper-mate geometrisiyle (aramasız), USCF/karma forced-mate
+   araması gerektiren 'search' ile çözer.
+   ═══════════════════════════════════════════════════════════════════════ */
+function makeFlagClassifier(PA){
+
+  // Sahadaki (iki taraf birlikte) fil renk durumları — fil-rengi kuralı için ortak.
+  function bishopColorState(win, lose){
+    var anyLight = (win.lightB>0) || (lose.lightB>0);
+    var anyDark  = (win.darkB>0)  || (lose.darkB>0);
+    return { anyLight:anyLight, anyDark:anyDark, oppositeExist: anyLight && anyDark };
+  }
+
+  /* EVRENSEL KATMAN — 'draw' | 'win' | 'undecided'.
+     'undecided' = winner materyali belirsiz sınıfta (tek at / tek renk fil / iki at). */
+  function universalFlagLayer(win, lose){
+    var winMinor = win.pawns+win.rooks+win.queens+win.knights+win.bishops;
+    // Rakip çıplak kral → berabere (evrensel; loser'ın taşına bakılmaz).
+    if(winMinor === 0) return 'draw';
+    // HIZLI KAZANÇ HUNİSİ — rakipte kesin mat materyali: Q/R/P/(N+B)/(zıt renk B+B).
+    if(win.queens>0 || win.rooks>0 || win.pawns>0) return 'win';
+    if(win.knights>0 && win.bishops>0) return 'win';               // N+B → mat
+    if(win.bishops>0 && win.lightB>0 && win.darkB>0) return 'win';  // rakipte zıt renk çift → mat
+    var bc = bishopColorState(win, lose);
+    // Rakipte yalnızca tek-renk fil(ler):
+    if(win.bishops>0 && win.knights===0){
+      if(bc.oppositeExist) return 'win';         // sahada iki renk fil → mat açılır
+      if(lose.pawns>0 || lose.knights>0) return 'undecided';
+      return 'draw';                             // loser'da yalnız Q/R (+aynı renk fil) → berabere
+    }
+    // Rakipte yalnızca tek at:
+    if(win.knights===1 && win.bishops===0){
+      if(lose.pawns>0 || lose.rooks>0 || lose.bishops>0 || lose.knights>0) return 'undecided';
+      return 'draw';                             // loser'da yalnız Q → berabere
+    }
+    // Rakipte iki+ at (fil yok): iki at sınıfı → belirsiz.
+    if(win.knights>=2 && win.bishops===0) return 'undecided';
+    return 'undecided';
+  }
+
+  /* a) FIDE — helper mate, ARAMA YOK. undecided'e ancak loser'ın "yardımcı"
+     materyali varken düşülür; hepsi helper-mate ile kazançtır. */
+  function classifyFideFlag(win, lose){
+    var u = universalFlagLayer(win, lose);
+    if(u !== 'undecided') return u;
+    return 'win';
+  }
+
+  /* b) USCF — forced mate. iki at + loser'da PİYON → doğrudan kazanç; aksi halde
+     (piyonsuz iki at / tek at / tek renk fil) → 'search' (çağıran forcedMateDepth). */
+  function classifyUscfFlag(win, lose){
+    var u = universalFlagLayer(win, lose);
+    if(u !== 'undecided') return u;
+    if(win.knights>=2 && win.bishops===0){
+      if(lose.pawns>0) return 'win';    // piyon var → doğrudan kazanç
+      return 'search';                  // piyonsuz → arama
+    }
+    return 'search';                    // tek at / tek renk fil → arama
+  }
+
+  // Loser'ın piyonlarının bulunduğu SÜTUN kümesini FEN satırlarından çıkar.
+  function loserPawnFiles(rows, loserIsWhite){
+    var files = {};
+    var target = loserIsWhite ? 'P' : 'p';
+    for(var r=0;r<8;r++) for(var c=0;c<8;c++)
+      if(rows[r][c]===target) files[c]=true;
+    return Object.keys(files).length;   // farklı sütun sayısı
+  }
+
+  /* c) BİZİM KARMA — forced mate. iki at + loser'da SADECE piyon(lar) ve hepsi
+     TEK SÜTUNDA → doğrudan kazanç; aksi halde → 'search'. rows gerekir. */
+  function classifyOursFlag(win, lose, rows, loserIsWhite){
+    var u = universalFlagLayer(win, lose);
+    if(u !== 'undecided') return u;
+    if(win.knights>=2 && win.bishops===0){
+      var loserOnlyPawns = (lose.rooks===0 && lose.queens===0 && lose.knights===0 && lose.bishops===0);
+      if(lose.pawns>0 && loserOnlyPawns){
+        if(loserPawnFiles(rows, loserIsWhite) === 1) return 'win';  // tek sütun → doğrudan kazanç
+      }
+      return 'search';                  // diğer tüm iki at → arama
+    }
+    return 'search';                    // tek at / tek renk fil → arama
+  }
+
+  return {
+    bishopColorState: bishopColorState,
+    universalFlagLayer: universalFlagLayer,
+    classifyFideFlag: classifyFideFlag,
+    classifyUscfFlag: classifyUscfFlag,
+    classifyOursFlag: classifyOursFlag,
+    loserPawnFiles: loserPawnFiles
+  };
+}
+</script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   İNDİRİLEBİLİR MOTOR ÜRETİCİSİ
+   buildEngineSource(cfg) → yapılandırılmış, bağımsız çalışan bir .js
+   motor kaynağı döndürür. Kaynak koddaki PA ve makeLockDetector,
+   bu sayfadakiyle BİREBİR aynıdır (aşağıda __PA_SRC__/__LOCK_SRC__).
+   Kod sayfada sergilenmez; yalnızca indirilir.
+   ══════════════════════════════════════════════════════════════════ */
+function buildEngineSource(cfg){
+  // cfg alanları: claim(bool 50/3 iddia), hardCap(bool 75/5 otomatik),
+  //   resignIsFlag(bool), mate('helper'|'forced'), depth(int 1-10), lock(bool).
+  const mateHelper = cfg.mate === 'helper';
+  const HEADER =
+`/* Perfect Arbiter — yapılandırılmış hakem motoru
+   Üretim yapılandırması:
+     • 50 hamle / 3 tekrar (iddia)      : ${cfg.claim ? 'AÇIK' : 'kapalı'}
+     • 75 hamle / 5 tekrar (otomatik)   : ${cfg.hardCap ? 'AÇIK' : 'kapalı'}
+     • Resign bayrak düşmesi sayılır    : ${cfg.resignIsFlag ? 'EVET' : 'hayır'}
+     • Bayrak düşmesi mat ölçütü        : ${mateHelper ? 'helper mate (saf geometri)' : 'forced mate (derinlik '+cfg.depth+')'}
+     • Kilitli pozisyon tespiti         : ${cfg.lock ? 'DAHİL' : 'hariç'}
+
+   Kullanım (Node veya tarayıcı):
+     const A = Arbiter();
+     A.adjudicate(fen, repCount);       // → { over, result, reason }
+     A.flagFall(fen, whiteLostOnTime);  // → { result, reason }
+     A.resign(fen, whiteResigns);       // → { result, reason }  (resign hükmü)
+     ${cfg.lock ? 'A.isLocked(fen);                   // → { locked, reason }' : ''}
+*/
+`;
+
+  const CONFIG =
+`
+var ARBITER_CONFIG = {
+  claimDraw: ${cfg.claim ? '{ moves: 50, reps: 3 }' : 'null'},   // ${cfg.claim ? 'iddia üzerine berabere' : 'kapalı (iddiayla bitmez)'}
+  autoDraw:  ${cfg.hardCap ? '{ moves: 75, reps: 5 }' : 'null'},   // ${cfg.hardCap ? 'otomatik tavan' : 'kapalı'}
+  resignIsFlag: ${cfg.resignIsFlag ? 'true' : 'false'},   // resign, bayrak düşmesi gibi mi hükümlenir
+  mateSolver: '${mateHelper ? 'helper' : 'forced'}',   // helper=saf geometri, forced=arama
+  mateDepth: ${cfg.depth},
+  lockDetection: ${cfg.lock ? 'true' : 'false'}
+};
+`;
+
+  const WRAPPER =
+`
+/* ── Hakem sarmalayıcı: seçili kuralları çekirdeğe bağlar ── */
+function Arbiter(){
+  var CFG = ARBITER_CONFIG;
+  var FLAGC = makeFlagClassifier(PA);
+  ${cfg.lock ? 'var LOCK = makeLockDetector(PA);' : ''}
+
+  // FEN → 8x8 satır dizisi (karma sınıflandırıcının piyon-sütun testi için).
+  function fenRows(fen){
+    var rows = fen.split(/\\s+/)[0].split('/'); var out = [];
+    for(var r=0;r<8;r++){ var line=[]; var c=0;
+      var row = rows[r]||'';
+      for(var k=0;k<row.length;k++){ var ch=row[k];
+        if(ch>='1'&&ch<='9'){ c+=parseInt(ch,10); } else { line[c++]=ch; } }
+      while(line.length<8) line.push(undefined); out.push(line);
+    }
+    return out;
+  }
+
+  /* Bayrak/resign hükmü çekirdeği. loserIsWhite = süresi biten (veya terk eden) taraf.
+     Mat ölçütü CFG.mateSolver'a göre: helper (saf geometri) ya da forced (arama). */
+  function flagVerdict(fen, loserIsWhite){
+    var p = PA.createPosition();
+    var r = p.loadFen(fen);
+    if(!r.ok) return { result:'invalid', reason:(r.error||'Geçersiz FEN') };
+    var win = p.material(!loserIsWhite), lose = p.material(loserIsWhite);
+    var verdict, reason;
+
+    if(CFG.mateSolver === 'helper'){
+      // FIDE tarzı — saf geometri, arama yok.
+      verdict = FLAGC.classifyFideFlag(win, lose);          // 'win' | 'draw'
+      reason = (verdict==='draw') ? 'helper mat imkânsız (geometrik kesin)'
+                                  : 'helper mat mümkün (geometrik kesin)';
+    } else {
+      // forced — evrensel katman + karma iki-at (tek sütun piyon) kuralı + arama.
+      var c = FLAGC.classifyOursFlag(win, lose, fenRows(fen), loserIsWhite); // 'win'|'draw'|'search'
+      if(c === 'search'){
+        var d = p.forcedMateDepth(!loserIsWhite, CFG.mateDepth);
+        verdict = d>0 ? 'win' : 'draw';
+        reason = d>0 ? ('forced mate '+d+' yarım hamlede')
+                     : ('derinlik '+CFG.mateDepth+' içinde forced mate yok');
+      } else {
+        verdict = c;
+        reason = (verdict==='draw') ? 'yetersiz materyal (geometrik kesin)'
+                                    : 'kesin mat materyali';
+      }
+    }
+    if(verdict==='draw') return { result:'draw', reason:reason };
+    return { result: (loserIsWhite?'black':'white')+'_wins', reason:reason };
+  }
+
+  // Bayrak düşmesi (süre bitimi).
+  function flagFall(fen, whiteLostOnTime){ return flagVerdict(fen, whiteLostOnTime); }
+
+  // Resign (terk). resignIsFlag açıksa bayrak düşmesi gibi hükümlenir (rakip mat
+  // kuramıyorsa berabere); kapalıysa terk eden doğrudan kaybeder.
+  function resign(fen, whiteResigns){
+    if(!CFG.resignIsFlag) return { result:(whiteResigns?'black':'white')+'_wins', reason:'terk (resign — doğrudan kayıp)' };
+    var v = flagVerdict(fen, whiteResigns);
+    if(v.result==='draw') return { result:'draw', reason:'terk ama rakip mat kuramıyor — berabere' };
+    return v;
+  }
+
+  // Tam pozisyon hükmü. Beraberlik kontrolleri UCUZDAN PAHALIYA; kilit EN SONA.
+  //   sıra: mat/pat → ölü materyal → 75/50 hamle → 5/3 tekrar${cfg.lock ? ' → kilit' : ''}
+  function adjudicate(fen, repCount){
+    var p = PA.createPosition();
+    var r = p.loadFen(fen);
+    if(!r.ok) return { over:false, result:'invalid', reason:(r.error||'Geçersiz FEN') };
+
+    // 1) Mat / Pat
+    var moves = p.legalMoves();
+    if(moves.length===0){
+      if(p.inCheck()) return { over:true, result:(p.turnWhite()?'black_wins':'white_wins'), reason:'mat' };
+      return { over:true, result:'draw', reason:'pat' };
+    }
+    // 2) Ölü materyal
+    if(p.deadMaterial()) return { over:true, result:'draw', reason:'ölü pozisyon' };
+    // 3) Hamle kuralı — önce otomatik (75), sonra iddia (50).
+    var parts = fen.trim().split(/\\s+/);
+    var half = parseInt(parts[4]||'0',10)||0;
+    if(CFG.autoDraw && half >= CFG.autoDraw.moves*2)
+      return { over:true, result:'draw', reason:CFG.autoDraw.moves+' hamle kuralı (otomatik)' };
+    if(CFG.claimDraw && half >= CFG.claimDraw.moves*2)
+      return { over:false, result:'draw_claimable', reason:CFG.claimDraw.moves+' hamle iddia edilebilir' };
+    // 4) Tekrar — geçmiş sayaç verildiyse. Önce otomatik (5), sonra iddia (3).
+    if(typeof repCount === 'number'){
+      if(CFG.autoDraw && repCount >= CFG.autoDraw.reps)
+        return { over:true, result:'draw', reason:CFG.autoDraw.reps+' kez tekrar (otomatik)' };
+      if(CFG.claimDraw && repCount >= CFG.claimDraw.reps)
+        return { over:false, result:'draw_claimable', reason:CFG.claimDraw.reps+' kez tekrar iddia edilebilir' };
+    }${cfg.lock ? `
+    // 5) Kilitli pozisyon — EN PAHALI, en sona. Yalnız geri-dönülemez bir hamleden
+    //    (alım/piyon sürme = halfmove 0) hemen sonra oluşabilir → yalnız o an hesapla.
+    if(CFG.lockDetection && half === 0){
+      var lk = LOCK.isLocked(fen);
+      if(lk.locked) return { over:true, result:'draw', reason:'kilitli pozisyon — '+lk.reason };
+    }` : ''}
+
+    return { over:false, result:'ongoing', reason:(p.turnWhite()?'beyaz':'siyah')+' oynayacak' };
+  }
+
+  return {
+    config: CFG,
+    adjudicate: adjudicate,
+    flagFall: flagFall,
+    resign: resign${cfg.lock ? `,
+    isLocked: function(fen){ return LOCK.isLocked(fen); }` : ''}
+  };
+}
+
+if (typeof module !== 'undefined') module.exports = { PA: PA, Arbiter: Arbiter, makeFlagClassifier: makeFlagClassifier${cfg.lock ? ', makeLockDetector: makeLockDetector' : ''} };
+`;
+
+  var out = HEADER + '\n' + __PA_SRC__() + '\n' + __FLAG_SRC__() + '\n';
+  if(cfg.lock) out += __LOCK_SRC__() + '\n';
+  out += CONFIG + WRAPPER;
+  return out;
+}
+
+// Kaynağı sayfadaki script etiketlerinden oku (kaçış/gömme sorunu yok).
+function __PA_SRC__(){ return document.getElementById('src-engine').textContent.trim(); }
+function __FLAG_SRC__(){ return document.getElementById('src-flag').textContent.trim(); }
+function __LOCK_SRC__(){
+  return document.getElementById('src-lock').textContent
+    .replace(/if \(typeof module[\s\S]*$/,'').trim();
+}
+
+</script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   PERFECT ARBITER — ARAYÜZ (yalın sürüm, animasyonsuz)
+   Motor (PA) ve kilit dedektörü (makeLockDetector) yukarıda verbatim.
+   ══════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+  const LOCK = makeLockDetector(PA);
+  const GLYPH = {P:'♙',N:'♘',B:'♗',R:'♖',Q:'♕',K:'♔',p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚'};
+  const FILES = 'abcdefgh';
+
+  /* ── Sekmeler ── */
+  document.getElementById('tabs').addEventListener('click', e=>{
+    const t = e.target.closest('.tab'); if(!t) return;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+    const name = t.dataset.panel;
+    document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
+    if(name==='play') renderPlay();
+  });
+
+  /* ── FEN → 8x8 satır dizisi ── */
+  function fenRows(fen){
+    const rows = fen.split(/\s+/)[0].split('/');
+    const out = [];
+    for(let r=0;r<8;r++){
+      const line = []; let c=0;
+      for(const ch of rows[r]||''){ if(/\d/.test(ch)){c+=+ch;} else {line[c++]=ch;} }
+      while(line.length<8) line.push(undefined);
+      out.push(line);
+    }
+    return out;
+  }
+
+  /* ── Tahta çizimi. highlights: {"r,c":true}, flip destekli ── */
+  function drawBoard(el, coordsEl, fen, opts={}){
+    const rows = fenRows(fen);
+    const flip = !!opts.flip;
+    el.innerHTML = '';
+    for(let vr=0; vr<8; vr++){
+      for(let vc=0; vc<8; vc++){
+        const r = flip ? 7-vr : vr;
+        const c = flip ? 7-vc : vc;
+        const sq = document.createElement('div');
+        sq.className = 'sq ' + (((r+c)&1) ? 'dark':'light');
+        sq.dataset.r = r; sq.dataset.c = c;
+        const ch = rows[r][c];
+        if(ch){
+          const span = document.createElement('span');
+          span.className = 'p' + (ch===ch.toLowerCase()?' black':'');
+          span.textContent = GLYPH[ch] || '';
+          sq.appendChild(span);
+        }
+        if(opts.highlights && opts.highlights[r+','+c]) sq.classList.add('hl');
+        if(opts.sel && opts.sel.r===r && opts.sel.c===c) sq.classList.add('sel');
+        if(opts.dots && opts.dots[r+','+c]) sq.classList.add('dot');
+        if(opts.onClick) sq.addEventListener('click', ()=>opts.onClick(r,c));
+        el.appendChild(sq);
+      }
+    }
+    if(coordsEl){
+      const a = flip ? 'hgfedcba' : 'abcdefgh';
+      coordsEl.textContent = a.split('').join(' ');
+    }
+  }
+
+  /* ── Materyal → renderable özet ── */
+  function materialSummary(m){
+    const parts=[];
+    if(m.pawns) parts.push(m.pawns+'P'); if(m.rooks) parts.push(m.rooks+'R');
+    if(m.knights) parts.push(m.knights+'N'); if(m.bishops) parts.push(m.bishops+'B');
+    if(m.queens) parts.push(m.queens+'Q');
+    return parts.length? parts.join(' ') : '(yalın şah)';
+  }
+
+  /* ══════════ BAYRAK DÜŞMESİ ══════════ */
+  const flagFen = document.getElementById('flagFen');
+  const flagVerdict = document.getElementById('flagVerdict');
+  const flagDepth = document.getElementById('flagDepth');
+  const flagMethodEls = ()=>document.querySelectorAll('input[name="flagMethod"]');
+  function flagMethod(){ for(const el of flagMethodEls()) if(el.checked) return el.value; return 'fide'; }
+
+  /* Bayrak sınıflandırıcısı — src-flag bloğundaki ORTAK kaynaktan (arayüz + motor
+     aynı fonksiyonları kullanır). */
+  const FLAGC = makeFlagClassifier(PA);
+  const universalFlagLayer = FLAGC.universalFlagLayer;
+  const classifyFideFlag   = FLAGC.classifyFideFlag;
+  const classifyUscfFlag   = FLAGC.classifyUscfFlag;
+
+  const FLAG_PRESETS = [
+    ['Başlangıç', PA.START_FEN],
+    ['K+R vs K', '8/8/8/4k3/8/8/4K3/R7 w - - 0 1'],
+    ['K+N vs K', '8/8/8/4k3/8/8/4K3/1N6 w - - 0 1'],
+    ['K+R vs K+N', '8/8/8/4k3/6n1/8/4K3/R7 w - - 0 1'],
+    ['K+B+N vs K', '8/8/8/4k3/8/8/4K3/2B1N3 w - - 0 1'],
+    ['Zıt fil (KB vs K)', '8/8/8/4k3/8/8/4K3/2B5 w - - 0 1'],
+  ];
+
+  function renderFlag(hl, sel){
+    drawBoard(document.getElementById('flagBoard'), document.getElementById('flagCoords'),
+      flagFen.value, {highlights:hl, sel});
+  }
+
+  function verdictFlagFall(loserIsWhite){
+    const p = PA.createPosition();
+    const r = p.loadFen(flagFen.value.trim());
+    if(!r.ok) return {error:r.error||'Geçersiz FEN'};
+    const t0 = performance.now();
+    const win = p.material(!loserIsWhite);
+    const lose = p.material(loserIsWhite);
+    const method = flagMethod();
+    const depth = Math.max(1, Math.min(10, +flagDepth.value||5));
+    let searched=false, depthFound=0, verdict;
+
+    // ── a) FIDE — saf geometri, ARAMA YOK. ──
+    if(method === 'fide'){
+      verdict = classifyFideFlag(win, lose);           // 'win' | 'draw'
+      const ms = performance.now()-t0;
+      return {verdict, base:verdict, searched:false, depthFound:0, ms, win, lose, loserIsWhite, method};
+    }
+
+    // ── b) USCF — evrensel katman + forced-mate araması. ──
+    if(method === 'uscf'){
+      const c = classifyUscfFlag(win, lose);           // 'win' | 'draw' | 'search'
+      if(c === 'search'){
+        searched = true;
+        depthFound = p.forcedMateDepth(!loserIsWhite, depth);
+        verdict = depthFound>0 ? 'win' : 'draw';
+      } else {
+        verdict = c;
+      }
+      const ms = performance.now()-t0;
+      return {verdict, base:c, searched, depthFound, ms, win, lose, loserIsWhite, method};
+    }
+
+    // Bilinmeyen yöntem → FIDE'ye düş (güvenli varsayılan).
+    verdict = classifyFideFlag(win, lose);
+    const ms = performance.now()-t0;
+    return {verdict, base:verdict, searched:false, depthFound:0, ms, win, lose, loserIsWhite, method:'fide'};
+  }
+
+  // Hükmü belirleyen kazanan taş türleri kümesi (vurgulama için)
+  function decisivePieces(res){
+    const s = new Set();
+    const w = res.win;
+    if(res.verdict==='draw'){ return s; } // yalnız şah vurgulanır
+    if(w.heavy>0){ if(w.pawns) s.add('P'); if(w.rooks) s.add('R'); if(w.queens) s.add('Q'); }
+    if(w.bishops>=1) s.add('B');
+    if(w.knights>=1 && (w.bishops>=1 || w.heavy>0 || res.searched)) s.add('N');
+    if(res.searched){ // gri→arama: kazananın tüm taşları hükme katkıda
+      if(w.knights) s.add('N'); if(w.bishops) s.add('B');
+    }
+    return s;
+  }
+
+  function showFlagVerdict(loserIsWhite){
+    const res = verdictFlagFall(loserIsWhite);
+    if(res.error){
+      flagVerdict.className='verdict show';
+      flagVerdict.innerHTML = `<p class="headline">⚠ Geçersiz pozisyon</p><p class="reason">${res.error}</p>`;
+      return;
+    }
+    const winnerWhite = !loserIsWhite;
+    // Fark yaratan kareler: kazananın hükmü belirleyen taşları
+    const rows = fenRows(flagFen.value);
+    const hl = {};
+    const decisive = decisivePieces(res); // hangi taş türleri hükmü verdi
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+      const ch=rows[r][c]; if(!ch) continue;
+      const isWhitePiece = ch===ch.toUpperCase();
+      if(isWhitePiece!==winnerWhite) continue;       // yalnız kazananın taşları
+      const up=ch.toUpperCase();
+      if(up==='K'){ hl[r+','+c]=true; continue; }     // şah her zaman
+      if(decisive.has(up)) hl[r+','+c]=true;
+    }
+    renderFlag(hl);
+
+    let head, cls, pill;
+    if(res.verdict==='win'){
+      cls='v-win'; pill='<span class="pill win">KAZANÇ</span>';
+      head = (winnerWhite?'Beyaz':'Siyah')+' kazandı';
+    } else {
+      cls='v-draw'; pill='<span class="pill draw">BERABERE</span>';
+      head = 'Berabere';
+    }
+    let reason;
+    if(res.method==='fide'){
+      // FIDE: aramasız, saf geometri. Gri bölge yok.
+      if(res.verdict==='draw'){
+        reason = res.win.pawns+res.win.rooks+res.win.queens+res.win.knights+res.win.bishops===0
+          ? 'FIDE: Rakip çıplak kral — helper mat bile imkânsız.'
+          : 'FIDE: Rakibin materyali helper mat bile kuramıyor (geometrik kesin).';
+      } else {
+        reason = 'FIDE: Rakip, en kötü savunmaya (helper mate) karşı bile matlayabilir (geometrik kesin).';
+      }
+    } else if(res.method==='uscf'){
+      // USCF: evrensel katman + forced-mate araması.
+      if(res.verdict==='draw' && !res.searched){
+        reason = res.win.pawns+res.win.rooks+res.win.queens+res.win.knights+res.win.bishops===0
+          ? 'USCF: Rakip çıplak kral — mat imkânsız.'
+          : 'USCF: Rakibin materyali yetersiz (geometrik kesin berabere).';
+      } else if(res.searched && res.verdict==='win'){
+        reason = `USCF: Belirsiz sınıf — ${res.depthFound} yarım hamlede zorla mat bulundu.`;
+      } else if(res.searched){
+        reason = `USCF: Belirsiz sınıf — ayarlı derinlikte (${Math.max(1,Math.min(10,+flagDepth.value||5))}) zorla mat yok → berabere.`;
+      } else {
+        reason = 'USCF: Rakipte yeterli mat materyali var.';
+      }
+    } else {
+      // (method hep fide/uscf; bu dal güvenlik için.)
+      reason = res.verdict==='draw' ? 'Berabere.' : 'Kazanç.';
+    }
+    const loser = loserIsWhite?'Beyaz':'Siyah';
+    flagVerdict.className='verdict show '+cls;
+    flagVerdict.innerHTML =
+      `<p class="headline">${pill}${head}</p>`+
+      `<p class="reason">${loser}ın süresi bitti. ${reason}</p>`+
+      `<p class="meta">Kazanan: ${materialSummary(res.win)} · Kaybeden: ${materialSummary(res.lose)}`+
+      ` · ${res.searched?'arama+':''}${res.ms.toFixed(2)} ms</p>`;
+  }
+
+  document.getElementById('flagWhiteBtn').addEventListener('click', ()=>showFlagVerdict(true));
+  document.getElementById('flagBlackBtn').addEventListener('click', ()=>showFlagVerdict(false));
+  flagFen.addEventListener('input', ()=>{ flagVerdict.className='verdict'; renderFlag(); });
+
+  // Yaklaşım seçici: FIDE aramasız → derinlik kutusu gizlenir; ipucu güncellenir.
+  const flagDepthBox = document.getElementById('flagDepthBox');
+  const flagMethodHint = document.getElementById('flagMethodHint');
+  const FLAG_METHOD_HINT = {
+    fide: 'FIDE: Rakip helper-mate (bilerek kaybetme dahil) ile matlayabiliyorsa kazanç, hiçbir şekilde matlayamıyorsa berabere. Saf geometri — arama yok. (Resign + süre bitmesi.)',
+    uscf: 'USCF: Forced mate (zorla mat) baz alınır. Belirsiz sınıflarda (tek at, tek renk fil, piyonsuz iki at) forced-mate araması çalışır; ayarlı derinlikte bulunamazsa berabere. (Resign bayrak düşmesi sayılmaz.)'
+  };
+  function syncFlagMethod(){
+    const m = flagMethod();
+    // Yalnız FIDE aramasız → derinlik kutusu yalnız FIDE'de gizli.
+    flagDepthBox.style.display = (m==='fide') ? 'none' : '';
+    flagMethodHint.textContent = FLAG_METHOD_HINT[m] || '';
+    flagVerdict.className='verdict';   // yaklaşım değişince eski hükmü gizle
+  }
+  flagMethodEls().forEach(el=>el.addEventListener('change', syncFlagMethod));
+  syncFlagMethod();
+
+  (function initFlag(){
+    const bar = document.getElementById('flagPresets');
+    FLAG_PRESETS.forEach(([name,fen])=>{
+      const b=document.createElement('button'); b.textContent=name;
+      b.addEventListener('click', ()=>{ flagFen.value=fen; flagVerdict.className='verdict'; renderFlag(); });
+      bar.appendChild(b);
+    });
+    flagFen.value = FLAG_PRESETS[1][1];
+    renderFlag();
+  })();
+
+  /* ══════════ KİLİTLİ POZİSYON ══════════ */
+  const lockFen = document.getElementById('lockFen');
+  const lockVerdict = document.getElementById('lockVerdict');
+
+  const LOCK_PRESETS = [
+    ['Mekik dokuyan taşlar', 'rbnqkbnr/8/8/1p1p1p1p/bpbpbpbp/1p1p1p1p/1P1P1P1P/1K6 w kq - 0 1'],
+    ['Etkisiz filler', '4k3/b7/8/p1p1p1p1/P1P1P1P1/8/2B5/4K3 w - - 0 1'],
+    ['Hareketsiz taşlar', '3k1nbr/3p1p1p/1p1PpPpP/1P2P1P1/8/8/8/4K3 w - - 0 1'],
+    ['Fil ağı', '1BkB1B1B/B1B1B1B1/1B1B1B1B/BpB1BpB1/1B1B1B1B/B1B1B1B1/1B1B1B1B/B1BKB1B1 w - - 0 1'],
+    ['Geçer fil', '2k5/8/7p/1p1p1p1P/1P1P1P2/8/8/3KB3 w - - 0 1'],
+    ['Mesafe açık', '2k4b/6pP/5pP1/3p1P2/3p1P2/1p1P4/pP6/B2K4 w - - 0 1'],
+    ['Tek taraflı kilit', '3k4/8/8/1p2p2p/1P2P2P/6p1/6P1/4K3 w - - 0 1'],
+    ['Siyah piyonlar aynı karede', '3k4/8/1p5p/1P2p2P/1P2P3/8/8/4K3 w - - 0 1'],
+    ['Piyon alamaz', '3k4/8/1p5p/1P2p2P/1P2P3/8/2B5/4K3 w - - 0 1'],
+    ['Beyaz sıkışık', '2k5/7p/6pP/5pP1/4pP2/1p1pP3/pP1P4/B3K3 w - - 0 1'],
+    ['Çapraz çizgi', '6b1/5pPp/4pP1P/3pP2K/k1pP4/1pP5/pP6/B7 w - - 0 1'],
+    ['Fil karşıda', '2k5/8/1p1p1pBp/1P1P1P1P/8/8/8/3K4 w - - 0 1'],
+    ['Karşıda mat mümkün', '1b6/b2B2k1/8/1p1p1p1p/1P1P1P1P/8/8/3K4 w - - 0 1'],
+    ['Etkisiz piyon', '5k2/3p4/8/1p1p1p1p/1P1P1P1P/8/8/3K4 w - - 0 1'],
+    ['Alınabilir piyon', '3k4/8/1p1p1p1p/1P1P1P1P/8/7p/7P/4K3 w - - 0 1'],
+    ['En passantlı', '3k4/8/1p1p2p1/1P1P1pP1/5P2/8/3K4/8 w - f6 0 1'],
+    ['Mat mümkün', 'kb2B3/b7/8/p1p1p1p1/P1P1P1P1/8/8/1K6 w - - 0 1'],
+    ['Fil paritesi 1', '1k1b4/8/1p1p1p1p/1P1P1P1P/8/1K3p2/5P2/8 w - - 0 1'],
+    ['Fil paritesi 2', '1k1b4/8/1p1p1p1p/1P1P1P1P/8/1K2p3/4P3/8 w - - 0 1'],
+    ['Fil paritesi 3', '1k6/6b1/1p1p1p1p/1P1P1P1P/4p3/1K2P3/8/8 w - - 0 1'],
+    ['Fil paritesi 4', '1k5b/1p2p1pP/1P2P1P1/8/8/8/8/1K6 w - - 0 1'],
+    ['Fil paritesi 5', '1k6/8/8/p1p1b3/PpPp1p1p/1P1P1P1P/5P2/1K6 w - - 0 1'],
+    ['Mat mümkün mü?', 'kb6/b7/8/p1p1p1p1/P1P1P1P1/8/8/1K1B4 w - - 0 1'],
+  ];
+
+  function renderLock(hl){
+    drawBoard(document.getElementById('lockBoard'), document.getElementById('lockCoords'),
+      lockFen.value, {highlights:hl});
+  }
+
+  function showLockVerdict(){
+    const fen = lockFen.value.trim();
+    const t0 = performance.now();
+    let res;
+    try { res = LOCK.isLocked(fen); }
+    catch(err){ res = {locked:false, reason:'çalışma hatası: '+err.message}; }
+    const ms = performance.now()-t0;
+
+    // Sonucu üç sınıfa ayır:
+    //   locked            → MUTLAK KİLİT
+    //   KAPSAM DIŞI       → algoritmanın ele aldığı sınıfta değil:
+    //                       K1 (materyal ön-koşulu) veya K2'nin "yeterli tuğla yok"
+    //                       hali (n<3) veya geçersiz FEN. Değerlendirilemez.
+    //   KİLİT DEĞİL       → değerlendirildi, gerçek kilit-kırıcı yapı var:
+    //                       K2 geometrik budama (geçersiz desen / kavuşma / çapraz
+    //                       alım), K3, en passant, K4, K5.
+    const reason = res.reason;
+    const notEnoughBricks = /^K2 — 3 tuğla yok/.test(reason);
+    const outOfScope = !res.locked && (
+      /^(K1|Geçersiz FEN|tahta ayrıştırılamadı)/.test(reason) || notEnoughBricks
+    );
+
+    // Vurgulama
+    const rows = fenRows(fen);
+    const hl = {};
+    if(res.locked){
+      for(let c=0;c<8;c++)for(let r=0;r<7;r++)
+        if(rows[r][c]==='p'&&rows[r+1][c]==='P'){ hl[r+','+c]=true; hl[(r+1)+','+c]=true; }
+    } else if(!outOfScope){
+      for(let r=0;r<8;r++)for(let c=0;c<8;c++)
+        if(rows[r][c]==='K'||rows[r][c]==='k') hl[r+','+c]=true;
+    }
+    renderLock(hl);
+
+    if(res.locked){
+      lockVerdict.className='verdict show v-lock';
+      lockVerdict.innerHTML =
+        `<p class="headline"><span class="pill lock">MUTLAK KİLİT</span>Kesin berabere</p>`+
+        `<p class="reason">${res.reason}. Helper iki taraf bile geri-dönülemez hamle açamaz → FIDE 75-hamle / 5-tekrar tavanı gereği kesin berabere.</p>`+
+        `<p class="meta">${ms.toFixed(2)} ms · vurgulu kareler: kilitli piyon tuğlaları</p>`;
+    } else if(outOfScope){
+      lockVerdict.className='verdict show v-scope';
+      lockVerdict.innerHTML =
+        `<p class="headline"><span class="pill scope">KAPSAM DIŞI</span></p>`+
+        `<p class="reason">${res.reason}. Bu pozisyon algoritmanın ön-koşullarını sağlamıyor (materyal ya da piyon-duvarı yapısı uygun değil), bu yüzden kilit/kilit-değil hükmü verilemez — değerlendirme dışı.</p>`+
+        `<p class="meta">${ms.toFixed(2)} ms</p>`;
+    } else {
+      lockVerdict.className='verdict show';
+      lockVerdict.innerHTML =
+        `<p class="headline"><span class="pill no">KİLİT DEĞİL</span></p>`+
+        `<p class="reason">${res.reason}. (Pozisyon değerlendirildi; gerçek bir kilit-kırıcı hamle mevcut.)</p>`+
+        `<p class="meta">${ms.toFixed(2)} ms</p>`;
+    }
+  }
+
+  document.getElementById('lockBtn').addEventListener('click', showLockVerdict);
+  lockFen.addEventListener('input', ()=>{ lockVerdict.className='verdict'; renderLock(); });
+  (function initLock(){
+    const bar = document.getElementById('lockPresets');
+    LOCK_PRESETS.forEach(([name,fen])=>{
+      const b=document.createElement('button'); b.textContent=name;
+      b.addEventListener('click', ()=>{ lockFen.value=fen; lockVerdict.className='verdict'; renderLock(); });
+      bar.appendChild(b);
+    });
+    lockFen.value = LOCK_PRESETS[0][1];
+    renderLock();
+  })();
+
+  /* ══════════ SERBEST OYUN ══════════ */
+  const POS = PA.createPosition();
+  POS.loadFen(PA.START_FEN);
+  let playFlip=false, playSel=null;
+  const playStatus = document.getElementById('playStatus');
+  const playFenEl = document.getElementById('playFen');
+
+  // Tekrar sayacı: repetitionKey → görülme sayısı (üç/beş-kez tekrar için)
+  let repMap = new Map();
+  function repReset(){ repMap = new Map(); repBump(); }
+  function repBump(){ const k=POS.repetitionKey(); repMap.set(k,(repMap.get(k)||0)+1); }
+  function repCount(){ return repMap.get(POS.repetitionKey())||0; }
+
+  function legalTargetsFrom(r,c){
+    const from = r*16+c;
+    const out = {};
+    for(const m of POS.legalMoves()){
+      if(PA.mFrom(m)===from){ const to=PA.mTo(m); out[(to>>4)+','+(to&7)]=true; }
+    }
+    return out;
+  }
+
+  // Hamle sonrası hüküm: beraberlik kontrolleri UCUZDAN PAHALIYA; kilit EN SONDA.
+  // sıra: mat/pat → ölü materyal → 75/50 hamle → 5/3 tekrar → kilit.
+  // (Serbest oyun demosu: 75 hamle & 5 tekrar otomatik, 50 & 3 iddia edilebilir.)
+  function playStatusText(){
+    const moves = POS.legalMoves();
+    const white = POS.turnWhite();
+
+    // 1) Mat / Pat
+    if(moves.length===0){
+      if(POS.inCheck()) return `<b>Mat!</b> ${white?'Siyah':'Beyaz'} kazandı.`;
+      return `<b>Pat.</b> Berabere.`;
+    }
+    // 2) Ölü materyal
+    if(POS.deadMaterial()) return `<b>Ölü pozisyon — berabere.</b>`;
+    // 3) Hamle kuralı (halfmove sayacı, ucuz)
+    const half = POS.halfmove;
+    if(half >= 150) return `<b>75 hamle kuralı — berabere (otomatik).</b>`;
+    // 4) Tekrar (ucuz karşılaştırma)
+    const rc = repCount();
+    if(rc >= 5) return `<b>5 kez tekrar — berabere (otomatik).</b>`;
+    // 5) Kilitli pozisyon — EN PAHALI, en sona. Kilit yalnız geri-dönülemez bir
+    //    hamleden sonra (alım/piyon sürme = halfmove 0) oluşabilir → yalnız o an hesapla.
+    if(half === 0){
+      try {
+        const lk = LOCK.isLocked(POS.getFen());
+        if(lk.locked) return `<b>Kilitli pozisyon — berabere.</b> <span style="color:var(--muted)">(${lk.reason})</span>`;
+      } catch(e){}
+    }
+    // iddia edilebilir beraberlikler (oyun bitmez, bilgi amaçlı)
+    let claim = '';
+    if(half >= 100) claim = ' <span style="color:var(--draw)">· 50 hamle iddia edilebilir</span>';
+    else if(rc >= 3) claim = ' <span style="color:var(--draw)">· 3 kez tekrar iddia edilebilir</span>';
+
+    let extra='';
+    if(POS.inCheck()) extra=' <b>Şah!</b>';
+    return `Sıra: <b>${white?'Beyaz':'Siyah'}</b>.${extra}${claim}`;
+  }
+
+  function renderPlay(){
+    const dots = playSel ? legalTargetsFrom(playSel.r,playSel.c) : null;
+    drawBoard(document.getElementById('playBoard'), document.getElementById('playCoords'),
+      POS.getFen(), {flip:playFlip, sel:playSel, dots, onClick:playClick});
+    playStatus.innerHTML = playStatusText();
+    playFenEl.value = POS.getFen();
+  }
+
+  function playClick(r,c){
+    const rows = fenRows(POS.getFen());
+    const ch = rows[r][c];
+    if(playSel){
+      const targets = legalTargetsFrom(playSel.r,playSel.c);
+      if(targets[r+','+c]){
+        const from=playSel.r*16+playSel.c, to=r*16+c;
+        // uygun hamleyi bul (terfi varsayılan vezir)
+        let chosen=null;
+        for(const m of POS.legalMoves()){
+          if(PA.mFrom(m)===from && PA.mTo(m)===to){
+            chosen=m;
+            if(PA.mPromo(m)===PA.QUEEN) break;
+          }
+        }
+        if(chosen!==null){ POS.make(chosen); repBump(); playSel=null; renderPlay(); return; }
+      }
+    }
+    // yeni seçim
+    if(ch && (ch===ch.toUpperCase())===POS.turnWhite()) playSel={r,c};
+    else playSel=null;
+    renderPlay();
+  }
+
+  document.getElementById('playReset').addEventListener('click', ()=>{ POS.loadFen(PA.START_FEN); playSel=null; repReset(); renderPlay(); });
+  document.getElementById('playFlip').addEventListener('click', ()=>{ playFlip=!playFlip; renderPlay(); });
+
+  /* ══════════ MOTOR ÜRETİCİ ══════════ */
+  const cfgClaim   = document.getElementById('cfgClaim');
+  const cfgHardCap = document.getElementById('cfgHardCap');
+  const cfgResign  = document.getElementById('cfgResign');
+  const cfgLock    = document.getElementById('cfgLock');
+  const cfgDepth   = document.getElementById('cfgDepth');
+  const cfgDepthBox= document.getElementById('cfgDepthBox');
+  const cfgSummary = document.getElementById('cfgSummary');
+  const cfgFilename= document.getElementById('cfgFilename');
+  const cfgDrawWarn= document.getElementById('cfgDrawWarn');
+  const cfgMateEls = ()=>document.querySelectorAll('input[name="cfgMate"]');
+  function cfgMate(){ for(const el of cfgMateEls()) if(el.checked) return el.value; return 'helper'; }
+  function setMate(v){ for(const el of cfgMateEls()) el.checked = (el.value===v); }
+  function clampDepth(){ let v=Math.round(Number(cfgDepth.value)); if(!Number.isFinite(v)) v=5; v=Math.max(1,Math.min(10,v)); cfgDepth.value=v; return v; }
+
+  // Üç hazır preset.
+  const CFG_PRESETS = {
+    fide: { claim:true,  hardCap:true,  resignIsFlag:true,  mate:'helper', lock:true },
+    uscf: { claim:true,  hardCap:false, resignIsFlag:false, mate:'forced', lock:true },
+    ours: { claim:false, hardCap:true,  resignIsFlag:true,  mate:'forced', lock:true }
+  };
+  function applyPreset(name){
+    const p = CFG_PRESETS[name]; if(!p) return;
+    cfgClaim.checked   = p.claim;
+    cfgHardCap.checked = p.hardCap;
+    cfgResign.checked  = p.resignIsFlag;
+    cfgLock.checked    = p.lock;
+    setMate(p.mate);
+    updateCfg();
+  }
+
+  // Mevcut arayüz seçeneklerini cfg nesnesine oku.
+  function readCfg(){
+    return {
+      claim: cfgClaim.checked,
+      hardCap: cfgHardCap.checked,
+      resignIsFlag: cfgResign.checked,
+      mate: cfgMate(),
+      depth: clampDepth(),
+      lock: cfgLock.checked
+    };
+  }
+
+  // Kısıt: iddia veya otomatik bitmeden en az biri seçili olmalı.
+  function drawRuleValid(){ return cfgClaim.checked || cfgHardCap.checked; }
+
+  function updateCfg(){
+    const cfg = readCfg();
+    // Forced seçiliyse derinlik kutusu görünür (helper aramasız).
+    cfgDepthBox.style.display = (cfg.mate==='forced') ? '' : 'none';
+    document.getElementById('cfgLockOpt').classList.toggle('locked-on', cfg.lock);
+    // Beraberlik sınırı kısıtı
+    const valid = drawRuleValid();
+    cfgDrawWarn.style.display = valid ? 'none' : '';
+    document.getElementById('cfgDownload').disabled = !valid;
+
+    // Özet
+    const lines = [];
+    lines.push(cfg.claim ? '<code>50/3</code> iddia: <b>açık</b>' : '<code>50/3</code> iddia: kapalı');
+    lines.push(cfg.hardCap ? '<code>75/5</code> otomatik: <b>açık</b>' : '<code>75/5</code> otomatik: kapalı');
+    lines.push('Resign bayrak sayılır: <b>'+(cfg.resignIsFlag?'evet':'hayır')+'</b>');
+    lines.push(cfg.mate==='helper' ? 'Bayrak: <b>helper mate</b> (saf geometri)'
+                                   : 'Bayrak: <b>forced mate</b>, derinlik <code>'+cfg.depth+'</code>');
+    lines.push(cfg.lock ? 'Kilitli pozisyon: <b>dahil</b>' : 'Kilitli pozisyon: hariç');
+    cfgSummary.innerHTML = 'Bu yapı: ' + lines.join(' · ') + '.';
+  }
+
+  cfgClaim.addEventListener('change', updateCfg);
+  cfgHardCap.addEventListener('change', updateCfg);
+  cfgResign.addEventListener('change', updateCfg);
+  cfgLock.addEventListener('change', updateCfg);
+  cfgDepth.addEventListener('input', updateCfg);
+  cfgMateEls().forEach(el=>el.addEventListener('change', updateCfg));
+  document.getElementById('cfgPresets').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-preset]'); if(!b) return;
+    applyPreset(b.dataset.preset);
+  });
+  updateCfg();
+
+  document.getElementById('cfgDownload').addEventListener('click', ()=>{
+    if(!drawRuleValid()) return;
+    const cfg = readCfg();
+    const src = buildEngineSource(cfg);
+    const blob = new Blob([src], {type:'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const parts = ['perfect-arbiter'];
+    if(cfg.claim) parts.push('claim50-3');
+    if(cfg.hardCap) parts.push('auto75-5');
+    parts.push(cfg.resignIsFlag?'resign-flag':'resign-loss');
+    parts.push(cfg.mate==='helper'?'helper':('forced-d'+cfg.depth));
+    if(cfg.lock) parts.push('lock');
+    const fname = parts.join('_')+'.js';
+    a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    cfgFilename.textContent = 'İndirildi: '+fname;
+  });
+
+  renderPlay();
+})();
+
+</script>
+</body>
+</html>
