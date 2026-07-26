@@ -84,6 +84,12 @@ button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
 .row{display:flex; gap:.6rem; flex-wrap:wrap; align-items:center}
 .row.tight{gap:.4rem}
 .grow{flex:1 1 auto; min-width:0}
+/* A control column next to a board must not be pushed underneath it. With
+   flex-basis:auto the column's hypothetical width is its MAX-CONTENT width — a long
+   explanatory paragraph makes that hundreds of pixels, so the flex line breaks even
+   with plenty of room. A fixed basis makes it break only when space really runs out
+   (narrow screens), where stacking is what we want anyway. */
+.boardwrap + .grow{flex-basis:15rem}
 
 /* Verdict box */
 .verdict{
@@ -323,6 +329,31 @@ button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
         <div class="grow" style="min-width:15rem">
           <div class="status" id="playStatus"></div>
 
+          <div class="opt" id="playDrawOpt" style="margin-top:.7rem">
+            <input type="checkbox" id="playDrawAct">
+            <div class="body">
+              <div class="t" data-i18n="play.drawAct.t"></div>
+              <div class="d" id="playDrawMsg"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:.9rem">
+            <label data-i18n="play.flagH"></label>
+            <div class="row" style="margin-top:.35rem; gap:.35rem">
+              <button class="btn sm" id="playTimeW" data-i18n="play.timeW"></button>
+              <button class="btn sm ghost" id="playTimeB" data-i18n="play.timeB"></button>
+            </div>
+            <div class="row" style="margin-top:.35rem; gap:.35rem">
+              <button class="btn sm" id="playResignW" data-i18n="play.resignW"></button>
+              <button class="btn sm ghost" id="playResignB" data-i18n="play.resignB"></button>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:1rem">
+            <button class="btn ghost" id="playReset" data-i18n="play.reset"></button>
+            <button class="btn ghost" id="playFlip" data-i18n="play.flip"></button>
+          </div>
+
           <div style="margin-top:.9rem">
             <label data-i18n="play.fed"></label>
             <div class="turnsel" style="margin-top:.35rem; flex-wrap:wrap; gap:.6rem">
@@ -367,36 +398,13 @@ button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
             <p class="hint" id="pcWarn" style="color:var(--lose); display:none" data-i18n="play.customWarn"></p>
           </div>
 
-          <div class="opt" id="playDrawOpt" style="margin-top:.7rem">
-            <input type="checkbox" id="playDrawAct">
-            <div class="body">
-              <div class="t" data-i18n="play.drawAct.t"></div>
-              <div class="d" id="playDrawMsg"></div>
-            </div>
-          </div>
-
-          <div style="margin-top:.9rem">
-            <label data-i18n="play.flagH"></label>
-            <div class="row" style="margin-top:.35rem; gap:.35rem">
-              <button class="btn sm" id="playTimeW" data-i18n="play.timeW"></button>
-              <button class="btn sm ghost" id="playTimeB" data-i18n="play.timeB"></button>
-            </div>
-            <div class="row" style="margin-top:.35rem; gap:.35rem">
-              <button class="btn sm" id="playResignW" data-i18n="play.resignW"></button>
-              <button class="btn sm ghost" id="playResignB" data-i18n="play.resignB"></button>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:1rem">
-            <button class="btn ghost" id="playReset" data-i18n="play.reset"></button>
-            <button class="btn ghost" id="playFlip" data-i18n="play.flip"></button>
-          </div>
           <div style="margin-top:1rem">
             <label data-i18n="common.fen"></label>
             <input type="text" id="playFen" spellcheck="false">
             <div class="presetbar" id="playPresets"></div>
             <p class="hint" id="playFenMsg" style="margin:.35rem 0 0; color:var(--lose); display:none"></p>
           </div>
+
         </div>
       </div>
     </div>
