@@ -1,0 +1,3467 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfect Arbiter — Satranç Hakemi</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#1b1d21; --panel:#26292f; --panel2:#2e323a; --line:#3a3f48;
+  --ink:#eef0f3; --muted:#9aa2ad; --accent:#6ea8fe; --accent2:#7bd88f;
+  --win:#7bd88f; --draw:#e0c46c; --lose:#e8867a; --lock:#8ee0d0;
+  --hl:#f2c14e; --hlbg:rgba(242,193,78,.28);
+  --sq-l:#c7cdd4; --sq-d:#6f7783;
+}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:960px; margin:0 auto; padding:1.25rem 1rem 3rem}
+h1{font-size:1.4rem; margin:0 0 .15rem; letter-spacing:-.02em}
+.sub{color:var(--muted); font-size:.85rem; margin:0 0 1.25rem}
+
+/* Header row + language selector (top right) */
+.hdr{display:flex; align-items:flex-start; justify-content:space-between; gap:1rem}
+.hdr .titles{min-width:0}
+.langsel{display:flex; align-items:center; gap:.4rem; flex:0 0 auto}
+.langsel label{font-size:.72rem; text-transform:uppercase; letter-spacing:.05em}
+.langsel select{padding:.35rem .5rem; font-size:.8rem; cursor:pointer}
+.langsel select:focus{outline:none; border-color:var(--accent)}
+
+/* Tabs */
+.tabs{display:flex; gap:.25rem; border-bottom:1px solid var(--line); margin-bottom:1.25rem; flex-wrap:wrap}
+.tab{
+  appearance:none; background:none; border:none; color:var(--muted);
+  padding:.6rem .9rem; font-size:.9rem; font-weight:500; cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--ink); border-bottom-color:var(--accent)}
+.panel{display:none}
+.panel.active{display:block; animation:fade .15s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* Cards */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:.7rem; padding:1rem; margin-bottom:1rem}
+.card h2{font-size:1rem; margin:0 0 .75rem}
+.card h3{font-size:.85rem; color:var(--muted); margin:1rem 0 .5rem; text-transform:uppercase; letter-spacing:.04em; font-weight:600}
+
+/* Form elements */
+label{font-size:.85rem; color:var(--muted)}
+input[type=text]{
+  width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
+  color:var(--ink); padding:.55rem .65rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.82rem;
+}
+input[type=text]:focus{outline:none; border-color:var(--accent)}
+select{
+  background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; color:var(--ink);
+  padding:.5rem .6rem; font-size:.85rem;
+}
+button.btn{
+  appearance:none; background:var(--accent); color:#0d1117; border:none; border-radius:.5rem;
+  padding:.6rem 1.1rem; font-size:.9rem; font-weight:600; cursor:pointer;
+}
+button.btn:hover{filter:brightness(1.08)}
+button.btn.ghost{background:var(--panel2); color:var(--ink); border:1px solid var(--line)}
+button.btn.ghost:hover{border-color:var(--accent)}
+/* Draw claim / offer states. The pulse is how an offer "arrives": a local hotseat
+   game has no second screen, so the turn flip plus this flash is the delivery. */
+@keyframes offerPulse{
+  0%{box-shadow:0 0 0 0 rgba(224,196,108,.45)}
+  70%{box-shadow:0 0 0 .55rem rgba(224,196,108,0)}
+  100%{box-shadow:0 0 0 0 rgba(224,196,108,0)}
+}
+.opt.armed{border-color:var(--accent)}
+.opt.offer{border-color:var(--draw); animation:offerPulse 1.3s ease-out 3}
+.opt.offer .t{color:var(--draw)}
+
+button.btn:disabled{opacity:.5; cursor:not-allowed}
+/* Compact variant for the engine-test experiment controls. */
+button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
+.row{display:flex; gap:.6rem; flex-wrap:wrap; align-items:center}
+.row.tight{gap:.4rem}
+.grow{flex:1 1 auto; min-width:0}
+
+/* Verdict box */
+.verdict{
+  margin-top:1rem; border-radius:.6rem; padding:.9rem 1rem; border:1px solid var(--line);
+  background:var(--panel2); display:none;
+}
+.verdict.show{display:block}
+.verdict .headline{font-size:1.05rem; font-weight:700; margin:0 0 .3rem; display:flex; align-items:center; gap:.5rem}
+.verdict .reason{color:var(--muted); font-size:.85rem; margin:0}
+.verdict .meta{color:var(--muted); font-size:.78rem; margin-top:.5rem; font-family:ui-monospace,monospace}
+.pill{display:inline-block; padding:.12rem .5rem; border-radius:1rem; font-size:.72rem; font-weight:700; letter-spacing:.02em}
+.v-win .headline{color:var(--win)} .pill.win{background:rgba(123,216,143,.18); color:var(--win)}
+.v-draw .headline{color:var(--draw)} .pill.draw{background:rgba(224,196,108,.18); color:var(--draw)}
+.v-lose .headline{color:var(--lose)} .pill.lose{background:rgba(232,134,122,.18); color:var(--lose)}
+.v-lock .headline{color:var(--lock)} .pill.lock{background:rgba(142,224,208,.18); color:var(--lock)}
+.v-scope .headline{color:#b6a7e0} .pill.scope{background:rgba(155,140,214,.18); color:#b6a7e0; border:1px solid rgba(155,140,214,.4)}
+.pill.no{background:rgba(154,162,173,.16); color:var(--muted)}
+
+/* Board */
+.boardwrap{display:inline-grid; grid-template-columns:auto auto; align-items:start}
+.board{
+  display:grid; grid-template-columns:repeat(8,var(--sq,2.7rem)); grid-template-rows:repeat(8,var(--sq,2.7rem));
+  border:2px solid var(--line); border-radius:.35rem; overflow:hidden; user-select:none; touch-action:manipulation;
+}
+.sq{
+  display:flex; align-items:center; justify-content:center; font-size:1.7rem; line-height:1;
+  cursor:pointer; position:relative;
+}
+.sq.light{background:var(--sq-l)} .sq.dark{background:var(--sq-d)}
+.sq .p{
+  line-height:1;
+  /* White pieces: light fill + dark outline → stands out */
+  color:#fbfbfd;
+  text-shadow:
+    -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a,
+    -1px  1px 0 #1a1a1a, 1px  1px 0 #1a1a1a,
+     0   -1.5px 0 #1a1a1a, 0 1.5px 0 #1a1a1a,
+    -1.5px 0 0 #1a1a1a, 1.5px 0 0 #1a1a1a,
+     0 2px 3px rgba(0,0,0,.45);
+  font-weight:400;
+}
+.sq .p.black{
+  /* Black pieces: dark fill + thin light outline → clearly distinct from white */
+  color:#141414;
+  text-shadow:
+    -0.5px -0.5px 0 rgba(255,255,255,.25), 0.5px 0.5px 0 rgba(255,255,255,.25),
+     0 1px 2px rgba(0,0,0,.35);
+  font-weight:400;
+}
+.sq.hl::after{content:""; position:absolute; inset:0; background:var(--hlbg); box-shadow:inset 0 0 0 3px var(--hl)}
+.sq.sel::after{content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 3px var(--accent)}
+.sq.dot::before{content:""; width:26%; height:26%; border-radius:50%; background:rgba(0,0,0,.28); position:absolute}
+/* Coordinates. The label tracks use the SAME --sq track size as the board, so each
+   label lines up with its file/rank. The 2px offsets clear the board's 2px border. */
+.ranks,.files{font-size:.7rem; color:var(--muted); font-family:ui-monospace,monospace}
+.ranks{
+  grid-column:1; grid-row:1; display:grid;
+  grid-template-rows:repeat(8,var(--sq,2.7rem));
+  margin-top:2px; margin-right:.35rem;
+}
+.ranks span{display:flex; align-items:center; justify-content:flex-end; line-height:1}
+.files{
+  grid-column:2; grid-row:2; display:grid;
+  grid-template-columns:repeat(8,var(--sq,2.7rem));
+  margin-left:2px; margin-top:.35rem;
+}
+.files span{text-align:center; line-height:1}
+.boardwrap .board{grid-column:2; grid-row:1}
+
+/* Builder options */
+.opt{
+  display:flex; align-items:flex-start; gap:.65rem; padding:.7rem .8rem; border:1px solid var(--line);
+  border-radius:.55rem; background:var(--panel2); margin-bottom:.6rem;
+}
+.opt.locked-on{border-color:rgba(110,168,254,.5)}
+.opt input[type=checkbox]{width:1.1rem; height:1.1rem; margin-top:.15rem; accent-color:var(--accent); cursor:pointer}
+.opt .body{flex:1}
+.opt .t{font-size:.9rem; font-weight:600}
+.opt .d{font-size:.8rem; color:var(--muted); margin-top:.15rem}
+.opt .req{font-size:.68rem; font-weight:700; color:var(--accent); border:1px solid var(--accent); border-radius:1rem; padding:.05rem .45rem; margin-left:.4rem}
+.radiogrp{display:flex; gap:.5rem; margin-top:.45rem}
+.radiogrp label{display:flex; align-items:center; gap:.35rem; font-size:.82rem; color:var(--ink); cursor:pointer}
+.depthbox{margin-top:.55rem; display:flex; align-items:center; gap:.5rem; font-size:.82rem}
+.depthbox input[type=number]{
+  width:4rem; background:var(--panel); border:1px solid var(--line); border-radius:.4rem; color:var(--ink);
+  padding:.35rem .45rem; font-size:.85rem;
+}
+.depthbox input[type=number]:focus{outline:none; border-color:var(--accent)}
+.summary{font-size:.82rem; color:var(--muted); margin:.75rem 0 1rem; line-height:1.7}
+.summary code{background:var(--panel2); padding:.05rem .35rem; border-radius:.3rem; color:var(--ink)}
+.hint{font-size:.78rem; color:var(--muted); margin:.4rem 0 0}
+.presetbar{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.6rem}
+.presetbar button{
+  appearance:none; background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+  border-radius:1rem; padding:.3rem .7rem; font-size:.78rem; cursor:pointer;
+}
+.presetbar button:hover{color:var(--ink); border-color:var(--accent)}
+.turnsel{display:flex; gap:.4rem}
+.turnsel label{display:flex; align-items:center; gap:.3rem; font-size:.82rem; color:var(--ink); cursor:pointer}
+.status{font-size:.9rem; margin-top:.6rem; color:var(--muted)}
+.status b{color:var(--ink)}
+@media(max-width:520px){
+  :root{--sq:2.15rem}
+  .board{--sq:2.15rem}
+  .wrap{padding:1rem .75rem 2.5rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="titles">
+      <h1>Perfect Arbiter</h1>
+      <p class="sub" data-i18n="app.sub">Satranç kural motoru ve hakemi — kanıt temelli, hızlı hükümler.</p>
+    </div>
+    <div class="langsel">
+      <label for="langSel" data-i18n="app.lang">Dil</label>
+      <select id="langSel">
+        <option value="tr">Türkçe</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-panel="intro" data-i18n="tab.intro">Tanıtım</button>
+    <button class="tab" data-panel="lock" data-i18n="tab.lock">Kilitli Pozisyon</button>
+    <button class="tab" data-panel="flag" data-i18n="tab.flag">Bayrak Düşmesi</button>
+    <button class="tab" data-panel="play" data-i18n="tab.play">Serbest Oyun</button>
+    <button class="tab" data-panel="build" data-i18n="tab.build">Motor Üretici</button>
+  </div>
+  <!-- ══════════ PANEL: INTRODUCTION ══════════ -->
+  <section class="panel active" id="panel-intro">
+    <div class="card">
+      <h2 data-i18n="intro.h2">Kanıt temelli satranç hakemliği</h2>
+      <p class="hint" data-i18n="intro.lead">Perfect Arbiter bir satranç motoru değil, bir <b>hakem</b>dir. Amacı en iyi hamleyi bulmak değil, kurallara göre kesin ve gerekçeli hüküm vermektir.</p>
+
+      <h3 data-i18n="intro.soundnessH">Soundness kutsaldır</h3>
+      <p class="summary" data-i18n="intro.soundness">Verilen her kesin hüküm — mat, kilit, kazanç — %100 doğrudur. Belirsizlikte daima güvenli tarafa düşülür: hatalar yalnızca <b>yanlış-negatif</b> (bir kilidi kaçırma) yönünde olabilir, asla <b>yanlış-pozitif</b> (kilit olmayana kilit deme) olmaz. Bu yüzden <b>KİLİT DEĞİL</b> hükmü “berabere değil” demek değildir — “bu yöntemle kanıtlayamadım” demektir.</p>
+
+      <h3 data-i18n="intro.toolsH">Bölümler</h3>
+      <div class="opt"><div class="body">
+        <div class="t" data-i18n="intro.tool.lock.t">Kilitli Pozisyon</div>
+        <div class="d" data-i18n="intro.tool.lock.d">Bir pozisyonun mutlak berabere olduğunu kanıtlar: taraflar işbirliği yapsa bile hiçbir alım, terfi veya mat açılamıyorsa oyun sonsuza dek sürer → FIDE 75-hamle / 5-tekrar tavanı gereği kesin berabere. Beş kontrol (K1–K5) ucuzdan pahalıya uygulanır, fark yaratan kareler vurgulanır.</div>
+      </div></div>
+      <div class="opt"><div class="body">
+        <div class="t" data-i18n="intro.tool.flag.t">Bayrak Düşmesi</div>
+        <div class="d" data-i18n="intro.tool.flag.d">Bir tarafın süresi bittiğinde, karşı tarafın mat edecek materyali var mı? Hüküm anında verilir, gerekçesiyle ve geçen süreyle (<code>ms</code>) birlikte gösterilir.</div>
+      </div></div>
+      <div class="opt"><div class="body">
+        <div class="t" data-i18n="intro.tool.play.t">Serbest Oyun</div>
+        <div class="d" data-i18n="intro.tool.play.d">Motorun tüm kurallarıyla iki kişilik oyun. Mat, pat, ölü materyal, 50/75 hamle, 3/5 tekrar ve kilit tespiti ucuzdan pahalıya sırayla kontrol edilir.</div>
+      </div></div>
+      <div class="opt"><div class="body">
+        <div class="t" data-i18n="intro.tool.build.t">Motor Üretici</div>
+        <div class="d" data-i18n="intro.tool.build.d">Hakem motorunu seçeneklerle ya da üç hazır presetle (FIDE / USCF / karma) yapılandırıp tek dosya olarak indirin. İndirilen motorun çekirdeği bu sayfadakiyle birebir aynıdır.</div>
+      </div></div>
+
+      <h3 data-i18n="intro.rulesH">FIDE ve USCF neden farklı hüküm verir?</h3>
+      <p class="summary" data-i18n="intro.rules">FIDE <b>helper mate</b> ölçütünü kullanır: rakip, siz bilerek kaybetmeye çalışsanız bile matlayabiliyorsa kazanç. USCF <b>forced mate</b> ölçütünü kullanır: mat zorlanabiliyor mu? Klasik ayrım noktası <code>K+R vs K+N</code>’dir — FIDE’de süresi biten K+R tarafı kaybeder (Friedel vakası), USCF’de aynı pozisyon beraberedir.</p>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: LOCKED POSITION ══════════ -->
+  <section class="panel" id="panel-lock">
+    <div class="card">
+      <h2 data-i18n="lock.h2">Kilitli Pozisyon Tespiti</h2>
+      <p class="hint" data-i18n="lock.hint">Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.</p>
+      <div class="row" style="margin-top:.8rem; align-items:flex-start">
+        <div class="boardwrap">
+          <div class="ranks" id="lockRanks"></div>
+          <div class="board" id="lockBoard"></div>
+          <div class="files" id="lockFiles"></div>
+        </div>
+        <div class="grow" style="min-width:15rem">
+          <label data-i18n="common.fen">FEN</label>
+          <input type="text" id="lockFen" spellcheck="false">
+          <div class="presetbar" id="lockPresets"></div>
+          <div class="row" style="margin-top:1rem">
+            <button class="btn" id="lockBtn" data-i18n="lock.btn">🔒 Kilit Analizi Yap</button>
+          </div>
+        </div>
+      </div>
+      <div class="verdict" id="lockVerdict"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: FLAG FALL ══════════ -->
+  <section class="panel" id="panel-flag">
+    <div class="card">
+      <h2 data-i18n="flag.h2">Bayrak Düşmesi vs. Materyal</h2>
+      <p class="hint" data-i18n="flag.hint">Bir pozisyon kurun, bir tarafın süresini düşürün. Hakem, karşı tarafın mat edecek materyali olup olmadığına göre <b>kazanç / berabere</b> hükmünü anında verir. Gri (belirsiz) durumlar forced-mate araması ile kesinleştirilir.</p>
+      <div class="row" style="margin-top:.8rem; align-items:flex-start">
+        <div class="boardwrap">
+          <div class="ranks" id="flagRanks"></div>
+          <div class="board" id="flagBoard"></div>
+          <div class="files" id="flagFiles"></div>
+        </div>
+        <div class="grow" style="min-width:15rem">
+          <label data-i18n="common.fen">FEN</label>
+          <input type="text" id="flagFen" spellcheck="false">
+          <div class="presetbar" id="flagPresets"></div>
+          <div style="margin-top:.9rem">
+            <label data-i18n="flag.method">Hakemlik yaklaşımı</label>
+            <div class="turnsel" style="margin-top:.35rem; flex-wrap:wrap; gap:.6rem">
+              <label><input type="radio" name="flagMethod" value="fide" checked> FIDE</label>
+              <label><input type="radio" name="flagMethod" value="uscf"> USCF</label>
+            </div>
+            <p class="hint" id="flagMethodHint" style="margin:.35rem 0 0"></p>
+          </div>
+          <div class="depthbox" id="flagDepthBox">
+            <label data-i18n="flag.depthLabel">Arama derinliği (gri bölge)</label>
+            <input type="number" id="flagDepth" min="1" max="10" value="5">
+            <span class="hint" style="margin:0" data-i18n="common.ply">yarım hamle</span>
+          </div>
+          <div class="row" style="margin-top:1rem">
+            <button class="btn" id="flagWhiteBtn" data-i18n="flag.whiteBtn">Beyaz düşürür</button>
+            <button class="btn ghost" id="flagBlackBtn" data-i18n="flag.blackBtn">Siyah düşürür</button>
+          </div>
+        </div>
+      </div>
+      <div class="verdict" id="flagVerdict"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: FREE PLAY ══════════ -->
+  <section class="panel" id="panel-play">
+    <div class="card">
+      <h2 data-i18n="play.h2">Serbest Oyun</h2>
+      <p class="hint" data-i18n="play.hint">Motorun tüm kurallarıyla iki kişilik oyun. Bir taşa dokunun, sonra hedef kareye.</p>
+      <div class="row" style="margin-top:.8rem; align-items:flex-start">
+        <div class="boardwrap">
+          <div class="ranks" id="playRanks"></div>
+          <div class="board" id="playBoard"></div>
+          <div class="files" id="playFiles"></div>
+        </div>
+        <div class="grow" style="min-width:15rem">
+          <div class="status" id="playStatus"></div>
+
+          <div style="margin-top:.9rem">
+            <label data-i18n="play.fed">Federasyon</label>
+            <div class="turnsel" style="margin-top:.35rem; flex-wrap:wrap; gap:.6rem">
+              <label><input type="radio" name="playFed" value="fide" checked> FIDE</label>
+              <label><input type="radio" name="playFed" value="uscf"> USCF</label>
+              <label><input type="radio" name="playFed" value="ours"> <span data-i18n="play.fedOurs">Karma</span></label>
+              <label><input type="radio" name="playFed" value="custom"> <span data-i18n="play.fedCustom">Seçiminiz</span></label>
+            </div>
+            <p class="hint" id="playFedHint" style="margin:.35rem 0 0"></p>
+          </div>
+
+          <!-- Custom rule set — the same options the Engine Builder offers. -->
+          <div id="playCustom" style="display:none; margin-top:.6rem">
+            <div class="opt">
+              <input type="checkbox" id="pcClaim" checked>
+              <div class="body"><div class="t" data-i18n="build.claim.t">İddia alt sınırı — 50 hamle / 3 tekrar</div></div>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="pcHardCap" checked>
+              <div class="body"><div class="t" data-i18n="build.hardCap.t">Otomatik bitme üst sınırı — 75 hamle / 5 tekrar</div></div>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="pcResign" checked>
+              <div class="body"><div class="t" data-i18n="build.resign.t">Resign de bayrak düşmesi sayılır</div></div>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="pcLock" checked>
+              <div class="body"><div class="t" data-i18n="build.lock.t">Kilitli pozisyon taraması</div></div>
+            </div>
+            <div style="margin-top:.55rem">
+              <label data-i18n="build.mate.t">Bayrak düşmesi vs. materyal — mat ölçütü</label>
+              <div class="turnsel" style="margin-top:.35rem; flex-wrap:wrap; gap:.6rem">
+                <label><input type="radio" name="pcMate" value="helper" checked> <span data-i18n="build.mate.helper">Helper mate</span></label>
+                <label><input type="radio" name="pcMate" value="forced"> <span data-i18n="build.mate.forced">Forced mate</span></label>
+              </div>
+            </div>
+            <div class="depthbox" id="pcDepthBox" style="display:none">
+              <label data-i18n="build.mate.depthLabel">Forced mate derinliği</label>
+              <input type="number" id="pcDepth" min="1" max="10" value="5">
+              <span class="hint" style="margin:0" data-i18n="build.mate.depthUnit">yarım hamle (1–10)</span>
+            </div>
+            <p class="hint" id="pcWarn" style="color:var(--lose); display:none" data-i18n="play.customWarn">⚠ Ne iddia ne otomatik bitme seçili — bu kural setinde 50/3 ve 75/5 ile beraberlik hiç oluşmaz.</p>
+          </div>
+
+          <div class="opt" id="playDrawOpt" style="margin-top:.7rem">
+            <input type="checkbox" id="playDrawAct">
+            <div class="body">
+              <div class="t" data-i18n="play.drawAct.t">Beraberlik iddiası / teklifi</div>
+              <div class="d" id="playDrawMsg"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:.9rem">
+            <label data-i18n="play.flagH">Deney: bayrak düşürme</label>
+            <div class="row" style="margin-top:.35rem; gap:.35rem">
+              <button class="btn sm" id="playTimeW" data-i18n="play.timeW">⏱ Beyazın süresi</button>
+              <button class="btn sm ghost" id="playTimeB" data-i18n="play.timeB">⏱ Siyahın süresi</button>
+            </div>
+            <div class="row" style="margin-top:.35rem; gap:.35rem">
+              <button class="btn sm" id="playResignW" data-i18n="play.resignW">🏳 Beyaz terk</button>
+              <button class="btn sm ghost" id="playResignB" data-i18n="play.resignB">🏳 Siyah terk</button>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:1rem">
+            <button class="btn ghost" id="playReset" data-i18n="play.reset">Yeni Oyun</button>
+            <button class="btn ghost" id="playFlip" data-i18n="play.flip">Tahtayı Çevir</button>
+          </div>
+          <div style="margin-top:1rem">
+            <label data-i18n="common.fen">FEN</label>
+            <input type="text" id="playFen" spellcheck="false">
+            <div class="presetbar" id="playPresets"></div>
+            <p class="hint" id="playFenMsg" style="margin:.35rem 0 0; color:var(--lose); display:none"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ PANEL: ENGINE BUILDER ══════════ -->
+  <section class="panel" id="panel-build">
+    <div class="card">
+      <h2 data-i18n="build.h2">Motor Üretici</h2>
+      <p class="hint" data-i18n="build.hint">Hakem motorunu ihtiyacınıza göre yapılandırın ve tek dosya olarak indirin. Hazır bir preset seçebilir ya da seçenekleri elle karıştırıp özel bir motor üretebilirsiniz. Kod burada sergilenmez; yalnızca yapılandırılmış çalışan motoru indirebilirsiniz.</p>
+
+      <h3 data-i18n="build.presets">Hazır presetler</h3>
+      <div class="presetbar" id="cfgPresets">
+        <button data-preset="fide">FIDE</button>
+        <button data-preset="uscf">USCF</button>
+        <button data-preset="ours" data-i18n="build.presetOurs">Bizim karma</button>
+      </div>
+
+      <h3 data-i18n="build.drawLimits">Beraberlik sınırları</h3>
+      <div class="opt" id="cfgClaimOpt">
+        <input type="checkbox" id="cfgClaim" checked>
+        <div class="body">
+          <div class="t" data-i18n="build.claim.t">İddia alt sınırı — 50 hamle / 3 tekrar</div>
+          <div class="d" data-i18n="build.claim.d">Oyuncu iddia ederse berabere (oyun otomatik bitmez). Kapatılırsa 50/3 ile beraberlik iddia edilemez — ör. K+R vs K+Q gibi uzun sonlarda kazanan matı bulana dek oynamak zorunda kalır.</div>
+        </div>
+      </div>
+      <div class="opt" id="cfgHardCapOpt">
+        <input type="checkbox" id="cfgHardCap" checked>
+        <div class="body">
+          <div class="t" data-i18n="build.hardCap.t">Otomatik bitme üst sınırı — 75 hamle / 5 tekrar</div>
+          <div class="d" data-i18n="build.hardCap.d">FIDE'nin zorunlu tavanı: iddiaya gerek kalmadan 75. hamlede / 5. tekrarda otomatik berabere. USCF için kapalı bırakın.</div>
+        </div>
+      </div>
+      <p class="hint" id="cfgDrawWarn" style="color:var(--lose); display:none" data-i18n="build.drawWarn">⚠ İddia veya otomatik bitme sınırından en az biri seçili olmalı.</p>
+
+      <h3 data-i18n="build.flagSection">Bayrak düşmesi hakemliği</h3>
+      <div class="opt" id="cfgResignOpt">
+        <input type="checkbox" id="cfgResign" checked>
+        <div class="body">
+          <div class="t" data-i18n="build.resign.t">Resign de bayrak düşmesi sayılır</div>
+          <div class="d" data-i18n="build.resign.d">Açık (FIDE 5.1.2 / bizim karma): bir taraf terk ederse, rakip helper/forced mat kuramıyorsa berabere. Kapalı (USCF): terk doğrudan kayıp. <span class="hint" style="margin:0">(Arayüzde terk butonu henüz yok; bu bayrak üretilen motorun API davranışını belirler.)</span></div>
+        </div>
+      </div>
+      <div class="opt">
+        <input type="checkbox" checked disabled>
+        <div class="body">
+          <div class="t" data-i18n="build.mate.t">Bayrak düşmesi vs. materyal — mat ölçütü</div>
+          <div class="d" data-i18n="build.mate.d">Bir tarafın süresi bittiğinde karşı tarafın mat edebilirliği nasıl ölçülür.</div>
+          <div class="radiogrp">
+            <label><input type="radio" name="cfgMate" value="helper" checked> <span data-i18n="build.mate.helper">Helper mate</span> <span class="hint" style="margin:0" data-i18n="build.mate.helperNote">(FIDE — saf geometri, arama yok)</span></label>
+          </div>
+          <div class="radiogrp">
+            <label><input type="radio" name="cfgMate" value="forced"> <span data-i18n="build.mate.forced">Forced mate</span> <span class="hint" style="margin:0" data-i18n="build.mate.forcedNote">(USCF / karma — hafif taşlarda arama gerekir)</span></label>
+          </div>
+          <div class="depthbox" id="cfgDepthBox" style="display:none">
+            <label data-i18n="build.mate.depthLabel">Forced mate derinliği</label>
+            <input type="number" id="cfgDepth" min="1" max="10" value="5">
+            <span class="hint" style="margin:0" data-i18n="build.mate.depthUnit">yarım hamle (1–10)</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 data-i18n="build.lockSection">Kilitli pozisyon</h3>
+      <div class="opt" id="cfgLockOpt">
+        <input type="checkbox" id="cfgLock" checked>
+        <div class="body">
+          <div class="t" data-i18n="build.lock.t">Kilitli pozisyon taraması</div>
+          <div class="d" data-i18n="build.lock.d">Mutlak berabere (piyon-kilitli) pozisyonları %100 sound biçimde tanır ve otomatik berabere hükmeder (FIDE 5.2.2 / USCF 14D4). Motora dahil edilir.</div>
+        </div>
+      </div>
+
+      <div class="summary" id="cfgSummary"></div>
+
+      <div class="row">
+        <button class="btn" id="cfgDownload" data-i18n="build.download">⬇ Yapılandırılmış motoru indir</button>
+      </div>
+      <p class="hint" id="cfgFilename"></p>
+    </div>
+  </section>
+
+</div>
+  <script id="src-engine">
+const PA = (() => {
+  'use strict';
+
+  /* ── Piece codes: type 1..6, colour bit 8 (0=white, 8=black) ── */
+  const EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6;
+  const WHITE = 0, BLACK = 1;                    // side index (colourBit = side<<3)
+  const CHAR_TO_PIECE = { P:1, N:2, B:3, R:4, Q:5, K:6, p:9, n:10, b:11, r:12, q:13, k:14 };
+  const PIECE_TO_CHAR = ['', 'P','N','B','R','Q','K','', '', 'p','n','b','r','q','k',''];
+
+  /* ── Geometry: sq = row*16 + col; row 0 = rank 8 (top), col 0 = 'a' ── */
+  const KNIGHT_OFF = [-33,-31,-18,-14, 14, 18, 31, 33];
+  const KING_OFF   = [-17,-16,-15, -1,  1, 15, 16, 17];
+  const DIAG = [-17,-15, 15, 17], ORTH = [-16, -1, 1, 16];
+  const OFF = 0x88; // 136 — off-board mask
+
+  const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+  /* ── Castling bits: 1=K 2=Q 4=k 8=q. CMASK: rights lost per from/to square ── */
+  const CMASK = new Int32Array(128).fill(15);
+  CMASK[116] = 12; /* e1 */ CMASK[119] = 14; /* h1 */ CMASK[112] = 13; /* a1 */
+  CMASK[4]   = 3;  /* e8 */ CMASK[7]   = 11; /* h8 */ CMASK[0]   = 7;  /* a8 */
+
+  /* ── Zobrist keys (deterministic xorshift32 — reproducible) ── */
+  let _seed = 0x2545F491 | 0;
+  function rnd32() { _seed ^= _seed << 13; _seed ^= _seed >>> 17; _seed ^= _seed << 5; return _seed | 0; }
+  const ZA = new Int32Array(16 * 128), ZB = new Int32Array(16 * 128);
+  for (let i = 0; i < ZA.length; i++) { ZA[i] = rnd32(); ZB[i] = rnd32(); }
+  const ZCA = new Int32Array(16), ZCB = new Int32Array(16);
+  for (let i = 0; i < 16; i++) { ZCA[i] = rnd32(); ZCB[i] = rnd32(); }
+  const ZEA = new Int32Array(8), ZEB = new Int32Array(8);
+  for (let i = 0; i < 8; i++) { ZEA[i] = rnd32(); ZEB[i] = rnd32(); }
+  const ZSA = rnd32(), ZSB = rnd32();
+
+  /* ── Move packing ── */
+  const FL_NONE = 0, FL_DOUBLE = 1, FL_EP = 2, FL_CASTLE = 3;
+  const mFrom  = m => m & 127;
+  const mTo    = m => (m >> 7) & 127;
+  const mPromo = m => (m >> 14) & 7;   // 0 = none, else piece TYPE (2..5)
+  const mFlag  = m => (m >> 17) & 3;
+  function packMove(from, to, promo, flag) { return from | (to << 7) | (promo << 14) | (flag << 17); }
+
+  /* ── Static attack test: is sq attacked by side byIdx? ──
+     Directional with early exit; no 64-square scan. */
+  function attacked(bd, sq, byIdx) {
+    let t;
+    if (byIdx === WHITE) {           // a white pawn on s attacks s-15/s-17 → attacker square sq+15/sq+17
+      t = sq + 15; if ((t & OFF) === 0 && bd[t] === 1) return true;
+      t = sq + 17; if ((t & OFF) === 0 && bd[t] === 1) return true;
+    } else {
+      t = sq - 15; if ((t & OFF) === 0 && bd[t] === 9) return true;
+      t = sq - 17; if ((t & OFF) === 0 && bd[t] === 9) return true;
+    }
+    const byBit = byIdx << 3;
+    const N = KNIGHT | byBit, K = KING | byBit;
+    for (let i = 0; i < 8; i++) {
+      t = sq + KNIGHT_OFF[i]; if ((t & OFF) === 0 && bd[t] === N) return true;
+      t = sq + KING_OFF[i];   if ((t & OFF) === 0 && bd[t] === K) return true;
+    }
+    const Bp = BISHOP | byBit, Q = QUEEN | byBit, R = ROOK | byBit;
+    for (let i = 0; i < 4; i++) {
+      const d = DIAG[i]; t = sq + d;
+      while ((t & OFF) === 0) { const p = bd[t]; if (p) { if (p === Bp || p === Q) return true; break; } t += d; }
+    }
+    for (let i = 0; i < 4; i++) {
+      const d = ORTH[i]; t = sq + d;
+      while ((t & OFF) === 0) { const p = bd[t]; if (p) { if (p === R || p === Q) return true; break; } t += d; }
+    }
+    return false;
+  }
+
+  /* ── Position object ── */
+  function createPosition() {
+    const bd = new Int8Array(128);
+    const kings = new Int32Array(2);            // [white king square, black king square]
+    let side = WHITE, castle = 0, ep = -1, half = 0, full = 1;
+    let hashA = 0, hashB = 0, ply = 0;
+
+    /* Undo stacks — grow automatically as needed */
+    let cap = 8192;
+    let uMove = new Int32Array(cap), uCap = new Int32Array(cap), uCast = new Int32Array(cap),
+        uEp = new Int32Array(cap), uHalf = new Int32Array(cap), uHA = new Int32Array(cap), uHB = new Int32Array(cap);
+    function grow() {
+      cap *= 2;
+      const g = a => { const n = new Int32Array(cap); n.set(a); return n; };
+      uMove = g(uMove); uCap = g(uCap); uCast = g(uCast); uEp = g(uEp);
+      uHalf = g(uHalf); uHA = g(uHA); uHB = g(uHB);
+    }
+
+    function computeHash() {
+      let a = 0, b = 0;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        const p = bd[sq];
+        if (p) { a ^= ZA[(p << 7) | sq]; b ^= ZB[(p << 7) | sq]; }
+      }
+      a ^= ZCA[castle]; b ^= ZCB[castle];
+      if (ep !== -1) { a ^= ZEA[ep & 7]; b ^= ZEB[ep & 7]; }
+      if (side === BLACK) { a ^= ZSA; b ^= ZSB; }
+      hashA = a | 0; hashB = b | 0;
+    }
+
+    /* ── make: play a move (accepts pseudo-legal; legality is tested outside) ── */
+    function make(m) {
+      if (ply >= cap) grow();
+      uMove[ply] = m; uCast[ply] = castle; uEp[ply] = ep;
+      uHalf[ply] = half; uHA[ply] = hashA; uHB[ply] = hashB;
+
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = (m >> 17) & 3;
+      const us = side, them = us ^ 1, usBit = us << 3;
+      const piece = bd[from];
+
+      let captured, capSq;
+      if (flag === FL_EP) { captured = PAWN | (them << 3); capSq = us === WHITE ? to + 16 : to - 16; }
+      else                { captured = bd[to];             capSq = to; }
+      uCap[ply] = captured;
+      ply++;
+
+      if (ep !== -1) { hashA ^= ZEA[ep & 7]; hashB ^= ZEB[ep & 7]; ep = -1; }
+
+      half++;
+      if ((piece & 7) === PAWN) half = 0;
+
+      bd[from] = EMPTY;
+      hashA ^= ZA[(piece << 7) | from]; hashB ^= ZB[(piece << 7) | from];
+
+      if (captured) {
+        half = 0;
+        bd[capSq] = EMPTY;
+        hashA ^= ZA[(captured << 7) | capSq]; hashB ^= ZB[(captured << 7) | capSq];
+      }
+
+      const placed = promo ? (promo | usBit) : piece;
+      bd[to] = placed;
+      hashA ^= ZA[(placed << 7) | to]; hashB ^= ZB[(placed << 7) | to];
+
+      if ((piece & 7) === KING) {
+        kings[us] = to;
+        if (flag === FL_CASTLE) {
+          let rf, rt;
+          if ((to & 7) === 6) { rf = to + 1; rt = to - 1; }  // kingside castle: h→f
+          else                { rf = to - 2; rt = to + 1; }  // queenside castle: a→d
+          const rook = bd[rf];
+          bd[rf] = EMPTY; bd[rt] = rook;
+          hashA ^= ZA[(rook << 7) | rf] ^ ZA[(rook << 7) | rt];
+          hashB ^= ZB[(rook << 7) | rf] ^ ZB[(rook << 7) | rt];
+        }
+      }
+
+      if (flag === FL_DOUBLE) {
+        ep = (from + to) >> 1;
+        hashA ^= ZEA[ep & 7]; hashB ^= ZEB[ep & 7];
+      }
+
+      const nc = castle & CMASK[from] & CMASK[to];
+      if (nc !== castle) {
+        hashA ^= ZCA[castle] ^ ZCA[nc]; hashB ^= ZCB[castle] ^ ZCB[nc];
+        castle = nc;
+      }
+
+      side = them;
+      hashA ^= ZSA; hashB ^= ZSB;
+      if (side === WHITE) full++;
+    }
+
+    /* ── unmake: take back the last move ── */
+    function unmake() {
+      ply--;
+      const m = uMove[ply];
+      const from = m & 127, to = (m >> 7) & 127, promo = (m >> 14) & 7, flag = (m >> 17) & 3;
+      side ^= 1;
+      const us = side, usBit = us << 3;
+      if (us === BLACK) full--;
+      castle = uCast[ply]; ep = uEp[ply]; half = uHalf[ply];
+      hashA = uHA[ply]; hashB = uHB[ply];
+
+      const moved = promo ? (PAWN | usBit) : bd[to];
+      bd[from] = moved; bd[to] = EMPTY;
+
+      if ((moved & 7) === KING) {
+        kings[us] = from;
+        if (flag === FL_CASTLE) {
+          let rf, rt;
+          if ((to & 7) === 6) { rf = to + 1; rt = to - 1; }
+          else                { rf = to - 2; rt = to + 1; }
+          bd[rf] = bd[rt]; bd[rt] = EMPTY;
+        }
+      }
+
+      const captured = uCap[ply];
+      if (captured) {
+        const capSq = flag === FL_EP ? (us === WHITE ? to + 16 : to - 16) : to;
+        bd[capSq] = captured;
+      }
+    }
+
+    /* ── Pseudo-legal move generation: writes into buf from at, returns end index ── */
+    function genMoves(buf, at) {
+      const us = side, them = us ^ 1, usBit = us << 3, themBit = them << 3;
+      const dir = us === WHITE ? -16 : 16;
+      const startRow = us === WHITE ? 6 : 1;
+      const promoRow = us === WHITE ? 0 : 7;
+      let n = at;
+
+      for (let from = 0; from < 128; from++) {
+        if (from & OFF) { from += 7; continue; }
+        const p = bd[from];
+        if (p === 0 || (p & 8) !== usBit) continue;
+        const t = p & 7;
+
+        if (t === PAWN) {
+          const one = from + dir;
+          if ((one & OFF) === 0 && bd[one] === 0) {
+            if ((one >> 4) === promoRow) {
+              buf[n++] = packMove(from, one, QUEEN, 0);
+              buf[n++] = packMove(from, one, ROOK, 0);
+              buf[n++] = packMove(from, one, BISHOP, 0);
+              buf[n++] = packMove(from, one, KNIGHT, 0);
+            } else {
+              buf[n++] = packMove(from, one, 0, 0);
+              if ((from >> 4) === startRow) {
+                const two = one + dir;
+                if (bd[two] === 0) buf[n++] = packMove(from, two, 0, FL_DOUBLE);
+              }
+            }
+          }
+          for (let s = -1; s <= 1; s += 2) {
+            const cs = from + dir + s;
+            if (cs & OFF) continue;
+            const tp = bd[cs];
+            if (tp !== 0 && (tp & 8) === themBit) {
+              if ((cs >> 4) === promoRow) {
+                buf[n++] = packMove(from, cs, QUEEN, 0);
+                buf[n++] = packMove(from, cs, ROOK, 0);
+                buf[n++] = packMove(from, cs, BISHOP, 0);
+                buf[n++] = packMove(from, cs, KNIGHT, 0);
+              } else buf[n++] = packMove(from, cs, 0, 0);
+            } else if (cs === ep && tp === 0) {
+              // safety: an enemy pawn must really sit behind the ep square
+              const behind = ep + (us === WHITE ? 16 : -16);
+              if ((behind & OFF) === 0 && bd[behind] === (PAWN | themBit))
+                buf[n++] = packMove(from, cs, 0, FL_EP);
+            }
+          }
+        } else if (t === KNIGHT) {
+          for (let i = 0; i < 8; i++) {
+            const to = from + KNIGHT_OFF[i];
+            if (to & OFF) continue;
+            const tp = bd[to];
+            if (tp === 0 || (tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0);
+          }
+        } else if (t === KING) {
+          for (let i = 0; i < 8; i++) {
+            const to = from + KING_OFF[i];
+            if (to & OFF) continue;
+            const tp = bd[to];
+            if (tp === 0 || (tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0);
+          }
+          // Castling — king home, not in check, path clear, transit square unattacked, rook home.
+          // (Destination safety is verified by make + the legality filter.)
+          const home = us === WHITE ? 116 : 4;
+          if (from === home && !attacked(bd, home, them)) {
+            if (us === WHITE) {
+              if ((castle & 1) && bd[117] === 0 && bd[118] === 0 && bd[119] === ROOK &&
+                  !attacked(bd, 117, them)) buf[n++] = packMove(116, 118, 0, FL_CASTLE);
+              if ((castle & 2) && bd[115] === 0 && bd[114] === 0 && bd[113] === 0 && bd[112] === ROOK &&
+                  !attacked(bd, 115, them)) buf[n++] = packMove(116, 114, 0, FL_CASTLE);
+            } else {
+              if ((castle & 4) && bd[5] === 0 && bd[6] === 0 && bd[7] === (ROOK | 8) &&
+                  !attacked(bd, 5, them)) buf[n++] = packMove(4, 6, 0, FL_CASTLE);
+              if ((castle & 8) && bd[3] === 0 && bd[2] === 0 && bd[1] === 0 && bd[0] === (ROOK | 8) &&
+                  !attacked(bd, 3, them)) buf[n++] = packMove(4, 2, 0, FL_CASTLE);
+            }
+          }
+        } else {
+          if (t !== ROOK) {   // bishop / queen: diagonal rays
+            for (let i = 0; i < 4; i++) {
+              const d = DIAG[i]; let to = from + d;
+              while ((to & OFF) === 0) {
+                const tp = bd[to];
+                if (tp === 0) buf[n++] = packMove(from, to, 0, 0);
+                else { if ((tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0); break; }
+                to += d;
+              }
+            }
+          }
+          if (t !== BISHOP) { // rook / queen: straight rays
+            for (let i = 0; i < 4; i++) {
+              const d = ORTH[i]; let to = from + d;
+              while ((to & OFF) === 0) {
+                const tp = bd[to];
+                if (tp === 0) buf[n++] = packMove(from, to, 0, 0);
+                else { if ((tp & 8) === themBit) buf[n++] = packMove(from, to, 0, 0); break; }
+                to += d;
+              }
+            }
+          }
+        }
+      }
+      return n;
+    }
+
+    /* after make: is the mover's own king attacked? (legality test) */
+    function legalAfterMake() { return !attacked(bd, kings[side ^ 1], side); }
+    function tryMoveLegal(m) { make(m); const ok = legalAfterMake(); unmake(); return ok; }
+
+    const GEN = new Int32Array(256); // game-speed buffer (the search uses the perft stack)
+
+    function legalMoves() {
+      const end = genMoves(GEN, 0);
+      const out = [];
+      for (let i = 0; i < end; i++) {
+        const m = GEN[i];
+        make(m);
+        if (legalAfterMake()) out.push(m);
+        unmake();
+      }
+      return out;
+    }
+
+    function hasLegalMove() {
+      const end = genMoves(GEN, 0);
+      for (let i = 0; i < end; i++) {
+        make(GEN[i]);
+        const ok = legalAfterMake();
+        unmake();
+        if (ok) return true;
+      }
+      return false;
+    }
+
+    function inCheck() { return attacked(bd, kings[side], side ^ 1); }
+
+    /* ── perft: correctness + speed proof for move generation ── */
+    const PSTACK = new Int32Array(224 * 128);
+    function _perft(depth, base) {
+      const end = genMoves(PSTACK, base);
+      let nodes = 0;
+      if (depth === 1) {
+        for (let i = base; i < end; i++) {
+          make(PSTACK[i]);
+          if (legalAfterMake()) nodes++;
+          unmake();
+        }
+        return nodes;
+      }
+      for (let i = base; i < end; i++) {
+        make(PSTACK[i]);
+        if (legalAfterMake()) nodes += _perft(depth - 1, end);
+        unmake();
+      }
+      return nodes;
+    }
+    function perft(depth) { return depth <= 0 ? 1 : _perft(depth, 0); }
+
+    /* ── Forced-mate solver (for the flag-fall / resign grey zone and locked positions) ──
+       "Can winnerIsWhite force mate within `plies` of its OWN moves, against best
+       defence?"  Boolean minimax:
+         • winner to move → ∃ : one mating move is enough.
+         • loser to move  → ∀ : the winner must still force it after EVERY reply.
+         • loser mated (no moves + check)    → success.
+         • loser stalemated (no moves, safe) → NOT a forced mate.
+       `plies` = the winner's move budget. A node budget caps pathological trees.
+       Uses MSTACK, separate from PSTACK, so perft and search never nest. */
+    const MSTACK = new Int32Array(64 * 128);   // 64 plies of depth is plenty (32 full moves)
+    let mateNodeBudget = 0;
+
+    function _mate(plies, base, winnerSide) {
+      if (--mateNodeBudget < 0) return false;    // budget exceeded → "not found"
+      const winnerToMove = (side === winnerSide);
+      const end = genMoves(MSTACK, base);
+
+      let anyLegal = false;
+      if (winnerToMove) {
+        // ∃ — winner: true if any single move forces mate.
+        // The budget (plies) drops only when the WINNER moves.
+        if (plies === 0) return false;   // the winner's move budget is spent, no mate
+        for (let i = base; i < end; i++) {
+          const m = MSTACK[i];
+          make(m);
+          const legal = legalAfterMake();
+          if (legal) { anyLegal = true; const r = _mate(plies - 1, end, winnerSide); unmake(); if (r) return true; }
+          else unmake();
+        }
+        return false; // no winner move could force it
+      } else {
+        // ∀ — loser (defender): the winner must still force mate after every legal reply.
+        // While the loser defends, the winner's budget (plies) is UNCHANGED.
+        for (let i = base; i < end; i++) {
+          const m = MSTACK[i];
+          make(m);
+          const legal = legalAfterMake();
+          if (legal) {
+            anyLegal = true;
+            const r = _mate(plies, end, winnerSide);
+            unmake();
+            if (!r) return false;   // a single escape saves the defender → no forced mate
+          } else unmake();
+        }
+        // The loser has no legal move: mate or stalemate?
+        if (!anyLegal) {
+          return inCheck();          // in check → mate (the winner succeeded); otherwise stalemate (false)
+        }
+        return true;                 // every defence ran into mate
+      }
+    }
+
+    /* plies = the winner's move budget (default 5). nodeBudget = safety cap.
+       true → winnerIsWhite can force mate; false → cannot (within this budget).
+       The default suits the grey zone (weak minors, small trees); in pathological
+       positions an unpruned search can blow up, so exceeding the budget is read
+       safely as "no mate found" (a draw). */
+    function forcedMate(winnerIsWhite, plies, nodeBudget) {
+      mateNodeBudget = (nodeBudget && nodeBudget > 0) ? nodeBudget : 3000000;
+      const winnerSide = winnerIsWhite ? WHITE : BLACK;
+      return _mate(plies | 0, 0, winnerSide);
+    }
+
+    /* Iterative deepening: finds the first (shortest) forced mate in 1..maxPlies.
+       Returns the number of moves needed, or 0 if there is none. */
+    function forcedMateDepth(winnerIsWhite, maxPlies, nodeBudget) {
+      for (let d = 1; d <= (maxPlies | 0); d++) {
+        if (forcedMate(winnerIsWhite, d, nodeBudget)) return d;
+      }
+      return 0;
+    }
+
+    /* ── Mate line (principal variation) — for animation / display ──
+       Once forcedMateDepth finds a mate, this produces its concrete move sequence:
+         • winner to move: the move that preserves the mate (shortest to mate).
+         • loser to move:  the most stubborn defence (mate as late as possible).
+       Returns [{move, from, to, mate, stalemate}], or null if there is no mate.
+       Restores the ORIGINAL position before returning. */
+
+    // Helper: from here, can the winner force mate within `plies` of its own moves?
+    // (fresh budget for mateLine; wraps _mate)
+    function mateInAtMost(plies, winnerSide) {
+      mateNodeBudget = 3000000;
+      return _mate(plies | 0, 0, winnerSide);
+    }
+    // Helper: shortest forced mate from here, in winner moves (0 if none)
+    function shortestMate(maxPlies, winnerSide) {
+      for (let d = 1; d <= maxPlies; d++) {
+        if (mateInAtMost(d, winnerSide)) return d;
+      }
+      return 0;
+    }
+
+    function mateLine(winnerIsWhite, maxPlies, nodeBudget) {
+      const winnerSide = winnerIsWhite ? WHITE : BLACK;
+      const total = forcedMateDepth(winnerIsWhite, maxPlies, nodeBudget);
+      if (total === 0) return null;
+
+      const line = [];
+      let budget = total;                    // the winner's remaining move budget
+      const guard = 2 * total + 2;
+
+      for (let step = 0; step < guard; step++) {
+        const moves = legalMoves();
+        if (moves.length === 0) break;
+        const winnerToMove = (side === winnerSide);
+        let chosen = moves[0];
+
+        if (winnerToMove) {
+          // the move that preserves the mate and reaches it SOONEST
+          let best = Infinity;
+          for (const m of moves) {
+            make(m);
+            let val;
+            if (!hasLegalMove() && inCheck()) {
+              val = 0;                        // this move mates immediately
+            } else {
+              // after this move the loser is on turn; the winner must mate within budget-1
+              val = shortestMate(budget - 1, winnerSide); // 0 = not found
+              if (val === 0) val = Infinity;  // this move does not preserve the forced mate
+            }
+            unmake();
+            if (val < best) { best = val; chosen = m; if (best === 0) break; }
+          }
+        } else {
+          // loser: the defence that delays mate LONGEST
+          let longest = -1;
+          for (const m of moves) {
+            make(m);
+            const d = shortestMate(budget, winnerSide); // how many moves the winner needs from here
+            unmake();
+            const rank = (d === 0) ? Infinity : d;      // d=0 should not happen (a forced mate is guaranteed)
+            if (rank > longest) { longest = rank; chosen = m; }
+          }
+        }
+
+        const from = mFrom(chosen), to = mTo(chosen);
+        make(chosen);
+        const isMate = (!hasLegalMove() && inCheck());
+        const isStale = (!hasLegalMove() && !inCheck());
+        line.push({ move: chosen, from, to, mate: isMate, stalemate: isStale });
+        if (side === winnerSide) {
+          // the loser just moved (the winner is now on turn) → the budget holds
+        } else {
+          budget--;                           // the winner just moved
+        }
+        if (isMate || isStale) break;
+      }
+
+      for (let i = line.length - 1; i >= 0; i--) unmake();
+      return line;
+    }
+
+    /* ── Dead position (CERTAIN, material-based cases) ──
+       K-K, K+minor vs K, and all bishops on one square colour with no knights.
+       (General "locked position" detection lives in the arbiter layer.) */
+    function deadMaterial() {
+      let knights = 0, minors = 0, light = false, dark = false;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        const p = bd[sq];
+        if (!p) continue;
+        const t = p & 7;
+        if (t === PAWN || t === ROOK || t === QUEEN) return false;
+        if (t === KNIGHT) { knights++; minors++; }
+        else if (t === BISHOP) {
+          minors++;
+          if (((sq >> 4) + (sq & 7)) & 1) dark = true; else light = true;
+        }
+      }
+      if (minors <= 1) return true;
+      if (knights === 0 && !(light && dark)) return true;
+      return false;
+    }
+
+    /* ── Per-side material inventory (for flag-fall / resign arbitration) ──
+       Per side: pawn/rook/queen counts, knights, light- and dark-square bishops.
+       byWhite=true → White's pieces. Verdicts are formed above this, in the
+       arbiter layer; here we only count. */
+    function material(byWhite) {
+      const usBit = byWhite ? 0 : 8;
+      let pawns = 0, rooks = 0, queens = 0, knights = 0, lightB = 0, darkB = 0;
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        const p = bd[sq];
+        if (!p || (p & 8) !== usBit) continue;
+        switch (p & 7) {
+          case PAWN:   pawns++;   break;
+          case ROOK:   rooks++;   break;
+          case QUEEN:  queens++;  break;
+          case KNIGHT: knights++; break;
+          case BISHOP:
+            if (((sq >> 4) + (sq & 7)) & 1) darkB++; else lightB++;
+            break;
+        }
+      }
+      const bishops = lightB + darkB;
+      return {
+        pawns, rooks, queens, knights, lightB, darkB, bishops,
+        minors: knights + bishops,
+        // bishop colour variety: 0 (none), 1 (one colour), 2 (both = opposite bishops)
+        bishopColors: (lightB > 0 ? 1 : 0) + (darkB > 0 ? 1 : 0),
+        // heavy material (minors that cannot mate alone are excluded)
+        heavy: pawns + rooks + queens,
+        total: pawns + rooks + queens + knights + bishops,
+      };
+    }
+
+    /* ── FIDE 9.2: for repetition, en passant counts only if a LEGAL ep capture exists ── */
+    function epCaptureLegal() {
+      if (ep === -1) return false;
+      const us = side, usBit = us << 3;
+      const behind = ep + (us === WHITE ? 16 : -16);
+      if ((behind & OFF) || bd[behind] !== (PAWN | ((us ^ 1) << 3))) return false;
+      for (let s = -1; s <= 1; s += 2) {
+        const from = behind + s;
+        if (from & OFF) continue;
+        if (bd[from] === (PAWN | usBit)) {
+          if (tryMoveLegal(packMove(from, ep, 0, FL_EP))) return true;
+        }
+      }
+      return false;
+    }
+
+    /* Exact repetition key: placement + side + castling rights + (if valid) ep file.
+       Not a hash but a literal comparison → threefold detection is 100% sound. */
+    function repetitionKey() {
+      let s = '';
+      for (let sq = 0; sq < 128; sq++) {
+        if (sq & OFF) { sq += 7; continue; }
+        s += PIECE_TO_CHAR[bd[sq]] || '.';
+      }
+      s += side === WHITE ? ' w ' : ' b ';
+      s += castle.toString(16);
+      s += epCaptureLegal() ? (' ' + 'abcdefgh'[ep & 7]) : ' -';
+      return s;
+    }
+
+    /* ── FEN loading + validation ── */
+    function loadFen(fen) {
+      const parts = String(fen).trim().split(/\s+/);
+      const rows = (parts[0] || '').split('/');
+      if (rows.length !== 8) return { ok: false, error: 'FEN: 8 sıra olmalı (/ ile ayrılmış).' };
+      const nb = new Int8Array(128);
+      let wK = 0, bK = 0, wKsq = -1, bKsq = -1;
+      for (let r = 0; r < 8; r++) {
+        let c = 0;
+        for (const ch of rows[r]) {
+          if (ch >= '1' && ch <= '8') c += ch.charCodeAt(0) - 48;
+          else {
+            const p = CHAR_TO_PIECE[ch];
+            if (!p) return { ok: false, error: `FEN: Bilinmeyen karakter '${ch}'.` };
+            if (c >= 8) return { ok: false, error: `FEN: ${r + 1}. sıra 8 kare olmalı.` };
+            if ((p & 7) === PAWN && (r === 0 || r === 7))
+              return { ok: false, error: 'FEN: Piyon 1. veya 8. sırada olamaz.' };
+            if (p === 6)  { wK++; wKsq = r * 16 + c; }
+            if (p === 14) { bK++; bKsq = r * 16 + c; }
+            nb[r * 16 + c] = p; c++;
+          }
+        }
+        if (c !== 8) return { ok: false, error: `FEN: ${r + 1}. sıra 8 kare olmalı.` };
+      }
+      if (wK !== 1) return { ok: false, error: 'FEN: Beyazın tam 1 şahı olmalı.' };
+      if (bK !== 1) return { ok: false, error: 'FEN: Siyahın tam 1 şahı olmalı.' };
+
+      const sideStr = parts[1] || 'w';
+      if (sideStr !== 'w' && sideStr !== 'b') return { ok: false, error: "FEN: Sıra 'w' veya 'b' olmalı." };
+      const stm = sideStr === 'w' ? WHITE : BLACK;
+
+      // The side NOT to move cannot be in check
+      const nmIdx = stm ^ 1;
+      const nmKing = nmIdx === WHITE ? wKsq : bKsq;
+      if (attacked(nb, nmKing, stm)) {
+        const who = nmIdx === WHITE ? 'Beyaz' : 'Siyah';
+        return { ok: false, error: `FEN: ${who} şahta ama sırası değil — geçersiz pozisyon.` };
+      }
+
+      // Castling rights — silently dropped if the king/rook is not home
+      const cs = parts[2] || '-';
+      let cst = 0;
+      if (cs.includes('K') && nb[116] === 6  && nb[119] === 4)  cst |= 1;
+      if (cs.includes('Q') && nb[116] === 6  && nb[112] === 4)  cst |= 2;
+      if (cs.includes('k') && nb[4]   === 14 && nb[7]   === 12) cst |= 4;
+      if (cs.includes('q') && nb[4]   === 14 && nb[0]   === 12) cst |= 8;
+
+      let nep = -1;
+      const eps = parts[3] || '-';
+      if (eps !== '-') {
+        const col = 'abcdefgh'.indexOf(eps[0]);
+        const rk = parseInt(eps[1], 10);
+        const row = Number.isFinite(rk) ? 8 - rk : -1;
+        if (col < 0 || row < 0 || row > 7) return { ok: false, error: 'FEN: Geçersiz en passant karesi.' };
+        nep = row * 16 + col;
+      }
+
+      const nh = parseInt(parts[4], 10);
+      const nf = parseInt(parts[5], 10);
+
+      // Accepted — commit the state
+      bd.set(nb);
+      kings[WHITE] = wKsq; kings[BLACK] = bKsq;
+      side = stm; castle = cst; ep = nep;
+      half = Number.isFinite(nh) && nh >= 0 ? nh : 0;
+      full = Number.isFinite(nf) && nf >= 1 ? nf : 1;
+      ply = 0;
+      computeHash();
+      return { ok: true };
+    }
+
+    function getFen() {
+      let out = '';
+      for (let r = 0; r < 8; r++) {
+        let e = 0;
+        for (let c = 0; c < 8; c++) {
+          const p = bd[r * 16 + c];
+          if (!p) e++;
+          else { if (e) { out += e; e = 0; } out += PIECE_TO_CHAR[p]; }
+        }
+        if (e) out += e;
+        if (r < 7) out += '/';
+      }
+      out += side === WHITE ? ' w ' : ' b ';
+      out += castle ? ((castle & 1 ? 'K' : '') + (castle & 2 ? 'Q' : '') + (castle & 4 ? 'k' : '') + (castle & 8 ? 'q' : '')) : '-';
+      out += ' ' + (ep === -1 ? '-' : ('abcdefgh'[ep & 7] + String(8 - (ep >> 4))));
+      out += ' ' + half + ' ' + full;
+      return out;
+    }
+
+    return {
+      /* state readers */
+      get side() { return side; },
+      get castle() { return castle; },
+      get ep() { return ep; },
+      get halfmove() { return half; },
+      get fullmove() { return full; },
+      get ply() { return ply; },
+      get hashA() { return hashA; },
+      get hashB() { return hashB; },
+      board: bd, kings,
+      turnWhite() { return side === WHITE; },
+      pieceCharAt(r, c) { return PIECE_TO_CHAR[bd[r * 16 + c]] || ''; },
+      /* core operations */
+      loadFen, getFen,
+      genMovesInto: genMoves,      // (buf, at) → end  — zero-GC path for search / simulation
+      legalMoves, hasLegalMove, tryMoveLegal,
+      make, unmake, inCheck,
+      attackedSq(sq, byWhite) { return attacked(bd, sq, byWhite ? WHITE : BLACK); },
+      /* arbiter helpers */
+      deadMaterial, epCaptureLegal, repetitionKey, material,
+      forcedMate, forcedMateDepth, mateLine,
+      /* validation & measurement */
+      perft,
+    };
+  }
+
+  /* King-threat test over an 8x8 char array (for FEN / editor validation) */
+  function rowsInCheck(rows, kingIsWhite) {
+    const tb = new Int8Array(128);
+    let ks = -1;
+    const target = kingIsWhite ? 6 : 14;
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const ch = rows[r][c];
+      if (!ch) continue;
+      const p = CHAR_TO_PIECE[ch];
+      if (p) { tb[r * 16 + c] = p; if (p === target) ks = r * 16 + c; }
+    }
+    if (ks === -1) return false;
+    return attacked(tb, ks, kingIsWhite ? BLACK : WHITE);
+  }
+
+  return {
+    version: 'PerfectArbiter-core 1.0',
+    createPosition, rowsInCheck,
+    START_FEN,
+    mFrom, mTo, mPromo, mFlag,
+    FL_NONE, FL_DOUBLE, FL_EP, FL_CASTLE,
+    PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
+    PIECE_TO_CHAR, CHAR_TO_PIECE,
+    sqRow: sq => sq >> 4,
+    sqCol: sq => sq & 7,
+    toSq: (r, c) => r * 16 + c,
+  };
+})();
+
+</script>
+  <script id="src-lock">
+/* ═══════════════════════════════════════════════════════════════════════
+   LOCKED POSITION DETECTION — CORE (locked-legality based)
+
+   Proves that a position is an ABSOLUTE LOCK: if even two cooperating sides can
+   open no irreversible move (capture / pawn push-promotion) and no mate, the game
+   is a certain draw (under FIDE's 75-move / 5-repetition ceiling).
+
+   100% SOUND: when it says "LOCK" it is always right. "not locked" only means
+   "not proven". Every ambiguity falls to "not locked" (false negatives only).
+
+   LOCKED-LEGALITY: our own geometric move generator. A move = geometry allows it
+   and the target holds no friendly piece. King safety (pins, discovered check,
+   side to move) is ignored — a relaxation that is safe for soundness.
+
+   FIVE CHECKS (in order; the first match returns "not locked"):
+   K1: 8 ≤ pieces ≤ 30, exactly 1+1 kings, no queen, ≥3 pawns a side, promotion-consistent.
+   K2: pawn bricks (direction-sensitive) + geometric pruning.
+   K3: knights/rooks immobile under locked-legality (both sides) + bishop early-breaker.
+   K4: three main nodes (pawn/bishop/king) × two sides, nested spread; all breakers
+       at every node + ep + mate. Bishop-void pruning skips branches P and B.
+   K5: final king guarantee — with only the pawn wall left, can one king reach the other?
+   Each check tests the SIDE TO MOVE first, then the opponent.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function makeLockDetector(PA) {
+  const FILES = 'abcdefgh';
+
+  function emptyBoard(){ const b=[]; for(let r=0;r<8;r++) b.push(['','','','','','','','']); return b; }
+  function cloneBoard(b){ return b.map(row=>row.slice()); }
+  function inB(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+  function isWhite(p){ return p && p===p.toUpperCase(); }
+  function isBlack(p){ return p && p===p.toLowerCase(); }
+  function sameSide(p,white){ return p && (isWhite(p)===white); }
+
+  function fenToBoard(fen){
+    const b=emptyBoard();
+    const rows=fen.split(/\s+/)[0].split('/');
+    if(rows.length!==8) return null;
+    for(let r=0;r<8;r++){ let c=0;
+      for(const ch of rows[r]){ if(/\d/.test(ch)) c+=+ch; else { if(c>7) return null; b[r][c]=ch; c++; } }
+      if(c!==8) return null;
+    }
+    return b;
+  }
+  function boardToPlacement(b){
+    const rows=[];
+    for(let r=0;r<8;r++){ let e=0,s='';
+      for(let c=0;c<8;c++){ if(!b[r][c]) e++; else { if(e){s+=e;e=0;} s+=b[r][c]; } }
+      if(e)s+=e; rows.push(s);
+    }
+    return rows.join('/');
+  }
+  function boardToFen(b,white,ep){
+    let epStr='-'; if(ep) epStr=FILES[ep.c]+(8-ep.r);
+    return boardToPlacement(b)+' '+(white?'w':'b')+' - '+epStr+' 0 1';
+  }
+
+  const KNIGHT_D=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+  const KING_D=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const BISHOP_D=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  const ROOK_D=[[-1,0],[1,0],[0,-1],[0,1]];
+  const QUEEN_D=BISHOP_D.concat(ROOK_D);
+
+  function slideMoves(b,r,c,dirs,white){
+    const out=[];
+    for(const [dr,dc] of dirs){ let nr=r+dr,nc=c+dc;
+      while(inB(nr,nc)){ const t=b[nr][nc];
+        if(!t){ out.push({r:nr,c:nc,capture:false}); }
+        else { if(isWhite(t)!==white) out.push({r:nr,c:nc,capture:true}); break; }
+        nr+=dr; nc+=dc;
+      }
+    }
+    return out;
+  }
+  function pawnMoves(b,r,c,white,ep){
+    const out=[];
+    const dir=white?-1:1, startRow=white?6:1, promoRow=white?0:7;
+    const fr=r+dir;
+    if(inB(fr,c) && !b[fr][c]){
+      out.push({r:fr,c,capture:false,promo:fr===promoRow});
+      const fr2=r+2*dir;
+      if(r===startRow && inB(fr2,c) && !b[fr2][c]) out.push({r:fr2,c,capture:false});
+    }
+    for(const dc of [-1,1]){ const nr=r+dir,nc=c+dc;
+      if(!inB(nr,nc)) continue;
+      const t=b[nr][nc];
+      if(t && isWhite(t)!==white) out.push({r:nr,c:nc,capture:true,promo:nr===promoRow});
+      else if(ep && ep.r===nr && ep.c===nc) out.push({r:nr,c:nc,capture:true,ep:true});
+    }
+    return out;
+  }
+  function pieceMoves(b,r,c,ep){
+    const p=b[r][c]; if(!p) return [];
+    const white=isWhite(p), t=p.toUpperCase();
+    switch(t){
+      case 'P': return pawnMoves(b,r,c,white,ep);
+      case 'N': return KNIGHT_D.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>inB(nr,nc)&&!sameSide(b[nr][nc],white)).map(([nr,nc])=>({r:nr,c:nc,capture:!!b[nr][nc]}));
+      case 'K': return KING_D.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>inB(nr,nc)&&!sameSide(b[nr][nc],white)).map(([nr,nc])=>({r:nr,c:nc,capture:!!b[nr][nc]}));
+      case 'B': return slideMoves(b,r,c,BISHOP_D,white);
+      case 'R': return slideMoves(b,r,c,ROOK_D,white);
+      case 'Q': return slideMoves(b,r,c,QUEEN_D,white);
+    }
+    return [];
+  }
+  function attackedByLL(b,r,c,byWhite){
+    for(const [dr,dc] of KNIGHT_D){ const nr=r+dr,nc=c+dc; if(inB(nr,nc)){const t=b[nr][nc]; if(t&&t.toUpperCase()==='N'&&isWhite(t)===byWhite) return true;} }
+    for(const [dr,dc] of KING_D){ const nr=r+dr,nc=c+dc; if(inB(nr,nc)){const t=b[nr][nc]; if(t&&t.toUpperCase()==='K'&&isWhite(t)===byWhite) return true;} }
+    const pr=byWhite?r+1:r-1;
+    for(const dc of [-1,1]){ const nc=c+dc; if(inB(pr,nc)){const t=b[pr][nc]; if(t&&t.toUpperCase()==='P'&&isWhite(t)===byWhite) return true;} }
+    for(const [dr,dc] of BISHOP_D){ let nr=r+dr,nc=c+dc; while(inB(nr,nc)){const t=b[nr][nc]; if(t){ if(isWhite(t)===byWhite&&(t.toUpperCase()==='B'||t.toUpperCase()==='Q')) return true; break;} nr+=dr;nc+=dc;} }
+    for(const [dr,dc] of ROOK_D){ let nr=r+dr,nc=c+dc; while(inB(nr,nc)){const t=b[nr][nc]; if(t){ if(isWhite(t)===byWhite&&(t.toUpperCase()==='R'||t.toUpperCase()==='Q')) return true; break;} nr+=dr;nc+=dc;} }
+    return false;
+  }
+  function findKing(b,white){ const k=white?'K':'k'; for(let r=0;r<8;r++)for(let c=0;c<8;c++) if(b[r][c]===k) return {r,c}; return null; }
+
+  function countMaterial(b){
+    const W={P:0,R:0,N:0,B:0,Q:0,K:0},B={P:0,R:0,N:0,B:0,Q:0,K:0};
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){ const ch=b[r][c]; if(!ch) continue; const up=ch.toUpperCase(); (ch===up?W:B)[up]++; }
+    return {W,B,total:W.P+W.R+W.N+W.B+W.Q+W.K+B.P+B.R+B.N+B.B+B.Q+B.K};
+  }
+  function promotionConsistent(c){
+    if(c.P>8) return false;
+    const extra=Math.max(0,c.R-2)+Math.max(0,c.N-2)+Math.max(0,c.B-2)+Math.max(0,c.Q-1);
+    return extra<=(8-c.P);
+  }
+  function check1(b){
+    const m=countMaterial(b);
+    if(m.total<8||m.total>30) return {ok:false,why:'taş sayısı '+m.total+' (8–30 dışı)'};
+    if(m.W.K!==1||m.B.K!==1) return {ok:false,why:'her tarafta tam 1 şah olmalı'};
+    if(m.W.Q>0||m.B.Q>0) return {ok:false,why:'vezir bulunamaz'};
+    if(m.W.P<3||m.B.P<3) return {ok:false,why:'her taraf en az 3 piyon'};
+    if(!promotionConsistent(m.W)) return {ok:false,why:'beyaz materyal terfi-tutarsız'};
+    if(!promotionConsistent(m.B)) return {ok:false,why:'siyah materyal terfi-tutarsız'};
+    return {ok:true};
+  }
+  // CHECK 2 — Pawn bricks + geometric pruning.
+  //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
+  //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
+  //   Pruning (only ever toward "not locked" → soundness-safe; avoids costly K4):
+  //     • bricks < 3  → insufficient.
+  //     • bricks == 3 → the files must match {a,d,g}|{b,d,g}|{b,e,g}|{b,e,h}, else
+  //                     the wall cannot split the board (a,c,e leaves g,h open);
+  //                     the three contact ranks must be equal too.
+  //     • bricks >= 4 → two bricks on adjacent files (|Δc|=1) at equal contact
+  //                     (Δr=0) open a diagonal capture → not locked.
+  function check2(b){
+    const bricks = [];                       // {c, r}  (r = black's row; contact r+0.5)
+    for(let c=0;c<8;c++) for(let r=0;r<7;r++)
+      if(b[r][c]==='p' && b[r+1][c]==='P') bricks.push({c, r});
+    const n = bricks.length;
+
+    if(n < 3) return {ok:false, bricks:n, why:'3 tuğla yok (bulunan: '+n+')'};
+
+    if(n === 3){
+      // Is the file pattern one of the four valid layouts? (0=a … 7=h)
+      const cols = bricks.map(x=>x.c).sort((a,b)=>a-b);
+      const key = cols.join(',');
+      const OK3 = new Set(['0,3,6','1,3,6','1,4,6','1,4,7']); // a,d,g | b,d,g | b,e,g | b,e,h
+      if(!OK3.has(key))
+        return {ok:false, bricks:n, why:'3 tuğla geçersiz sütun deseni ('+cols.map(c=>FILES[c]).join(',')+') — duvar tahtayı bölemez'};
+      // Contact equality: all three bricks on the same r+0.5 line.
+      const r0 = bricks[0].r;
+      if(!bricks.every(x=>x.r===r0))
+        return {ok:false, bricks:n, why:'3 tuğla kavuşma hizası farklı (r+0.5 eşit değil)'};
+      return {ok:true, bricks:n};
+    }
+
+    // n >= 4: adjacent file + equal contact → diagonal capture → not locked.
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      if(Math.abs(bricks[i].c-bricks[j].c)===1 && bricks[i].r===bricks[j].r)
+        return {ok:false, bricks:n, why:'yan yana aynı hizada tuğla ('+FILES[bricks[i].c]+'/'+FILES[bricks[j].c]+' kavuşma '+(bricks[i].r+0.5)+') — çapraz alım'};
+    }
+    return {ok:true, bricks:n};
+  }
+  function knightRookHasMove(b,white){
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){ const p=b[r][c];
+      if(!p||isWhite(p)!==white) continue;
+      const t=p.toUpperCase();
+      if(t==='N'||t==='R'){ if(pieceMoves(b,r,c,null).length>0) return true; }
+    }
+    return false;
+  }
+
+  // CHECK 3 — BISHOP EARLY-BREAKER (geometric pruning).
+  //   Threshold pawns = the pawns forming bricks. A bishop travels and captures
+  //   only on its own square colour, and can never take its own pawn.
+  //   A bishop is INERT (a lock may still hold) if:
+  //     • its OWN threshold pawn sits on its colour (untouchable), OR
+  //     • the ENEMY threshold pawns are all on the other colour (unreachable).
+  //   The lock BREAKS when the opposite holds:
+  //     • an ENEMY threshold pawn shares the bishop's colour (capturable), AND
+  //     • that bishop has at least one locked-legality move.
+  //   Only ever decides toward "not locked" → soundness-safe. The rare "colour
+  //   matches but the diagonal is blocked" case is caught by the full K4 scan.
+  function bishopEarlyBreak(b){
+    // Threshold pawns: on every file holding a brick, the most advanced white
+    // (smallest r) and the most advanced black (largest r).
+    // Even with stacked pawns a bishop sees only these outer ones. bit0=light, bit1=dark.
+    let whitePawnMask = 0, blackPawnMask = 0;
+    for(let c=0;c<8;c++){
+      let mostAdvBlack = -1, mostAdvWhite = 8;
+      let hasBlack = false, hasWhite = false;
+      for(let r=0;r<8;r++){
+        if(b[r][c]==='p'){ hasBlack = true; if(r > mostAdvBlack) mostAdvBlack = r; }  // black advanced = larger r
+        else if(b[r][c]==='P'){ hasWhite = true; if(r < mostAdvWhite) mostAdvWhite = r; } // white advanced = smaller r
+      }
+      if(hasBlack && hasWhite){                        // this file has a brick (pawns head-on)
+        blackPawnMask |= (1 << ((mostAdvBlack + c) & 1));
+        whitePawnMask |= (1 << ((mostAdvWhite + c) & 1));
+      }
+    }
+    if((whitePawnMask | blackPawnMask) === 0) return null;  // no threshold pawn
+
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const p = b[r][c];
+      if(p !== 'B' && p !== 'b') continue;
+      const bishopColorBit = 1 << ((r + c) & 1);
+      const oppMask = (p === 'B') ? blackPawnMask : whitePawnMask;  // ENEMY threshold pawns
+      if(!(oppMask & bishopColorBit)) continue;        // enemy threshold pawn not on the bishop's colour → inert
+      if(pieceMoves(b, r, c, null).length > 0)         // is the bishop mobile
+        return { r, c, white: (p === 'B') };
+    }
+    return null;
+  }
+
+  // BISHOP-VOID PRUNING (K4 speed-up).
+  //   Condition: (a) no bishop on either side has ANY enemy piece on its own
+  //   colour → nothing to capture → it can open no capture-breaker, AND
+  //   (b) every pawn on both sides is immobile under locked-legality.
+  //   Then K4 skips main branches 1 (P) and 2 (B); branch 3 (K) still runs.
+  //   This removes redundant work only; completeness and soundness are kept.
+  //   NOTE: with no enemy piece on its colour a bishop can neither capture nor
+  //   mate (it checks only from its own colour). The king branch still probes this.
+  function bishopsFullyVoid(b){
+    // (a) For each bishop: any enemy piece on its colour? If so, not void.
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const p = b[r][c];
+      if(p !== 'B' && p !== 'b') continue;
+      const bishopColor = (r + c) & 1;
+      const bishopWhite = (p === 'B');
+      // look for any enemy piece (pawns included) on the bishop's colour
+      for(let rr=0;rr<8;rr++) for(let cc=0;cc<8;cc++){
+        if(((rr + cc) & 1) !== bishopColor) continue;   // bishop-coloured squares only
+        const q = b[rr][cc];
+        if(!q) continue;
+        const qWhite = (q === q.toUpperCase());
+        if(qWhite !== bishopWhite) return false;          // enemy piece on the bishop's colour → not void
+      }
+    }
+    // (b) Is every pawn (both sides) immobile under locked-legality?
+    for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+      const p = b[r][c];
+      if(p !== 'P' && p !== 'p') continue;
+      if(pieceMoves(b, r, c, null).length > 0) return false;
+    }
+    return true;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // LOCK-BREAKER TESTS (locked-legality based, on a given board)
+  // ─────────────────────────────────────────────────────────────────────
+
+  // Is any knight/rook mobile, on either side?
+  function anyKnightRookMobile(b) {
+    return knightRookHasMove(b, true) || knightRookHasMove(b, false);
+  }
+
+  // Is (r,c) attacked by a byWhite PAWN?
+  function pawnAttacksSquare(b, r, c, byWhite) {
+    const pr = byWhite ? r+1 : r-1;
+    for (const dc of [-1,1]) { const nc=c+dc; if(inB(pr,nc)){ const t=b[pr][nc]; if(t&&t.toUpperCase()==='P'&&isWhite(t)===byWhite) return true; } }
+    return false;
+  }
+
+  // Bishop gives check: is it mate under real chess rules? (algorithm↔engine bridge)
+  // A "capture" of the enemy king was generated from the bishop at (fr,fc) — that
+  // is not really taking the king but GIVING CHECK. Correct test: with the bishop
+  // still on (fr,fc) and the opponent to move, is it check with no legal reply?
+  // The bishop is never placed on the king's square (that would delete the king).
+  // Ambiguity (position invalid to the engine) → true (breaks the lock).
+  function bishopCheckIsMate(b, fr, fc, tr, tc, white) {
+    // In the king main node the enemy king may have been DELETED. "Mate" is
+    // meaningless on a kingless board — that is a locked-legality artefact.
+    // (The bishop check-mate breaker is scanned properly in the BISHOP node, with
+    //  both kings present.) Kingless → this branch is not a breaker.
+    if (!findKing(b, true) || !findKing(b, false)) return false;
+    // The bishop already sits on (fr,fc) eyeing the king. Give the opponent the move.
+    const fen = boardToFen(b, !white, null);
+    const p = PA.createPosition();
+    const r = p.loadFen(fen);
+    if (!r.ok) return true;                   // invalid → ambiguity → breaks the lock
+    if (!p.inCheck()) return false;           // not actually check → not mate
+    return p.legalMoves().length === 0;       // a real mate?
+  }
+
+  const MAX_NODES = 200000;   // safety cap for the main and sub spreads
+
+  // ── SUB-SPREAD: with all OTHER pieces fixed, can one piece type (P or B) open a
+  //    LOCK-BREAKER through multi-step locked-legality movement?
+  //    (The inner branch: a pawn may walk toward promotion, a bishop may roam and
+  //     capture.)
+  //    kind: 'P' | 'B',  moverWhite: which colour moves it
+  //    Returns true = a breaker opened.
+  function subSpreadBreaks(board0, kind, moverWhite, epRoot) {
+    const seen = new Set();
+    const key = (b)=>boardToPlacement(b);
+    // Stack: [board, epSq]. Ep rights hold ONLY at the root (they vanish after one
+    // move), so epRoot is attached to the root board only; derived boards get null.
+    let stack = [[cloneBoard(board0), epRoot||null]];
+    seen.add(key(board0));
+    let nodes = 0;
+
+    while (stack.length) {
+      if (++nodes > MAX_NODES) return true;   // cap → ambiguity → count as a breaker
+      const [b, epSq] = stack.pop();
+
+      // Does this piece type have a BREAKER move here? + knight/rook legality?
+      if (anyKnightRookMobile(b)) return true;
+
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++){
+        const p=b[r][c];
+        if(!p || p.toUpperCase()!==kind || isWhite(p)!==moverWhite) continue;
+        const moves = (kind==='P') ? pawnMoves(b,r,c,moverWhite,epSq) : slideMoves(b,r,c,BISHOP_D,moverWhite);
+        for (const mv of moves) {
+          if (kind==='P') {
+            if (mv.promo) return true;                       // promotion → breaker
+            if (mv.ep) return true;                          // en passant (file-changing capture) → breaker
+            if (mv.capture && mv.c!==c) return true;         // diagonal capture → breaker
+            // straight push (reversible): new node (ep rights lapse → null)
+            if (!mv.capture) {
+              const nb=cloneBoard(b); nb[mv.r][mv.c]=nb[r][c]; nb[r][c]='';
+              const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);}
+            }
+          } else { // bishop
+            if (mv.capture) {
+              const target=b[mv.r][mv.c];
+              const oppKing = moverWhite ? 'k' : 'K';
+              if (target!==oppKing) return true;             // captures a piece → breaker
+              if (bishopCheckIsMate(b,r,c,mv.r,mv.c,moverWhite)) return true; // check + mate
+              // touches the enemy king but no mate → that move is not taken (irrelevant)
+            } else {
+              // slide to an empty square (reversible): new node
+              const nb=cloneBoard(b); nb[mv.r][mv.c]=nb[r][c]; nb[r][c]='';
+              const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);}
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // ── Searches sub-spread breakers for the TWO piece types other than the main one.
+  //    otherKinds: e.g. ['P','B'] — whichever is the main piece is excluded.
+  function otherPiecesBreak(b, otherKinds) {
+    for (const kind of otherKinds) {
+      // for both colours (pawns/bishops exist on both sides)
+      if (subSpreadBreaks(b, kind, true))  return true;
+      if (subSpreadBreaks(b, kind, false)) return true;
+    }
+    return false;
+  }
+
+  // ── MAIN SPREAD: the main piece spreads over multiple steps; at EVERY node the
+  //    sub-spread of the other two types (otherPiecesBreak) is called.
+  //    moverKind: 'P' | 'B' | 'K'. In the king node the enemy king is DELETED and
+  //    the king is blocked by enemy PAWN threats (bishop/king threats ignored).
+  //    The king may also advance by capturing (not a breaker); visits reset then.
+  //    Pawns/bishops roam by reversible moves only in the main node (breakers are
+  //    already caught by the sub-spread / boardHasBreaker).
+  function mainSpread(board0, moverKind, moverWhite, epSq, epWhite) {
+    let b0 = cloneBoard(board0);
+    if (moverKind === 'K') {
+      const ok = findKing(b0, !moverWhite);
+      if (ok) b0[ok.r][ok.c] = '';
+    }
+    const otherKinds = moverKind==='K' ? ['P','B'] : moverKind==='P' ? ['B'] : ['P'];
+    // NOTE: whatever the main piece is, anyBreakerFull(b) runs at EVERY node (other
+    // types + other instances of this type + knights/rooks). Ep rights hold only at
+    // the root, so ep is attached to the root board on the stack.
+
+    const seen = new Set();
+    const key = (b)=>boardToPlacement(b);
+    let stack = [[b0, epSq||null]];         // [board, epSq]; the root carries ep, derived boards null
+    seen.add(key(b0));
+    let nodes = 0;
+
+    while (stack.length) {
+      if (++nodes > MAX_NODES) return true;
+      const [b, ep] = stack.pop();
+
+      // At EVERY node: all lock-breakers. Ep is active only at the root (ep!=null).
+      if (anyBreakerFull(b, ep, epWhite)) return true;
+
+      // Move the main piece one step
+      if (moverKind === 'K') {
+        const k = findKing(b, moverWhite);
+        if (!k) continue;
+        for (const [dr,dc] of KING_D) {
+          const nr=k.r+dr, nc=k.c+dc;
+          if(!inB(nr,nc)) continue;
+          if(sameSide(b[nr][nc],moverWhite)) continue;
+          if(pawnAttacksSquare(b,nr,nc,!moverWhite)) continue;   // enemy pawn threat
+          const cap = !!b[nr][nc];
+          const nb=cloneBoard(b); nb[nr][nc]=nb[k.r][k.c]; nb[k.r][k.c]='';
+          if (cap) { seen.clear(); const nk=key(nb); seen.add(nk); stack=[[nb,null]]; break; }
+          else { const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);} }
+        }
+      } else {
+        const kind = moverKind;
+        for (let r=0;r<8;r++) for (let c=0;c<8;c++){
+          const p=b[r][c];
+          if(!p || p.toUpperCase()!==kind || isWhite(p)!==moverWhite) continue;
+          const moves = (kind==='P') ? pawnMoves(b,r,c,moverWhite,null) : slideMoves(b,r,c,BISHOP_D,moverWhite);
+          for (const mv of moves) {
+            if (mv.capture || mv.promo) continue;   // breakers are handled in anyBreakerFull
+            const nb=cloneBoard(b); nb[mv.r][mv.c]=nb[r][c]; nb[r][c]='';
+            const nk=key(nb); if(!seen.has(nk)){seen.add(nk); stack.push([nb,null]);}
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // ── Are there ANY lock-breakers on a board? (knight/rook + pawn + bishop spread)
+  //    Called at every main node. Pawns and bishops use multi-step sub-spread.
+  function anyBreakerFull(b, epSq, epWhite) {
+    if (anyKnightRookMobile(b)) return true;
+    // Ep rights belong only to the side to move → pass them to that side's pawn scan.
+    if (subSpreadBreaks(b, 'P', true,  epWhite===true  ? epSq : null)) return true;
+    if (subSpreadBreaks(b, 'P', false, epWhite===false ? epSq : null)) return true;
+    if (subSpreadBreaks(b, 'B', true))  return true;
+    if (subSpreadBreaks(b, 'B', false)) return true;
+    return false;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // CHECK 5 — FINAL KING GUARANTEE
+  //   Every piece except PAWNS is removed — both sides' kings, bishops, knights
+  //   and rooks go; both sides' PAWNS (the wall) stay. The king under test:
+  //     • cannot enter squares ATTACKED by enemy pawns (the wall),
+  //     • cannot enter squares holding its OWN pawns,
+  //     • cannot enter squares holding enemy pawns either (occupied).
+  //   Can it reach the enemy king's ORIGINAL square? If yes → NOT locked.
+  //   Both kings are tested in turn.
+  //   Soundness: the king is given maximum freedom (only pawn walls block it). If
+  //   it cannot cross even then, it cannot cross in a real game → this is only an
+  //   extra NECESSARY condition (it produces no false positives).
+  //   Returns true = reached the enemy king's square (BREAKER).
+  function kingReachesOpponent(board0, moverWhite) {
+    const myK = findKing(board0, moverWhite);
+    const opK = findKing(board0, !moverWhite);
+    if (!myK || !opK) return true;            // ambiguity → fall to the safe side (breaker)
+    const target = opK.r + ',' + opK.c;
+
+    // Keep ALL pawns (both sides), delete the pieces.
+    const b = emptyBoard();
+    for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+      const ch = board0[r][c];
+      if (ch === 'P' || ch === 'p') b[r][c] = ch;   // only pawns remain
+    }
+
+    // BFS: the king starts at myK and spreads to empty squares not attacked by
+    // either side's pawns. Target: the enemy king's square.
+    const seen = new Set();
+    let frontier = [[myK.r, myK.c]];
+    seen.add(myK.r + ',' + myK.c);
+    let nodes = 0;
+
+    while (frontier.length) {
+      const next = [];
+      for (const [r,c] of frontier) {
+        if (++nodes > MAX_NODES) return true;   // cap → ambiguity → breaker
+        for (const [dr,dc] of KING_D) {
+          const nr=r+dr, nc=c+dc;
+          if (!inB(nr,nc)) continue;
+          const kk = nr + ',' + nc;
+          if (seen.has(kk)) continue;
+          if (kk === target) return true;        // reached the enemy king's square → breaker
+          if (b[nr][nc]) continue;               // occupied (any pawn) → cannot enter
+          // enemy pawn threat (the wall):
+          if (pawnAttacksSquare(b, nr, nc, !moverWhite)) continue;
+          seen.add(kk);
+          next.push([nr,nc]);
+        }
+      }
+      frontier = next;
+    }
+    return false;                                // never reached the other side → favours a lock
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // FULL LOCK DETECTION
+  // ─────────────────────────────────────────────────────────────────────
+  function isLocked(fen) {
+    const p = PA.createPosition();
+    const r = p.loadFen(fen);
+    if (!r.ok) return { locked:false, reason:'Geçersiz FEN: '+(r.error||'') };
+    const b = fenToBoard(p.getFen());
+    if (!b) return { locked:false, reason:'tahta ayrıştırılamadı' };
+
+    const k1 = check1(b);
+    if (!k1.ok) return { locked:false, reason:'K1 — '+k1.why };
+    const k2 = check2(b);
+    if (!k2.ok) return { locked:false, reason:'K2 — '+k2.why };
+
+    // Order: the side to move plays first, so breakers are sought there first and
+    // then for the opponent. (The verdict is order-independent, but this yields the
+    // right reason.) sides[0]=side to move, sides[1]=opponent.
+    const stm = p.turnWhite();
+    const sides = [stm, !stm];
+    const nm = (w)=> w ? 'beyaz' : 'siyah';
+
+    // K3: knights/rooks immobile (both sides) + bishop early-breaker
+    for (const w of sides)
+      if (knightRookHasMove(b, w)) return { locked:false, reason:'K3 — '+nm(w)+' at/kale hareketli' };
+    const bEB = bishopEarlyBreak(b);
+    if (bEB) return { locked:false, reason:'K3 — '+nm(bEB.white)+' fil ('+FILES[bEB.c]+(8-bEB.r)+') eşik piyonuyla aynı renkte ve hareketli' };
+
+    // En passant: the engine's ep square (p.ep) is passed to the K4 ROOT node, where
+    // the pawn diagonal-capture scan catches the ep capture (mv.ep) as a breaker. Ep
+    // belongs only to the side to move (epWhite) — no separate ep block is needed.
+    const epSq = (p.ep !== -1) ? { r: (p.ep >> 4), c: (p.ep & 7) } : null;
+    const epWhite = stm;
+
+    // K4: three main nodes × two sides (side to move first). If the bishops are void,
+    // branches 1 (P) and 2 (B) are skipped and only branch 3 (K) runs.
+    const nodes = bishopsFullyVoid(b) ? ['K'] : ['P','B','K'];
+    for (const kind of nodes)
+      for (const w of sides)
+        if (mainSpread(b, kind, w, epSq, epWhite)) return { locked:false, reason:'K4 — '+nm(w)+' '+kind+' ana düğümünde kilit-kırıcı' };
+    // K5: final king guarantee — side to move first, then the opponent.
+    for (const w of sides)
+      if (kingReachesOpponent(b, w)) return { locked:false, reason:'K5 — '+nm(w)+' şah karşı şaha ulaşabiliyor' };
+
+    return { locked:true, reason:'K1–K5 geçti — MUTLAK KİLİT' };
+  }
+
+  return {
+    emptyBoard,cloneBoard,inB,isWhite,isBlack,sameSide,
+    fenToBoard,boardToPlacement,boardToFen,
+    pieceMoves,pawnMoves,slideMoves,attackedByLL,findKing,
+    countMaterial,promotionConsistent,check1,check2,knightRookHasMove,bishopEarlyBreak,bishopsFullyVoid,
+    anyKnightRookMobile,pawnAttacksSquare,bishopCheckIsMate,
+    subSpreadBreaks,otherPiecesBreak,anyBreakerFull,mainSpread,kingReachesOpponent,isLocked,
+    KNIGHT_D,KING_D,BISHOP_D,ROOK_D,QUEEN_D,FILES,
+  };
+}
+</script>
+  <script id="src-flag">
+/* ═══════════════════════════════════════════════════════════════════════
+   FLAG-FALL CLASSIFIER — all three standards share one UNIVERSAL LAYER.
+   USED by both the interface and the downloadable engine (a single source).
+
+   makeFlagClassifier(PA) → { universalFlagLayer, classifyFideFlag,
+     classifyUscfFlag, classifyOursFlag, loserPawnFiles, bishopColorState }
+
+   The side whose flag fell = loser. The opponent = winner. The win/lose objects
+   are the output of p.material(byWhite).
+
+   Order: (1) UNIVERSAL LAYER — absolute draws + the fast win funnel + geometric
+   certain draws → 'draw'|'win'|'undecided'. (2) STANDARD: FIDE settles what is
+   left by helper-mate geometry (no search); USCF/hybrid return 'search'.
+   ═══════════════════════════════════════════════════════════════════════ */
+function makeFlagClassifier(PA){
+
+  // Bishop colour state across the whole board (both sides) — for the bishop-colour rule.
+  function bishopColorState(win, lose){
+    var anyLight = (win.lightB>0) || (lose.lightB>0);
+    var anyDark  = (win.darkB>0)  || (lose.darkB>0);
+    return { anyLight:anyLight, anyDark:anyDark, oppositeExist: anyLight && anyDark };
+  }
+
+  /* UNIVERSAL LAYER — 'draw' | 'win' | 'undecided'.
+     'undecided' = the winner's material is a grey class (lone knight / one-colour
+     bishop / two knights). */
+  function universalFlagLayer(win, lose){
+    var winMinor = win.pawns+win.rooks+win.queens+win.knights+win.bishops;
+    // Opponent has a bare king → draw (universal; the loser's material is irrelevant).
+    if(winMinor === 0) return 'draw';
+    // FAST WIN FUNNEL — certain mating material: Q/R/P/(N+B)/(opposite-colour B+B).
+    if(win.queens>0 || win.rooks>0 || win.pawns>0) return 'win';
+    if(win.knights>0 && win.bishops>0) return 'win';               // N+B → mate
+    if(win.bishops>0 && win.lightB>0 && win.darkB>0) return 'win';  // opposite-colour pair → mate
+    var bc = bishopColorState(win, lose);
+    // Opponent has one-colour bishop(s) only:
+    if(win.bishops>0 && win.knights===0){
+      if(bc.oppositeExist) return 'win';         // both colours on the board → mate becomes possible
+      if(lose.pawns>0 || lose.knights>0) return 'undecided';
+      return 'draw';                             // loser has only Q/R (+ a same-colour bishop) → draw
+    }
+    // Opponent has a lone knight:
+    if(win.knights===1 && win.bishops===0){
+      if(lose.pawns>0 || lose.rooks>0 || lose.bishops>0 || lose.knights>0) return 'undecided';
+      return 'draw';                             // loser has only Q → draw
+    }
+    // Opponent has two or more knights (no bishop): the two-knight class → undecided.
+    if(win.knights>=2 && win.bishops===0) return 'undecided';
+    return 'undecided';
+  }
+
+  /* a) FIDE — helper mate, NO SEARCH. Undecided is reached only when the loser
+     holds "helping" material; every such case is a win by helper mate. */
+  function classifyFideFlag(win, lose){
+    var u = universalFlagLayer(win, lose);
+    if(u !== 'undecided') return u;
+    return 'win';
+  }
+
+  /* b) USCF — forced mate. Two knights + a loser PAWN → an outright win; otherwise
+     (two knights without pawns / lone knight / one-colour bishop) → 'search'. */
+  function classifyUscfFlag(win, lose){
+    var u = universalFlagLayer(win, lose);
+    if(u !== 'undecided') return u;
+    if(win.knights>=2 && win.bishops===0){
+      if(lose.pawns>0) return 'win';    // has a pawn → outright win
+      return 'search';                  // no pawn → search
+    }
+    return 'search';                    // lone knight / one-colour bishop → search
+  }
+
+  // Collect the FILES holding the loser's pawns, from the FEN rows.
+  function loserPawnFiles(rows, loserIsWhite){
+    var files = {};
+    var target = loserIsWhite ? 'P' : 'p';
+    for(var r=0;r<8;r++) for(var c=0;c<8;c++)
+      if(rows[r][c]===target) files[c]=true;
+    return Object.keys(files).length;   // number of distinct files
+  }
+
+  /* c) OUR HYBRID — forced mate. Two knights + the loser holds ONLY pawn(s), all on
+     ONE FILE → an outright win; otherwise → 'search'. Needs rows. */
+  function classifyOursFlag(win, lose, rows, loserIsWhite){
+    var u = universalFlagLayer(win, lose);
+    if(u !== 'undecided') return u;
+    if(win.knights>=2 && win.bishops===0){
+      var loserOnlyPawns = (lose.rooks===0 && lose.queens===0 && lose.knights===0 && lose.bishops===0);
+      if(lose.pawns>0 && loserOnlyPawns){
+        if(loserPawnFiles(rows, loserIsWhite) === 1) return 'win';  // a single file → outright win
+      }
+      return 'search';                  // every other two-knight case → search
+    }
+    return 'search';                    // lone knight / one-colour bishop → search
+  }
+
+  return {
+    bishopColorState: bishopColorState,
+    universalFlagLayer: universalFlagLayer,
+    classifyFideFlag: classifyFideFlag,
+    classifyUscfFlag: classifyUscfFlag,
+    classifyOursFlag: classifyOursFlag,
+    loserPawnFiles: loserPawnFiles
+  };
+}
+</script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   DOWNLOADABLE ENGINE BUILDER
+   buildEngineSource(cfg) returns a configured, standalone .js engine.
+   The PA and makeLockDetector sources it embeds are IDENTICAL to the
+   ones on this page (see __PA_SRC__ / __LOCK_SRC__ below).
+   The code is never displayed, only downloaded.
+   ══════════════════════════════════════════════════════════════════ */
+function buildEngineSource(cfg){
+  // cfg fields: claim (bool, 50/3 claimable), hardCap (bool, 75/5 automatic),
+  //   resignIsFlag (bool), mate ('helper'|'forced'), depth (int 1-10), lock (bool).
+  const mateHelper = cfg.mate === 'helper';
+  const HEADER =
+`/* Perfect Arbiter — configured arbiter engine
+   Build configuration:
+     • 50 moves / 3 repetitions (claim) : ${cfg.claim ? 'ON' : 'off'}
+     • 75 moves / 5 repetitions (auto)  : ${cfg.hardCap ? 'ON' : 'off'}
+     • Resignation counts as flag fall  : ${cfg.resignIsFlag ? 'YES' : 'no'}
+     • Flag-fall mate criterion         : ${mateHelper ? 'helper mate (pure geometry)' : 'forced mate (depth '+cfg.depth+')'}
+     • Locked-position detection        : ${cfg.lock ? 'INCLUDED' : 'excluded'}
+
+   Usage (Node or browser):
+     const A = Arbiter();
+     A.adjudicate(fen, repCount);       // → { over, result, reason }
+     A.flagFall(fen, whiteLostOnTime);  // → { result, reason }
+     A.resign(fen, whiteResigns);       // → { result, reason }  (resignation verdict)
+     ${cfg.lock ? 'A.isLocked(fen);                   // → { locked, reason }' : ''}
+*/
+`;
+
+  const CONFIG =
+`
+var ARBITER_CONFIG = {
+  claimDraw: ${cfg.claim ? '{ moves: 50, reps: 3 }' : 'null'},   // ${cfg.claim ? 'draw on claim' : 'off (cannot be claimed)'}
+  autoDraw:  ${cfg.hardCap ? '{ moves: 75, reps: 5 }' : 'null'},   // ${cfg.hardCap ? 'automatic ceiling' : 'off'}
+  resignIsFlag: ${cfg.resignIsFlag ? 'true' : 'false'},   // is resignation ruled like a flag fall
+  mateSolver: '${mateHelper ? 'helper' : 'forced'}',   // helper=pure geometry, forced=search
+  mateDepth: ${cfg.depth},
+  lockDetection: ${cfg.lock ? 'true' : 'false'}
+};
+`;
+
+  const WRAPPER =
+`
+/* ── Arbiter wrapper: binds the selected rules to the core ── */
+function Arbiter(){
+  var CFG = ARBITER_CONFIG;
+  var FLAGC = makeFlagClassifier(PA);
+  ${cfg.lock ? 'var LOCK = makeLockDetector(PA);' : ''}
+
+  // FEN → 8x8 row array (for the hybrid classifier's pawn-file test).
+  function fenRows(fen){
+    var rows = fen.split(/\\s+/)[0].split('/'); var out = [];
+    for(var r=0;r<8;r++){ var line=[]; var c=0;
+      var row = rows[r]||'';
+      for(var k=0;k<row.length;k++){ var ch=row[k];
+        if(ch>='1'&&ch<='9'){ c+=parseInt(ch,10); } else { line[c++]=ch; } }
+      while(line.length<8) line.push(undefined); out.push(line);
+    }
+    return out;
+  }
+
+  /* Flag/resign verdict core. loserIsWhite = the side that ran out of time (or
+     resigned). The mate criterion follows CFG.mateSolver: helper (pure geometry)
+     or forced (search). */
+  function flagVerdict(fen, loserIsWhite){
+    var p = PA.createPosition();
+    var r = p.loadFen(fen);
+    if(!r.ok) return { result:'invalid', reason:(r.error||'Geçersiz FEN') };
+    var win = p.material(!loserIsWhite), lose = p.material(loserIsWhite);
+    var verdict, reason;
+
+    if(CFG.mateSolver === 'helper'){
+      // FIDE style — pure geometry, no search.
+      verdict = FLAGC.classifyFideFlag(win, lose);          // 'win' | 'draw'
+      reason = (verdict==='draw') ? 'helper mat imkânsız (geometrik kesin)'
+                                  : 'helper mat mümkün (geometrik kesin)';
+    } else {
+      // forced — universal layer + the hybrid two-knight (single-file pawn) rule + search.
+      var c = FLAGC.classifyOursFlag(win, lose, fenRows(fen), loserIsWhite); // 'win'|'draw'|'search'
+      if(c === 'search'){
+        var d = p.forcedMateDepth(!loserIsWhite, CFG.mateDepth);
+        verdict = d>0 ? 'win' : 'draw';
+        reason = d>0 ? ('forced mate '+d+' yarım hamlede')
+                     : ('derinlik '+CFG.mateDepth+' içinde forced mate yok');
+      } else {
+        verdict = c;
+        reason = (verdict==='draw') ? 'yetersiz materyal (geometrik kesin)'
+                                    : 'kesin mat materyali';
+      }
+    }
+    if(verdict==='draw') return { result:'draw', reason:reason };
+    return { result: (loserIsWhite?'black':'white')+'_wins', reason:reason };
+  }
+
+  // Flag fall (time-out).
+  function flagFall(fen, whiteLostOnTime){ return flagVerdict(fen, whiteLostOnTime); }
+
+  // Resignation. With resignIsFlag on it is ruled like a flag fall (a draw if the
+  // opponent cannot mate); off, the resigning player simply loses.
+  function resign(fen, whiteResigns){
+    if(!CFG.resignIsFlag) return { result:(whiteResigns?'black':'white')+'_wins', reason:'terk (resign — doğrudan kayıp)' };
+    var v = flagVerdict(fen, whiteResigns);
+    if(v.result==='draw') return { result:'draw', reason:'terk ama rakip mat kuramıyor — berabere' };
+    return v;
+  }
+
+  // Full position verdict. Draw checks run CHEAPEST FIRST; the lock scan is LAST.
+  //   order: mate/stalemate → dead material → 75/50 moves → 5/3 reps${cfg.lock ? ' → lock' : ''}
+  function adjudicate(fen, repCount){
+    var p = PA.createPosition();
+    var r = p.loadFen(fen);
+    if(!r.ok) return { over:false, result:'invalid', reason:(r.error||'Geçersiz FEN') };
+
+    // 1) Mate / stalemate
+    var moves = p.legalMoves();
+    if(moves.length===0){
+      if(p.inCheck()) return { over:true, result:(p.turnWhite()?'black_wins':'white_wins'), reason:'mat' };
+      return { over:true, result:'draw', reason:'pat' };
+    }
+    // 2) Dead material
+    if(p.deadMaterial()) return { over:true, result:'draw', reason:'ölü pozisyon' };
+    // 3) Move rule — automatic (75) first, then claimable (50).
+    var parts = fen.trim().split(/\\s+/);
+    var half = parseInt(parts[4]||'0',10)||0;
+    if(CFG.autoDraw && half >= CFG.autoDraw.moves*2)
+      return { over:true, result:'draw', reason:CFG.autoDraw.moves+' hamle kuralı (otomatik)' };
+    if(CFG.claimDraw && half >= CFG.claimDraw.moves*2)
+      return { over:false, result:'draw_claimable', reason:CFG.claimDraw.moves+' hamle iddia edilebilir' };
+    // 4) Repetition — if a counter was supplied. Automatic (5) first, then claim (3).
+    if(typeof repCount === 'number'){
+      if(CFG.autoDraw && repCount >= CFG.autoDraw.reps)
+        return { over:true, result:'draw', reason:CFG.autoDraw.reps+' kez tekrar (otomatik)' };
+      if(CFG.claimDraw && repCount >= CFG.claimDraw.reps)
+        return { over:false, result:'draw_claimable', reason:CFG.claimDraw.reps+' kez tekrar iddia edilebilir' };
+    }${cfg.lock ? `
+    // 5) Locked position — MOST EXPENSIVE, last. It can only arise right after an
+    //    irreversible move (capture / pawn push = halfmove 0) → compute it only then.
+    if(CFG.lockDetection && half === 0){
+      var lk = LOCK.isLocked(fen);
+      if(lk.locked) return { over:true, result:'draw', reason:'kilitli pozisyon — '+lk.reason };
+    }` : ''}
+
+    return { over:false, result:'ongoing', reason:(p.turnWhite()?'beyaz':'siyah')+' oynayacak' };
+  }
+
+  return {
+    config: CFG,
+    adjudicate: adjudicate,
+    flagFall: flagFall,
+    resign: resign${cfg.lock ? `,
+    isLocked: function(fen){ return LOCK.isLocked(fen); }` : ''}
+  };
+}
+
+if (typeof module !== 'undefined') module.exports = { PA: PA, Arbiter: Arbiter, makeFlagClassifier: makeFlagClassifier${cfg.lock ? ', makeLockDetector: makeLockDetector' : ''} };
+`;
+
+  var out = HEADER + '\n' + __PA_SRC__() + '\n' + __FLAG_SRC__() + '\n';
+  if(cfg.lock) out += __LOCK_SRC__() + '\n';
+  out += CONFIG + WRAPPER;
+  return out;
+}
+
+// Read the sources from the page's script tags (no escaping/embedding issues).
+function __PA_SRC__(){ return document.getElementById('src-engine').textContent.trim(); }
+function __FLAG_SRC__(){ return document.getElementById('src-flag').textContent.trim(); }
+function __LOCK_SRC__(){
+  return document.getElementById('src-lock').textContent
+    .replace(/if \(typeof module[\s\S]*$/,'').trim();
+}
+
+</script>
+  <script id="src-i18n">
+/* ══════════════════════════════════════════════════════════════════
+   PERFECT ARBITER — LANGUAGE LAYER (i18n)
+
+   Translates interface text ONLY. The engine core (src-engine), the lock
+   detector (src-lock) and the flag classifier (src-flag) stay untouched:
+     • the downloadable engine copies those blocks verbatim,
+     • showLockVerdict's OUT OF SCOPE test regexes isLocked's Turkish reasons.
+   So isLocked still returns Turkish, classification runs on that, and the
+   translation is applied only at display time (trReason).
+   ══════════════════════════════════════════════════════════════════ */
+const I18N = (() => {
+  'use strict';
+
+  const DICT = {
+  /* ─────────────────────────── TURKISH ─────────────────────────── */
+  tr: {
+    'app.title':'Perfect Arbiter — Satranç Hakemi',
+    'app.sub':'Satranç kural motoru ve hakemi — kanıt temelli, hızlı hükümler.',
+    'app.lang':'Dil',
+
+    'tab.intro':'Tanıtım',
+    'tab.flag':'Bayrak Düşmesi',
+    'tab.lock':'Kilitli Pozisyon',
+    'tab.play':'Motor Deneme',
+    'tab.build':'Motor Üretici',
+
+    'common.fen':'FEN',
+    'common.ply':'yarım hamle',
+    'common.yes':'evet',
+    'common.no':'hayır',
+    'side.white':'Beyaz',
+    'side.black':'Siyah',
+    'material.bare':'(yalın şah)',
+
+    /* ── Introduction ── */
+    'intro.h2':'Kanıt temelli satranç hakemliği',
+    'intro.lead':'Perfect Arbiter bir satranç motoru değil, bir <b>hakem</b>dir. Amacı en iyi hamleyi bulmak değil, kurallara göre kesin ve gerekçeli hüküm vermektir.',
+    'intro.soundnessH':'Soundness kutsaldır',
+    'intro.soundness':'Verilen her kesin hüküm — mat, kilit, kazanç — %100 doğrudur. Belirsizlikte daima güvenli tarafa düşülür: hatalar yalnızca <b>yanlış-negatif</b> (bir kilidi kaçırma) yönünde olabilir, asla <b>yanlış-pozitif</b> (kilit olmayana kilit deme) olmaz. Bu yüzden <b>KİLİT DEĞİL</b> hükmü “berabere değil” demek değildir — “bu yöntemle kanıtlayamadım” demektir.',
+    'intro.toolsH':'Bölümler',
+    'intro.tool.lock.t':'Kilitli Pozisyon',
+    'intro.tool.lock.d':'Bir pozisyonun mutlak berabere olduğunu kanıtlar: taraflar işbirliği yapsa bile hiçbir alım, terfi veya mat açılamıyorsa oyun sonsuza dek sürer → FIDE 75-hamle / 5-tekrar tavanı gereği kesin berabere. Beş kontrol (K1–K5) ucuzdan pahalıya uygulanır, fark yaratan kareler vurgulanır.',
+    'intro.tool.flag.t':'Bayrak Düşmesi',
+    'intro.tool.flag.d':'Bir tarafın süresi bittiğinde, karşı tarafın mat edecek materyali var mı? Hüküm anında verilir, gerekçesiyle ve geçen süreyle (<code>ms</code>) birlikte gösterilir.',
+    'intro.tool.play.t':'Motor Deneme',
+    'intro.tool.play.d':'Motorun tüm kurallarıyla iki kişilik oyun. Mat, pat, ölü materyal, 50/75 hamle, 3/5 tekrar ve kilit tespiti ucuzdan pahalıya sırayla kontrol edilir.',
+    'intro.tool.build.t':'Motor Üretici',
+    'intro.tool.build.d':'Hakem motorunu seçeneklerle ya da üç hazır presetle (FIDE / USCF / karma) yapılandırıp tek dosya olarak indirin. İndirilen motorun çekirdeği bu sayfadakiyle birebir aynıdır.',
+    'intro.rulesH':'FIDE ve USCF neden farklı hüküm verir?',
+    'intro.rules':'FIDE <b>helper mate</b> ölçütünü kullanır: rakip, siz bilerek kaybetmeye çalışsanız bile matlayabiliyorsa kazanç. USCF <b>forced mate</b> ölçütünü kullanır: mat zorlanabiliyor mu? Klasik ayrım noktası <code>K+R vs K+N</code>’dir — FIDE’de süresi biten K+R tarafı kaybeder (Friedel vakası), USCF’de aynı pozisyon beraberedir.',
+
+    /* ── Flag fall ── */
+    'flag.h2':'Bayrak Düşmesi vs. Materyal',
+    'flag.hint':'Bir pozisyon kurun, bir tarafın süresini düşürün. Hakem, karşı tarafın mat edecek materyali olup olmadığına göre <b>kazanç / berabere</b> hükmünü anında verir. Gri (belirsiz) durumlar forced-mate araması ile kesinleştirilir.',
+    'flag.method':'Hakemlik yaklaşımı',
+    'flag.depthLabel':'Arama derinliği (gri bölge)',
+    'flag.whiteBtn':'Beyaz düşürür',
+    'flag.blackBtn':'Siyah düşürür',
+    'flag.methodHint.fide':'FIDE: Rakip helper-mate (bilerek kaybetme dahil) ile matlayabiliyorsa kazanç, hiçbir şekilde matlayamıyorsa berabere. Saf geometri — arama yok. (Resign + süre bitmesi.)',
+    'flag.methodHint.uscf':'USCF: Forced mate (zorla mat) baz alınır. Belirsiz sınıflarda (tek at, tek renk fil, piyonsuz iki at) forced-mate araması çalışır; ayarlı derinlikte bulunamazsa berabere. (Resign bayrak düşmesi sayılmaz.)',
+    'flag.invalidHead':'⚠ Geçersiz pozisyon',
+    'flag.invalidFen':'Geçersiz FEN',
+    'flag.pill.win':'KAZANÇ',
+    'flag.pill.draw':'BERABERE',
+    'flag.head.winWhite':'Beyaz kazandı',
+    'flag.head.winBlack':'Siyah kazandı',
+    'flag.head.draw':'Berabere',
+    'flag.timeout.white':'Beyazın süresi bitti.',
+    'flag.timeout.black':'Siyahın süresi bitti.',
+    'flag.reason.fide.bare':'FIDE: Rakip çıplak kral — helper mat bile imkânsız.',
+    'flag.reason.fide.draw':'FIDE: Rakibin materyali helper mat bile kuramıyor (geometrik kesin).',
+    'flag.reason.fide.win':'FIDE: Rakip, en kötü savunmaya (helper mate) karşı bile matlayabilir (geometrik kesin).',
+    'flag.reason.uscf.bare':'USCF: Rakip çıplak kral — mat imkânsız.',
+    'flag.reason.uscf.draw':'USCF: Rakibin materyali yetersiz (geometrik kesin berabere).',
+    'flag.reason.uscf.winSearch':'USCF: Belirsiz sınıf — {depth} yarım hamlede zorla mat bulundu.',
+    'flag.reason.uscf.drawSearch':'USCF: Belirsiz sınıf — ayarlı derinlikte ({depth}) zorla mat yok → berabere.',
+    'flag.reason.uscf.win':'USCF: Rakipte yeterli mat materyali var.',
+    'flag.meta':'Kazanan: {win} · Kaybeden: {lose} · {search}{ms} ms',
+    'flag.searchPrefix':'arama+',
+
+    /* ── Locked position ── */
+    'lock.h2':'Kilitli Pozisyon Tespiti',
+    'lock.hint':'Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.',
+    'lock.btn':'🔒 Kilit Analizi Yap',
+    'lock.pill.lock':'MUTLAK KİLİT',
+    'lock.pill.scope':'KAPSAM DIŞI',
+    'lock.pill.no':'KİLİT DEĞİL',
+    'lock.head.lock':'Kesin berabere',
+    'lock.body.lock':'Helper iki taraf bile geri-dönülemez hamle açamaz → FIDE 75-hamle / 5-tekrar tavanı gereği kesin berabere.',
+    'lock.body.scope':'Bu pozisyon algoritmanın ön-koşullarını sağlamıyor (materyal ya da piyon-duvarı yapısı uygun değil), bu yüzden kilit/kilit-değil hükmü verilemez — değerlendirme dışı.',
+    'lock.body.no':'(Pozisyon değerlendirildi; gerçek bir kilit-kırıcı hamle mevcut.)',
+    'lock.meta.lock':'vurgulu kareler: kilitli piyon tuğlaları',
+    'lock.runtimeErr':'çalışma hatası: {msg}',
+
+    'flag.reason.ours.bare':'Karma: Rakip çıplak kral — mat imkânsız.',
+    'flag.reason.ours.draw':'Karma: Rakibin materyali yetersiz (geometrik kesin berabere).',
+    'flag.reason.ours.winSearch':'Karma: Belirsiz sınıf — {depth} yarım hamlede zorla mat bulundu.',
+    'flag.reason.ours.drawSearch':'Karma: Belirsiz sınıf — ayarlı derinlikte ({depth}) zorla mat yok → berabere.',
+    'flag.reason.ours.win':'Karma: Rakipte yeterli mat materyali var (iki at + tek sütunda piyon dahil).',
+    'play.fed':'Federasyon',
+    'play.fedCustom':'Seçiminiz',
+    'play.customWarn':'⚠ Ne iddia ne otomatik bitme seçili — bu kural setinde 50/3 ve 75/5 ile beraberlik hiç oluşmaz. Deney için serbest bırakıldı; motor üreticide bu kombinasyon indirmeyi kilitler.',
+    'play.drawAct.t':'Beraberlik iddiası / teklifi',
+    'play.drawMsg.idle':'Hamle yapmadan işaretlerseniz mevcut pozisyon üzerinden iddia edilir. İşaretleyip hamle yaparsanız iddia <b>o hamleden sonraki</b> pozisyona uygulanır; oluşmazsa hamleyle birlikte rakibe teklif gider.',
+    'play.drawMsg.idleNoClaim':'Bu kural setinde 50/3 iddiası kapalı. İşaretleyip hamle yaparsanız hamleyle birlikte rakibe beraberlik teklifi gider.',
+    'play.drawMsg.claimable.rule50':'<b>50 hamle doldu</b> — işaretlerseniz berabere.',
+    'play.drawMsg.claimable.rep3':'<b>3 kez tekrar oluştu</b> — işaretlerseniz berabere.',
+    'play.drawMsg.armed':'İddia hazır. Hamlenizi yapın: bu hamleyle 50/3 oluşursa <b>berabere</b>, oluşmazsa rakibe <b>teklif</b> gider.',
+    'play.drawMsg.armedOffer':'Teklif hazır. Hamlenizi yapın; teklif hamleyle birlikte rakibe gidecek.',
+    'play.drawMsg.incoming':'🤝 <b>{side} beraberlik teklif etti.</b> Kabul etmek için işaretleyin; hamle yaparsanız teklif düşer.',
+    'play.fedOurs':'Karma',
+    'play.fedHint.fide':'FIDE: 50/3 iddia edilebilir · 75/5 otomatik berabere · terk, bayrak düşmesi gibi hükümlenir · mat ölçütü helper mate (aramasız).',
+    'play.fedHint.uscf':'USCF: 50/3 iddia edilebilir · 75/5 otomatik tavan YOK · terk doğrudan kayıp · mat ölçütü forced mate (derinlik 5).',
+    'play.fedHint.ours':'Karma: 50/3 iddia KAPALI · 75/5 otomatik berabere · terk, bayrak düşmesi gibi hükümlenir · forced mate + tek-sütun piyon kuralı.',
+    'play.flagH':'Deney: bayrak düşürme',
+    'play.timeW':'⏱ Beyazın süresi',
+    'play.timeB':'⏱ Siyahın süresi',
+    'play.resignW':'🏳 Beyaz terk',
+    'play.resignB':'🏳 Siyah terk',
+    'play.resigned.white':'Beyaz terk etti.',
+    'play.resigned.black':'Siyah terk etti.',
+    'play.resignLoss':'Bu federasyonda terk doğrudan kayıptır — materyal sınanmaz.',
+    'play.drawBy.rule50':'50 hamle kuralı iddia edildi.',
+    'play.drawBy.rep3':'3 kez tekrar iddia edildi.',
+    'play.drawBy.agree':'Taraflar beraberlikte anlaştı.',
+    /* ── Free play ── */
+    'play.h2':'Motor Deneme',
+    'play.hint':'Motoru canlı pozisyon üzerinde deneyin. Bir taşa dokunun, sonra hedef kareye. Federasyonu değiştirip aynı pozisyonda farklı hükümleri karşılaştırabilirsiniz.',
+    'play.reset':'Yeni Oyun',
+    'play.flip':'Tahtayı Çevir',
+    'play.mate.white':'<b>Mat!</b> Beyaz kazandı.',
+    'play.mate.black':'<b>Mat!</b> Siyah kazandı.',
+    'play.stalemate':'<b>Pat.</b> Berabere.',
+    'play.dead':'<b>Ölü pozisyon — berabere.</b>',
+    'play.rule75':'<b>75 hamle kuralı — berabere (otomatik).</b>',
+    'play.rep5':'<b>5 kez tekrar — berabere (otomatik).</b>',
+    'play.locked':'<b>Kilitli pozisyon — berabere.</b> <span style="color:var(--muted)">({reason})</span>',
+    'play.claim50':' <span style="color:var(--draw)">· 50 hamle iddia edilebilir</span>',
+    'play.claim3':' <span style="color:var(--draw)">· 3 kez tekrar iddia edilebilir</span>',
+    'play.turn.white':'Sıra: <b>Beyaz</b>.',
+    'play.turn.black':'Sıra: <b>Siyah</b>.',
+    'play.check':' <b>Şah!</b>',
+
+    /* ── Engine builder ── */
+    'build.h2':'Motor Üretici',
+    'build.hint':'Hakem motorunu ihtiyacınıza göre yapılandırın ve tek dosya olarak indirin. Hazır bir preset seçebilir ya da seçenekleri elle karıştırıp özel bir motor üretebilirsiniz. Kod burada sergilenmez; yalnızca yapılandırılmış çalışan motoru indirebilirsiniz.',
+    'build.presets':'Hazır presetler',
+    'build.presetOurs':'Bizim karma',
+    'build.drawLimits':'Beraberlik sınırları',
+    'build.claim.t':'İddia alt sınırı — 50 hamle / 3 tekrar',
+    'build.claim.d':'Oyuncu iddia ederse berabere (oyun otomatik bitmez). Kapatılırsa 50/3 ile beraberlik iddia edilemez — ör. K+R vs K+Q gibi uzun sonlarda kazanan matı bulana dek oynamak zorunda kalır.',
+    'build.hardCap.t':'Otomatik bitme üst sınırı — 75 hamle / 5 tekrar',
+    'build.hardCap.d':'FIDE\'nin zorunlu tavanı: iddiaya gerek kalmadan 75. hamlede / 5. tekrarda otomatik berabere. USCF için kapalı bırakın.',
+    'build.drawWarn':'⚠ İddia veya otomatik bitme sınırından en az biri seçili olmalı.',
+    'build.flagSection':'Bayrak düşmesi hakemliği',
+    'build.resign.t':'Resign de bayrak düşmesi sayılır',
+    'build.resign.d':'Açık (FIDE 5.1.2 / bizim karma): bir taraf terk ederse, rakip helper/forced mat kuramıyorsa berabere. Kapalı (USCF): terk doğrudan kayıp. <span class="hint" style="margin:0">(Arayüzde terk butonu henüz yok; bu bayrak üretilen motorun API davranışını belirler.)</span>',
+    'build.mate.t':'Bayrak düşmesi vs. materyal — mat ölçütü',
+    'build.mate.d':'Bir tarafın süresi bittiğinde karşı tarafın mat edebilirliği nasıl ölçülür.',
+    'build.mate.helper':'Helper mate',
+    'build.mate.helperNote':'(FIDE — saf geometri, arama yok)',
+    'build.mate.forced':'Forced mate',
+    'build.mate.forcedNote':'(USCF / karma — hafif taşlarda arama gerekir)',
+    'build.mate.depthLabel':'Forced mate derinliği',
+    'build.mate.depthUnit':'yarım hamle (1–10)',
+    'build.lockSection':'Kilitli pozisyon',
+    'build.lock.t':'Kilitli pozisyon taraması',
+    'build.lock.d':'Mutlak berabere (piyon-kilitli) pozisyonları %100 sound biçimde tanır ve otomatik berabere hükmeder (FIDE 5.2.2 / USCF 14D4). Motora dahil edilir.',
+    'build.download':'⬇ Yapılandırılmış motoru indir',
+    'build.sum.prefix':'Bu yapı: ',
+    'build.sum.claimOn':'<code>50/3</code> iddia: <b>açık</b>',
+    'build.sum.claimOff':'<code>50/3</code> iddia: kapalı',
+    'build.sum.capOn':'<code>75/5</code> otomatik: <b>açık</b>',
+    'build.sum.capOff':'<code>75/5</code> otomatik: kapalı',
+    'build.sum.resign':'Resign bayrak sayılır: <b>{val}</b>',
+    'build.sum.mateHelper':'Bayrak: <b>helper mate</b> (saf geometri)',
+    'build.sum.mateForced':'Bayrak: <b>forced mate</b>, derinlik <code>{depth}</code>',
+    'build.sum.lockOn':'Kilitli pozisyon: <b>dahil</b>',
+    'build.sum.lockOff':'Kilitli pozisyon: hariç',
+    'build.downloaded':'İndirildi: {name}',
+
+    /* ── Preset positions: flag ── */
+    'fp.start':'Başlangıç',
+    'fp.krk':'K+R vs K',
+    'fp.knk':'K+N vs K',
+    'fp.krkn':'K+R vs K+N',
+    'fp.kbnk':'K+B+N vs K',
+    'fp.kbk':'Zıt fil (KB vs K)',
+
+    /* ── Preset positions: lock ── */
+    'lp.shuttle':'Mekik dokuyan taşlar',
+    'lp.inertBishops':'Etkisiz filler',
+    'lp.immobile':'Hareketsiz taşlar',
+    'lp.web':'Fil ağı',
+    'lp.passer':'Geçer fil',
+    'lp.distance':'Mesafe açık',
+    'lp.oneSided':'Tek taraflı kilit',
+    'lp.blackSameFile':'Siyah piyonlar aynı karede',
+    'lp.pawnNoCapture':'Piyon alamaz',
+    'lp.whiteCramped':'Beyaz sıkışık',
+    'lp.diagonal':'Çapraz çizgi',
+    'lp.bishopFar':'Fil karşıda',
+    'lp.mateFar':'Karşıda mat mümkün',
+    'lp.inertPawn':'Etkisiz piyon',
+    'lp.capturable':'Alınabilir piyon',
+    'lp.ep':'En passantlı',
+    'lp.mate':'Mat mümkün',
+    'lp.parity1':'Fil paritesi 1',
+    'lp.parity2':'Fil paritesi 2',
+    'lp.parity3':'Fil paritesi 3',
+    'lp.parity4':'Fil paritesi 4',
+    'lp.parity5':'Fil paritesi 5',
+    'lp.mateQ':'Mat mümkün mü?'
+  },
+
+  /* ─────────────────────────── ENGLISH ─────────────────────────── */
+  en: {
+    'app.title':'Perfect Arbiter — Chess Arbiter',
+    'app.sub':'A chess rules engine and arbiter — evidence-based, fast rulings.',
+    'app.lang':'Language',
+
+    'tab.intro':'Introduction',
+    'tab.flag':'Flag Fall',
+    'tab.lock':'Locked Position',
+    'tab.play':'Engine Test',
+    'tab.build':'Engine Builder',
+
+    'common.fen':'FEN',
+    'common.ply':'ply',
+    'common.yes':'yes',
+    'common.no':'no',
+    'side.white':'White',
+    'side.black':'Black',
+    'material.bare':'(bare king)',
+
+    /* ── Introduction ── */
+    'intro.h2':'Evidence-based chess arbitration',
+    'intro.lead':'Perfect Arbiter is not a chess engine but an <b>arbiter</b>. Its job is not to find the best move but to deliver a definite, reasoned ruling under the rules.',
+    'intro.soundnessH':'Soundness is sacred',
+    'intro.soundness':'Every definite ruling — mate, lock, win — is 100% correct. Ambiguity always falls to the safe side: errors can only be <b>false negatives</b> (missing a lock), never <b>false positives</b> (calling a lock where there is none). So a <b>NOT LOCKED</b> verdict does not mean “not a draw” — it means “not provable by this method”.',
+    'intro.toolsH':'Sections',
+    'intro.tool.lock.t':'Locked Position',
+    'intro.tool.lock.d':'Proves that a position is an absolute draw: if even two cooperating sides can open no capture, promotion or mate, the game runs forever → a certain draw under FIDE\'s 75-move / 5-repetition ceiling. Five checks (K1–K5) run cheapest first, and the decisive squares are highlighted.',
+    'intro.tool.flag.t':'Flag Fall',
+    'intro.tool.flag.d':'When one side runs out of time, does the opponent hold mating material? The ruling is immediate, shown with its reason and the time it took (<code>ms</code>).',
+    'intro.tool.play.t':'Engine Test',
+    'intro.tool.play.d':'A two-player game under the engine\'s full rule set. Mate, stalemate, dead material, the 50/75-move rules, 3/5-fold repetition and lock detection are checked in order, cheapest first.',
+    'intro.tool.build.t':'Engine Builder',
+    'intro.tool.build.d':'Configure the arbiter engine by hand or from three ready-made presets (FIDE / USCF / hybrid) and download it as a single file. The downloaded engine\'s core is identical to the one on this page.',
+    'intro.rulesH':'Why do FIDE and USCF rule differently?',
+    'intro.rules':'FIDE uses the <b>helper mate</b> criterion: a win if the opponent can mate even while you deliberately try to lose. USCF uses <b>forced mate</b>: can mate be compelled? The classic dividing case is <code>K+R vs K+N</code> — under FIDE the K+R side loses on time (the Friedel case), while under USCF the same position is a draw.',
+
+    /* ── Flag fall ── */
+    'flag.h2':'Flag Fall vs. Material',
+    'flag.hint':'Set up a position and drop one side\'s flag. The arbiter rules <b>win / draw</b> immediately, based on whether the opponent holds mating material. Grey (undecided) classes are settled by a forced-mate search.',
+    'flag.method':'Arbitration standard',
+    'flag.depthLabel':'Search depth (grey zone)',
+    'flag.whiteBtn':'White flags',
+    'flag.blackBtn':'Black flags',
+    'flag.methodHint.fide':'FIDE: a win if the opponent can mate even against deliberately worst defence (helper mate), a draw if mate is impossible by any move sequence. Pure geometry — no search. (Covers resignation as well as time-out.)',
+    'flag.methodHint.uscf':'USCF: forced mate is the criterion. Undecided classes (lone knight, same-colour bishop, two knights without pawns) trigger a forced-mate search; if none is found within the configured depth, the result is a draw. (Resignation does not count as a flag fall.)',
+    'flag.invalidHead':'⚠ Invalid position',
+    'flag.invalidFen':'Invalid FEN',
+    'flag.pill.win':'WIN',
+    'flag.pill.draw':'DRAW',
+    'flag.head.winWhite':'White wins',
+    'flag.head.winBlack':'Black wins',
+    'flag.head.draw':'Draw',
+    'flag.timeout.white':'White ran out of time.',
+    'flag.timeout.black':'Black ran out of time.',
+    'flag.reason.fide.bare':'FIDE: the opponent has a bare king — even a helper mate is impossible.',
+    'flag.reason.fide.draw':'FIDE: the opponent\'s material cannot deliver even a helper mate (geometrically certain).',
+    'flag.reason.fide.win':'FIDE: the opponent can mate even against the worst possible defence (helper mate) — geometrically certain.',
+    'flag.reason.uscf.bare':'USCF: the opponent has a bare king — mate is impossible.',
+    'flag.reason.uscf.draw':'USCF: the opponent\'s material is insufficient (geometrically certain draw).',
+    'flag.reason.uscf.winSearch':'USCF: undecided class — forced mate found in {depth} ply.',
+    'flag.reason.uscf.drawSearch':'USCF: undecided class — no forced mate within the configured depth ({depth}) → draw.',
+    'flag.reason.uscf.win':'USCF: the opponent holds sufficient mating material.',
+    'flag.meta':'Winner: {win} · Loser: {lose} · {search}{ms} ms',
+    'flag.searchPrefix':'search+',
+
+    /* ── Locked position ── */
+    'lock.h2':'Locked Position Detection',
+    'lock.hint':'Proves absolute draws — positions where even two cooperating sides can open no irreversible move. Three outcomes: <b>ABSOLUTE LOCK</b> (100% sound, certain draw), <b>NOT LOCKED</b> (evaluated, a lock-breaker exists), <b>OUT OF SCOPE</b> (material or structure preconditions unmet — e.g. a queen, 30+ pieces, or promotion-inconsistent material; cannot be evaluated). The decisive squares are highlighted.',
+    'lock.btn':'🔒 Run Lock Analysis',
+    'lock.pill.lock':'ABSOLUTE LOCK',
+    'lock.pill.scope':'OUT OF SCOPE',
+    'lock.pill.no':'NOT LOCKED',
+    'lock.head.lock':'Certain draw',
+    'lock.body.lock':'Even two cooperating sides can open no irreversible move → a certain draw under FIDE\'s 75-move / 5-repetition ceiling.',
+    'lock.body.scope':'This position does not meet the algorithm\'s preconditions (material or pawn-wall structure unsuitable), so no locked/not-locked ruling can be issued — it falls outside evaluation.',
+    'lock.body.no':'(The position was evaluated; a real lock-breaking move exists.)',
+    'lock.meta.lock':'highlighted squares: locked pawn bricks',
+    'lock.runtimeErr':'runtime error: {msg}',
+
+    'flag.reason.ours.bare':'Hybrid: the opponent has a bare king — mate is impossible.',
+    'flag.reason.ours.draw':'Hybrid: the opponent\'s material is insufficient (geometrically certain draw).',
+    'flag.reason.ours.winSearch':'Hybrid: undecided class — forced mate found in {depth} ply.',
+    'flag.reason.ours.drawSearch':'Hybrid: undecided class — no forced mate within the configured depth ({depth}) → draw.',
+    'flag.reason.ours.win':'Hybrid: the opponent holds sufficient mating material (including two knights against pawns on a single file).',
+    'play.fed':'Federation',
+    'play.fedCustom':'Your choice',
+    'play.customWarn':'⚠ Neither the claimable floor nor the automatic ceiling is selected — under this rule set no draw ever arises from 50/3 or 75/5. Allowed here for experimentation; in the Engine Builder this combination blocks the download.',
+    'play.drawAct.t':'Draw claim / offer',
+    'play.drawMsg.idle':'Tick without moving to claim on the current position. Tick and then move, and the claim is applied to the position <b>after that move</b>; if it does not arise, the move carries a draw offer to your opponent.',
+    'play.drawMsg.idleNoClaim':'The 50/3 claim is off under this rule set. Tick and then move, and the move carries a draw offer to your opponent.',
+    'play.drawMsg.claimable.rule50':'<b>50 moves reached</b> — tick to draw.',
+    'play.drawMsg.claimable.rep3':'<b>Threefold repetition reached</b> — tick to draw.',
+    'play.drawMsg.armed':'Claim armed. Make your move: if it produces 50/3 the game is a <b>draw</b>, otherwise a <b>draw offer</b> goes to your opponent.',
+    'play.drawMsg.armedOffer':'Offer armed. Make your move and it will carry the offer to your opponent.',
+    'play.drawMsg.incoming':'🤝 <b>{side} offered a draw.</b> Tick to accept; making a move declines it.',
+    'play.fedOurs':'Hybrid',
+    'play.fedHint.fide':'FIDE: 50/3 claimable · 75/5 automatic draw · resignation ruled as a flag fall · helper mate criterion (no search).',
+    'play.fedHint.uscf':'USCF: 50/3 claimable · NO 75/5 automatic ceiling · resignation is an outright loss · forced mate criterion (depth 5).',
+    'play.fedHint.ours':'Hybrid: 50/3 claiming OFF · 75/5 automatic draw · resignation ruled as a flag fall · forced mate + the single-file pawn rule.',
+    'play.flagH':'Experiment: drop a flag',
+    'play.timeW':'⏱ White\'s time',
+    'play.timeB':'⏱ Black\'s time',
+    'play.resignW':'🏳 White resigns',
+    'play.resignB':'🏳 Black resigns',
+    'play.resigned.white':'White resigned.',
+    'play.resigned.black':'Black resigned.',
+    'play.resignLoss':'Under this federation resignation is an outright loss — material is not tested.',
+    'play.drawBy.rule50':'The 50-move rule was claimed.',
+    'play.drawBy.rep3':'Threefold repetition was claimed.',
+    'play.drawBy.agree':'The players agreed to a draw.',
+    /* ── Free play ── */
+    'play.h2':'Engine Test',
+    'play.hint':'Test the engine on a live position. Tap a piece, then tap its destination square. Switch federation to compare how the same position is ruled under different rule sets.',
+    'play.reset':'New Game',
+    'play.flip':'Flip Board',
+    'play.mate.white':'<b>Checkmate!</b> White wins.',
+    'play.mate.black':'<b>Checkmate!</b> Black wins.',
+    'play.stalemate':'<b>Stalemate.</b> Draw.',
+    'play.dead':'<b>Dead position — draw.</b>',
+    'play.rule75':'<b>75-move rule — draw (automatic).</b>',
+    'play.rep5':'<b>Fivefold repetition — draw (automatic).</b>',
+    'play.locked':'<b>Locked position — draw.</b> <span style="color:var(--muted)">({reason})</span>',
+    'play.claim50':' <span style="color:var(--draw)">· 50-move draw can be claimed</span>',
+    'play.claim3':' <span style="color:var(--draw)">· threefold repetition can be claimed</span>',
+    'play.turn.white':'To move: <b>White</b>.',
+    'play.turn.black':'To move: <b>Black</b>.',
+    'play.check':' <b>Check!</b>',
+
+    /* ── Engine builder ── */
+    'build.h2':'Engine Builder',
+    'build.hint':'Configure the arbiter engine to your needs and download it as a single file. Pick a ready-made preset or mix the options by hand to produce a custom engine. The code is not displayed here; you only download the configured, working engine.',
+    'build.presets':'Ready-made presets',
+    'build.presetOurs':'Our hybrid',
+    'build.drawLimits':'Draw limits',
+    'build.claim.t':'Claimable floor — 50 moves / 3 repetitions',
+    'build.claim.d':'A draw if a player claims it (the game does not end automatically). Switched off, no draw can be claimed under 50/3 — in long endings such as K+R vs K+Q the winning side must then play on until mate is found.',
+    'build.hardCap.t':'Automatic ceiling — 75 moves / 5 repetitions',
+    'build.hardCap.d':'FIDE\'s mandatory ceiling: an automatic draw at move 75 / the 5th repetition, with no claim required. Leave it off for USCF.',
+    'build.drawWarn':'⚠ At least one of the claimable floor or the automatic ceiling must be selected.',
+    'build.flagSection':'Flag-fall arbitration',
+    'build.resign.t':'Resignation counts as a flag fall',
+    'build.resign.d':'On (FIDE 5.1.2 / our hybrid): if a player resigns and the opponent cannot construct a helper/forced mate, the game is a draw. Off (USCF): resignation is an outright loss. <span class="hint" style="margin:0">(There is no resign button in the interface yet; this flag governs the generated engine\'s API behaviour.)</span>',
+    'build.mate.t':'Flag fall vs. material — mate criterion',
+    'build.mate.d':'How the opponent\'s ability to mate is measured when a player runs out of time.',
+    'build.mate.helper':'Helper mate',
+    'build.mate.helperNote':'(FIDE — pure geometry, no search)',
+    'build.mate.forced':'Forced mate',
+    'build.mate.forcedNote':'(USCF / hybrid — requires a search on minor pieces)',
+    'build.mate.depthLabel':'Forced-mate depth',
+    'build.mate.depthUnit':'ply (1–10)',
+    'build.lockSection':'Locked position',
+    'build.lock.t':'Locked-position scan',
+    'build.lock.d':'Recognises absolute draws (pawn-locked positions) in a 100% sound way and rules an automatic draw (FIDE 5.2.2 / USCF 14D4). Included in the engine.',
+    'build.download':'⬇ Download configured engine',
+    'build.sum.prefix':'This build: ',
+    'build.sum.claimOn':'<code>50/3</code> claim: <b>on</b>',
+    'build.sum.claimOff':'<code>50/3</code> claim: off',
+    'build.sum.capOn':'<code>75/5</code> automatic: <b>on</b>',
+    'build.sum.capOff':'<code>75/5</code> automatic: off',
+    'build.sum.resign':'Resignation counts as flag: <b>{val}</b>',
+    'build.sum.mateHelper':'Flag: <b>helper mate</b> (pure geometry)',
+    'build.sum.mateForced':'Flag: <b>forced mate</b>, depth <code>{depth}</code>',
+    'build.sum.lockOn':'Locked position: <b>included</b>',
+    'build.sum.lockOff':'Locked position: excluded',
+    'build.downloaded':'Downloaded: {name}',
+
+    /* ── Preset positions: flag ── */
+    'fp.start':'Starting position',
+    'fp.krk':'K+R vs K',
+    'fp.knk':'K+N vs K',
+    'fp.krkn':'K+R vs K+N',
+    'fp.kbnk':'K+B+N vs K',
+    'fp.kbk':'Lone bishop (K+B vs K)',
+
+    /* ── Preset positions: lock ── */
+    'lp.shuttle':'Shuttling pieces',
+    'lp.inertBishops':'Inert bishops',
+    'lp.immobile':'Immobile pieces',
+    'lp.web':'Bishop web',
+    'lp.passer':'Bishop breaks through',
+    'lp.distance':'Distance is open',
+    'lp.oneSided':'One-sided lock',
+    'lp.blackSameFile':'Black pawns on one file',
+    'lp.pawnNoCapture':'Pawn cannot capture',
+    'lp.whiteCramped':'White is cramped',
+    'lp.diagonal':'Diagonal line',
+    'lp.bishopFar':'Bishop on the far side',
+    'lp.mateFar':'Mate possible on the far side',
+    'lp.inertPawn':'Inert pawn',
+    'lp.capturable':'Capturable pawn',
+    'lp.ep':'With en passant',
+    'lp.mate':'Mate possible',
+    'lp.parity1':'Bishop parity 1',
+    'lp.parity2':'Bishop parity 2',
+    'lp.parity3':'Bishop parity 3',
+    'lp.parity4':'Bishop parity 4',
+    'lp.parity5':'Bishop parity 5',
+    'lp.mateQ':'Is mate possible?'
+  }
+  };
+
+  let LANG = 'tr';
+
+  function setLang(l){ LANG = DICT[l] ? l : 'tr'; }
+  function getLang(){ return LANG; }
+
+  /* t(key, params) — fills {name} placeholders. A missing key falls back to
+     Turkish, then to the key itself (a visible trace rather than silent loss). */
+  function t(key, params){
+    let s = DICT[LANG] && DICT[LANG][key];
+    if(s === undefined) s = DICT.tr[key];
+    if(s === undefined) return key;
+    if(params) s = s.replace(/\{(\w+)\}/g, (m,k)=> params[k] !== undefined ? params[k] : m);
+    return s;
+  }
+
+  /* Static markup: every element carrying data-i18n. innerHTML is used (some
+     strings contain <b>/<code>/<span>), which is why elements holding form
+     controls never carry data-i18n — their inputs and listeners would be wiped. */
+  function applyStatic(){
+    document.querySelectorAll('[data-i18n]').forEach(el=>{
+      el.innerHTML = t(el.getAttribute('data-i18n'));
+    });
+    document.documentElement.lang = LANG;
+    document.title = t('app.title');
+  }
+
+  /* ── Display-time translation of isLocked / loadFen reasons ──
+     The core keeps returning Turkish; only the printed text is translated.
+     In Turkish this is the identity function. */
+  const FEN_RULES = [
+    [/^FEN: 8 sıra olmalı \(\/ ile ayrılmış\)\.$/, ()=>'FEN: must contain 8 ranks (separated by /).'],
+    [/^FEN: Bilinmeyen karakter '(.+)'\.$/, m=>`FEN: unknown character '${m[1]}'.`],
+    [/^FEN: (\d+)\. sıra 8 kare olmalı\.$/, m=>`FEN: row ${m[1]} must contain 8 squares.`],
+    [/^FEN: Piyon 1\. veya 8\. sırada olamaz\.$/, ()=>'FEN: a pawn cannot stand on rank 1 or 8.'],
+    [/^FEN: Beyazın tam 1 şahı olmalı\.$/, ()=>'FEN: White must have exactly 1 king.'],
+    [/^FEN: Siyahın tam 1 şahı olmalı\.$/, ()=>'FEN: Black must have exactly 1 king.'],
+    [/^FEN: Sıra 'w' veya 'b' olmalı\.$/, ()=>"FEN: side to move must be 'w' or 'b'."],
+    [/^FEN: (Beyaz|Siyah) şahta ama sırası değil — geçersiz pozisyon\.$/,
+      m=>`FEN: ${m[1]==='Beyaz'?'White':'Black'} is in check but it is not their turn — illegal position.`],
+    [/^FEN: Geçersiz en passant karesi\.$/, ()=>'FEN: invalid en passant square.']
+  ];
+
+  function trFenError(err){
+    for(const [re, fn] of FEN_RULES){ const m = re.exec(err); if(m) return fn(m); }
+    return err;
+  }
+
+  const SIDE_EN = { 'beyaz':'White', 'siyah':'Black' };
+
+  const REASON_RULES = [
+    // The core emits "Geçersiz FEN: FEN: ..."; when wrapped, drop the inner
+    // "FEN: " prefix to avoid the repetition.
+    [/^Geçersiz FEN: (.*)$/, m=>'Invalid FEN: '+trFenError(m[1]).replace(/^FEN: /,'')],
+    [/^tahta ayrıştırılamadı$/, ()=>'board could not be parsed'],
+
+    [/^K1 — taş sayısı (\d+) \(8–30 dışı\)$/, m=>`K1 — piece count ${m[1]} (outside 8–30)`],
+    [/^K1 — her tarafta tam 1 şah olmalı$/, ()=>'K1 — each side must have exactly 1 king'],
+    [/^K1 — vezir bulunamaz$/, ()=>'K1 — no queen may be present'],
+    [/^K1 — her taraf en az 3 piyon$/, ()=>'K1 — each side needs at least 3 pawns'],
+    [/^K1 — (beyaz|siyah) materyal terfi-tutarsız$/,
+      m=>`K1 — ${SIDE_EN[m[1]]}'s material is promotion-inconsistent`],
+
+    [/^K2 — 3 tuğla yok \(bulunan: (\d+)\)$/, m=>`K2 — fewer than 3 bricks (found: ${m[1]})`],
+    [/^K2 — 3 tuğla geçersiz sütun deseni \((.+)\) — duvar tahtayı bölemez$/,
+      m=>`K2 — invalid 3-brick file pattern (${m[1]}) — the wall cannot split the board`],
+    [/^K2 — 3 tuğla kavuşma hizası farklı \(r\+0\.5 eşit değil\)$/,
+      ()=>'K2 — the three bricks sit on different contact ranks (r+0.5 not equal)'],
+    [/^K2 — yan yana aynı hizada tuğla \((.+) kavuşma (.+)\) — çapraz alım$/,
+      m=>`K2 — adjacent bricks on the same contact rank (${m[1]}, contact ${m[2]}) — a diagonal capture opens`],
+
+    [/^K3 — (beyaz|siyah) at\/kale hareketli$/,
+      m=>`K3 — ${SIDE_EN[m[1]]} has a mobile knight/rook`],
+    [/^K3 — (beyaz|siyah) fil \((.+)\) eşik piyonuyla aynı renkte ve hareketli$/,
+      m=>`K3 — ${SIDE_EN[m[1]]}'s bishop (${m[2]}) shares square colour with an opposing threshold pawn and is mobile`],
+
+    [/^K4 — (beyaz|siyah) (\w) ana düğümünde kilit-kırıcı$/,
+      m=>`K4 — lock-breaker found in ${SIDE_EN[m[1]]}'s ${m[2]} main node`],
+
+    [/^K5 — (beyaz|siyah) şah karşı şaha ulaşabiliyor$/,
+      m=>`K5 — ${SIDE_EN[m[1]]}'s king can reach the opposing king's square`],
+
+    [/^K1–K5 geçti — MUTLAK KİLİT$/, ()=>'K1–K5 passed — ABSOLUTE LOCK']
+  ];
+
+  function trReason(reason){
+    if(LANG === 'tr' || !reason) return reason;
+    for(const [re, fn] of REASON_RULES){ const m = re.exec(reason); if(m) return fn(m); }
+    return reason;   // unrecognised reason: show it as-is (no information lost)
+  }
+
+  return { t, setLang, getLang, applyStatic, trReason, trFenError, DICT };
+})();
+</script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   PERFECT ARBITER — INTERFACE (plain build, no animation)
+   The engine (PA) and lock detector (makeLockDetector) are verbatim above.
+   ══════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+  const LOCK = makeLockDetector(PA);
+  const GLYPH = {P:'♙',N:'♘',B:'♗',R:'♖',Q:'♕',K:'♔',p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚'};
+  const FILES = 'abcdefgh';
+
+  /* Shorthands: T = translate, TR = reason translation (display time). */
+  const T  = (k,p)=>I18N.t(k,p);
+  const TR = (r)=>I18N.trReason(r);
+
+  /* ── Tabs ── */
+  document.getElementById('tabs').addEventListener('click', e=>{
+    const t = e.target.closest('.tab'); if(!t) return;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+    const name = t.dataset.panel;
+    document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
+    if(name==='play') renderPlay();
+  });
+
+  /* ── FEN → 8x8 row array ── */
+  function fenRows(fen){
+    const rows = fen.split(/\s+/)[0].split('/');
+    const out = [];
+    for(let r=0;r<8;r++){
+      const line = []; let c=0;
+      for(const ch of rows[r]||''){ if(/\d/.test(ch)){c+=+ch;} else {line[c++]=ch;} }
+      while(line.length<8) line.push(undefined);
+      out.push(line);
+    }
+    return out;
+  }
+
+  /* ── Board rendering. highlights: {"r,c":true}, flip supported ── */
+  function drawBoard(el, fen, opts={}){
+    const rows = fenRows(fen);
+    const flip = !!opts.flip;
+    el.innerHTML = '';
+    for(let vr=0; vr<8; vr++){
+      for(let vc=0; vc<8; vc++){
+        const r = flip ? 7-vr : vr;
+        const c = flip ? 7-vc : vc;
+        const sq = document.createElement('div');
+        sq.className = 'sq ' + (((r+c)&1) ? 'dark':'light');
+        sq.dataset.r = r; sq.dataset.c = c;
+        const ch = rows[r][c];
+        if(ch){
+          const span = document.createElement('span');
+          span.className = 'p' + (ch===ch.toLowerCase()?' black':'');
+          span.textContent = GLYPH[ch] || '';
+          sq.appendChild(span);
+        }
+        if(opts.highlights && opts.highlights[r+','+c]) sq.classList.add('hl');
+        if(opts.sel && opts.sel.r===r && opts.sel.c===c) sq.classList.add('sel');
+        if(opts.dots && opts.dots[r+','+c]) sq.classList.add('dot');
+        if(opts.onClick) sq.addEventListener('click', ()=>opts.onClick(r,c));
+        el.appendChild(sq);
+      }
+    }
+    // Coordinates: one element per rank/file, in the same track order as the squares,
+    // so they stay aligned under flip. Read from the board's own wrapper.
+    const wrap = el.parentElement;
+    const ranksEl = wrap && wrap.querySelector('.ranks');
+    const filesEl = wrap && wrap.querySelector('.files');
+    if(ranksEl){
+      ranksEl.innerHTML = '';
+      for(let vr=0; vr<8; vr++){
+        const r = flip ? 7-vr : vr;
+        const s = document.createElement('span'); s.textContent = 8-r;
+        ranksEl.appendChild(s);
+      }
+    }
+    if(filesEl){
+      filesEl.innerHTML = '';
+      for(let vc=0; vc<8; vc++){
+        const c = flip ? 7-vc : vc;
+        const s = document.createElement('span'); s.textContent = FILES[c];
+        filesEl.appendChild(s);
+      }
+    }
+  }
+
+  /* ── Material → renderable summary ── */
+  function materialSummary(m){
+    const parts=[];
+    if(m.pawns) parts.push(m.pawns+'P'); if(m.rooks) parts.push(m.rooks+'R');
+    if(m.knights) parts.push(m.knights+'N'); if(m.bishops) parts.push(m.bishops+'B');
+    if(m.queens) parts.push(m.queens+'Q');
+    return parts.length? parts.join(' ') : T('material.bare');
+  }
+
+  /* ══════════ FLAG FALL ══════════ */
+  const flagFen = document.getElementById('flagFen');
+  const flagVerdict = document.getElementById('flagVerdict');
+  const flagDepth = document.getElementById('flagDepth');
+  const flagMethodEls = ()=>document.querySelectorAll('input[name="flagMethod"]');
+  function flagMethod(){ for(const el of flagMethodEls()) if(el.checked) return el.value; return 'fide'; }
+
+  /* Flag classifier — from the SHARED src-flag block (interface and engine use
+     the same functions). */
+  const FLAGC = makeFlagClassifier(PA);
+  const universalFlagLayer = FLAGC.universalFlagLayer;
+  const classifyFideFlag   = FLAGC.classifyFideFlag;
+  const classifyUscfFlag   = FLAGC.classifyUscfFlag;
+  const classifyOursFlag   = FLAGC.classifyOursFlag;
+
+  const FLAG_PRESETS = [
+    ['fp.start', PA.START_FEN],
+    ['fp.krk',  '8/8/8/4k3/8/8/4K3/R7 w - - 0 1'],
+    ['fp.knk',  '8/8/8/4k3/8/8/4K3/1N6 w - - 0 1'],
+    ['fp.krkn', '8/8/8/4k3/6n1/8/4K3/R7 w - - 0 1'],
+    ['fp.kbnk', '8/8/8/4k3/8/8/4K3/2B1N3 w - - 0 1'],
+    ['fp.kbk',  '8/8/8/4k3/8/8/4K3/2B5 w - - 0 1'],
+  ];
+
+  function renderFlag(hl, sel){
+    drawBoard(document.getElementById('flagBoard'),
+      flagFen.value, {highlights:hl, sel});
+  }
+
+  /* Shared flag adjudication — used by BOTH the Flag Fall panel and the Engine Test
+     panel, so the two can never diverge. method: 'fide' | 'uscf' | 'ours'.
+     'ours' (hybrid) needs the FEN rows for its single-file pawn rule. */
+  function adjudicateFlag(fen, loserIsWhite, method, depth){
+    const p = PA.createPosition();
+    const r = p.loadFen(String(fen).trim());
+    if(!r.ok) return {error: r.error || null};   // raw error; translated at render time
+    const t0 = performance.now();
+    const win  = p.material(!loserIsWhite);
+    const lose = p.material(loserIsWhite);
+    if(method !== 'uscf' && method !== 'ours') method = 'fide';   // safe default
+    let searched=false, depthFound=0, verdict, base;
+
+    if(method === 'fide'){
+      // FIDE — helper mate, pure geometry, NO SEARCH. No grey zone.
+      verdict = base = classifyFideFlag(win, lose);
+    } else {
+      // USCF / hybrid — universal layer, then a forced-mate search for grey classes.
+      base = (method === 'ours')
+        ? classifyOursFlag(win, lose, fenRows(fen), loserIsWhite)
+        : classifyUscfFlag(win, lose);
+      if(base === 'search'){
+        searched = true;
+        depthFound = p.forcedMateDepth(!loserIsWhite, depth);
+        verdict = depthFound > 0 ? 'win' : 'draw';
+      } else {
+        verdict = base;
+      }
+    }
+    return {verdict, base, searched, depthFound, depth,
+            ms: performance.now()-t0, win, lose, loserIsWhite, method};
+  }
+
+  /* Reason sentence for a verdict object. Shared by both panels. */
+  function flagReasonText(res){
+    const bare = res.win.pawns+res.win.rooks+res.win.queens+res.win.knights+res.win.bishops === 0;
+    if(res.method === 'fide'){
+      if(res.verdict === 'draw') return T(bare ? 'flag.reason.fide.bare' : 'flag.reason.fide.draw');
+      return T('flag.reason.fide.win');
+    }
+    const ns = (res.method === 'ours') ? 'flag.reason.ours.' : 'flag.reason.uscf.';
+    if(res.verdict === 'draw' && !res.searched) return T(bare ? ns+'bare' : ns+'draw');
+    if(res.searched && res.verdict === 'win')   return T(ns+'winSearch',  {depth: res.depthFound});
+    if(res.searched)                            return T(ns+'drawSearch', {depth: res.depth});
+    return T(ns+'win');
+  }
+
+  function verdictFlagFall(loserIsWhite){
+    return adjudicateFlag(flagFen.value, loserIsWhite, flagMethod(),
+                          Math.max(1, Math.min(10, +flagDepth.value||5)));
+  }
+
+  // Winner piece types that decided the verdict (for highlighting)
+  function decisivePieces(res){
+    const s = new Set();
+    const w = res.win;
+    if(res.verdict==='draw'){ return s; } // only the king is highlighted
+    if(w.heavy>0){ if(w.pawns) s.add('P'); if(w.rooks) s.add('R'); if(w.queens) s.add('Q'); }
+    if(w.bishops>=1) s.add('B');
+    if(w.knights>=1 && (w.bishops>=1 || w.heavy>0 || res.searched)) s.add('N');
+    if(res.searched){ // grey→search: every winner piece contributed
+      if(w.knights) s.add('N'); if(w.bishops) s.add('B');
+    }
+    return s;
+  }
+
+  /* Last verdict cache: redrawn on a language change WITHOUT recomputing. */
+  let lastFlag = null;
+
+  function showFlagVerdict(loserIsWhite){
+    lastFlag = verdictFlagFall(loserIsWhite);
+    lastFlag.loserIsWhite = loserIsWhite;   // keep it set on the error path too
+    renderFlagVerdict();
+  }
+
+  function renderFlagVerdict(){
+    const res = lastFlag; if(!res) return;
+    const loserIsWhite = res.loserIsWhite;
+    if(res.error !== undefined){
+      flagVerdict.className='verdict show';
+      flagVerdict.innerHTML = `<p class="headline">${T('flag.invalidHead')}</p>`+
+        `<p class="reason">${res.error ? I18N.trFenError(res.error) : T('flag.invalidFen')}</p>`;
+      return;
+    }
+    const winnerWhite = !loserIsWhite;
+    // Decisive squares: the winner pieces that produced the verdict
+    const rows = fenRows(flagFen.value);
+    const hl = {};
+    const decisive = decisivePieces(res); // which piece types decided it
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+      const ch=rows[r][c]; if(!ch) continue;
+      const isWhitePiece = ch===ch.toUpperCase();
+      if(isWhitePiece!==winnerWhite) continue;       // the winner's pieces only
+      const up=ch.toUpperCase();
+      if(up==='K'){ hl[r+','+c]=true; continue; }     // always the king
+      if(decisive.has(up)) hl[r+','+c]=true;
+    }
+    renderFlag(hl);
+
+    let head, cls, pill;
+    if(res.verdict==='win'){
+      cls='v-win'; pill=`<span class="pill win">${T('flag.pill.win')}</span>`;
+      head = T(winnerWhite ? 'flag.head.winWhite' : 'flag.head.winBlack');
+    } else {
+      cls='v-draw'; pill=`<span class="pill draw">${T('flag.pill.draw')}</span>`;
+      head = T('flag.head.draw');
+    }
+    const reason = flagReasonText(res);
+    flagVerdict.className='verdict show '+cls;
+    flagVerdict.innerHTML =
+      `<p class="headline">${pill}${head}</p>`+
+      `<p class="reason">${T(loserIsWhite?'flag.timeout.white':'flag.timeout.black')} ${reason}</p>`+
+      `<p class="meta">${T('flag.meta', {
+          win: materialSummary(res.win),
+          lose: materialSummary(res.lose),
+          search: res.searched ? T('flag.searchPrefix') : '',
+          ms: res.ms.toFixed(2)
+        })}</p>`;
+  }
+
+  document.getElementById('flagWhiteBtn').addEventListener('click', ()=>showFlagVerdict(true));
+  document.getElementById('flagBlackBtn').addEventListener('click', ()=>showFlagVerdict(false));
+  flagFen.addEventListener('input', ()=>{ lastFlag=null; flagVerdict.className='verdict'; renderFlag(); });
+
+  // Standard selector: FIDE has no search → the depth box hides; the hint updates.
+  const flagDepthBox = document.getElementById('flagDepthBox');
+  const flagMethodHint = document.getElementById('flagMethodHint');
+  function syncFlagMethod(clearVerdict){
+    const m = flagMethod();
+    // Only FIDE is search-free → the depth box is hidden for FIDE alone.
+    flagDepthBox.style.display = (m==='fide') ? 'none' : '';
+    flagMethodHint.textContent = T('flag.methodHint.'+m);
+    // A standard change invalidates the old verdict; a language change keeps it.
+    if(clearVerdict !== false){ lastFlag=null; flagVerdict.className='verdict'; }
+  }
+  flagMethodEls().forEach(el=>el.addEventListener('change', syncFlagMethod));
+  syncFlagMethod();
+
+  // The preset bar is rebuilt on a language change (labels are translated).
+  function buildFlagPresets(){
+    const bar = document.getElementById('flagPresets');
+    bar.innerHTML = '';
+    FLAG_PRESETS.forEach(([key,fen])=>{
+      const b=document.createElement('button'); b.textContent=T(key);
+      b.addEventListener('click', ()=>{ flagFen.value=fen; lastFlag=null; flagVerdict.className='verdict'; renderFlag(); });
+      bar.appendChild(b);
+    });
+  }
+  (function initFlag(){
+    buildFlagPresets();
+    flagFen.value = FLAG_PRESETS[1][1];
+    renderFlag();
+  })();
+
+  /* ══════════ LOCKED POSITION ══════════ */
+  const lockFen = document.getElementById('lockFen');
+  const lockVerdict = document.getElementById('lockVerdict');
+
+  const LOCK_PRESETS = [
+    ['lp.shuttle', 'rbnqkbnr/8/8/1p1p1p1p/bpbpbpbp/1p1p1p1p/1P1P1P1P/1K6 w kq - 0 1'],
+    ['lp.inertBishops', '4k3/b7/8/p1p1p1p1/P1P1P1P1/8/2B5/4K3 w - - 0 1'],
+    ['lp.immobile', '3k1nbr/3p1p1p/1p1PpPpP/1P2P1P1/8/8/8/4K3 w - - 0 1'],
+    ['lp.web', '1BkB1B1B/B1B1B1B1/1B1B1B1B/BpB1BpB1/1B1B1B1B/B1B1B1B1/1B1B1B1B/B1BKB1B1 w - - 0 1'],
+    ['lp.passer', '2k5/8/7p/1p1p1p1P/1P1P1P2/8/8/3KB3 w - - 0 1'],
+    ['lp.distance', '2k4b/6pP/5pP1/3p1P2/3p1P2/1p1P4/pP6/B2K4 w - - 0 1'],
+    ['lp.oneSided', '3k4/8/8/1p2p2p/1P2P2P/6p1/6P1/4K3 w - - 0 1'],
+    ['lp.blackSameFile', '3k4/8/1p5p/1P2p2P/1P2P3/8/8/4K3 w - - 0 1'],
+    ['lp.pawnNoCapture', '3k4/8/1p5p/1P2p2P/1P2P3/8/2B5/4K3 w - - 0 1'],
+    ['lp.whiteCramped', '2k5/7p/6pP/5pP1/4pP2/1p1pP3/pP1P4/B3K3 w - - 0 1'],
+    ['lp.diagonal', '6b1/5pPp/4pP1P/3pP2K/k1pP4/1pP5/pP6/B7 w - - 0 1'],
+    ['lp.bishopFar', '2k5/8/1p1p1pBp/1P1P1P1P/8/8/8/3K4 w - - 0 1'],
+    ['lp.mateFar', '1b6/b2B2k1/8/1p1p1p1p/1P1P1P1P/8/8/3K4 w - - 0 1'],
+    ['lp.inertPawn', '5k2/3p4/8/1p1p1p1p/1P1P1P1P/8/8/3K4 w - - 0 1'],
+    ['lp.capturable', '3k4/8/1p1p1p1p/1P1P1P1P/8/7p/7P/4K3 w - - 0 1'],
+    ['lp.ep', '3k4/8/1p1p2p1/1P1P1pP1/5P2/8/3K4/8 w - f6 0 1'],
+    ['lp.mate', 'kb2B3/b7/8/p1p1p1p1/P1P1P1P1/8/8/1K6 w - - 0 1'],
+    ['lp.parity1', '1k1b4/8/1p1p1p1p/1P1P1P1P/8/1K3p2/5P2/8 w - - 0 1'],
+    ['lp.parity2', '1k1b4/8/1p1p1p1p/1P1P1P1P/8/1K2p3/4P3/8 w - - 0 1'],
+    ['lp.parity3', '1k6/6b1/1p1p1p1p/1P1P1P1P/4p3/1K2P3/8/8 w - - 0 1'],
+    ['lp.parity4', '1k5b/1p2p1pP/1P2P1P1/8/8/8/8/1K6 w - - 0 1'],
+    ['lp.parity5', '1k6/8/8/p1p1b3/PpPp1p1p/1P1P1P1P/5P2/1K6 w - - 0 1'],
+    ['lp.mateQ', 'kb6/b7/8/p1p1p1p1/P1P1P1P1/8/8/1K1B4 w - - 0 1'],
+  ];
+
+  function renderLock(hl){
+    drawBoard(document.getElementById('lockBoard'),
+      lockFen.value, {highlights:hl});
+  }
+
+  /* Last lock analysis cache. The scan is expensive, so a language change
+     REDRAWS it rather than recomputing. */
+  let lastLock = null;
+
+  function showLockVerdict(){
+    const fen = lockFen.value.trim();
+    const t0 = performance.now();
+    let res, err = null;
+    try { res = LOCK.isLocked(fen); }
+    catch(e){ err = e.message; res = {locked:false, reason:'çalışma hatası: '+e.message}; }
+    lastLock = { fen, res, err, ms: performance.now()-t0 };
+    renderLockVerdict();
+  }
+
+  function renderLockVerdict(){
+    const L = lastLock; if(!L) return;
+    const { fen, res, err, ms } = L;
+
+    // Split the result into three classes:
+    //   locked        → ABSOLUTE LOCK
+    //   OUT OF SCOPE  → outside the algorithm's class: K1 (material precondition),
+    //                   K2's "not enough bricks" case (n<3), or an invalid FEN.
+    //   NOT LOCKED    → evaluated, and a real lock-breaking structure exists:
+    //                   K2 geometric pruning, K3, en passant, K4, K5.
+    // NOTE: classification ALWAYS runs on the core's Turkish reason; the translation
+    // is applied only when printing. So the language can never affect the verdict.
+    const reason = res.reason;
+    const notEnoughBricks = /^K2 — 3 tuğla yok/.test(reason);
+    const outOfScope = !res.locked && (
+      /^(K1|Geçersiz FEN|tahta ayrıştırılamadı)/.test(reason) || notEnoughBricks
+    );
+
+    // Reason to display (a runtime error comes from its own key).
+    const shown = (err !== null) ? T('lock.runtimeErr', {msg: err}) : TR(reason);
+
+    // Highlighting
+    const rows = fenRows(fen);
+    const hl = {};
+    if(res.locked){
+      for(let c=0;c<8;c++)for(let r=0;r<7;r++)
+        if(rows[r][c]==='p'&&rows[r+1][c]==='P'){ hl[r+','+c]=true; hl[(r+1)+','+c]=true; }
+    } else if(!outOfScope){
+      for(let r=0;r<8;r++)for(let c=0;c<8;c++)
+        if(rows[r][c]==='K'||rows[r][c]==='k') hl[r+','+c]=true;
+    }
+    renderLock(hl);
+
+    if(res.locked){
+      lockVerdict.className='verdict show v-lock';
+      lockVerdict.innerHTML =
+        `<p class="headline"><span class="pill lock">${T('lock.pill.lock')}</span>${T('lock.head.lock')}</p>`+
+        `<p class="reason">${shown}. ${T('lock.body.lock')}</p>`+
+        `<p class="meta">${ms.toFixed(2)} ms · ${T('lock.meta.lock')}</p>`;
+    } else if(outOfScope){
+      lockVerdict.className='verdict show v-scope';
+      lockVerdict.innerHTML =
+        `<p class="headline"><span class="pill scope">${T('lock.pill.scope')}</span></p>`+
+        `<p class="reason">${shown}. ${T('lock.body.scope')}</p>`+
+        `<p class="meta">${ms.toFixed(2)} ms</p>`;
+    } else {
+      lockVerdict.className='verdict show';
+      lockVerdict.innerHTML =
+        `<p class="headline"><span class="pill no">${T('lock.pill.no')}</span></p>`+
+        `<p class="reason">${shown}. ${T('lock.body.no')}</p>`+
+        `<p class="meta">${ms.toFixed(2)} ms</p>`;
+    }
+  }
+
+  document.getElementById('lockBtn').addEventListener('click', showLockVerdict);
+  lockFen.addEventListener('input', ()=>{ lastLock=null; lockVerdict.className='verdict'; renderLock(); });
+
+  // The preset bar is rebuilt on a language change (labels are translated).
+  function buildLockPresets(){
+    const bar = document.getElementById('lockPresets');
+    bar.innerHTML = '';
+    LOCK_PRESETS.forEach(([key,fen])=>{
+      const b=document.createElement('button'); b.textContent=T(key);
+      b.addEventListener('click', ()=>{ lockFen.value=fen; lastLock=null; lockVerdict.className='verdict'; renderLock(); });
+      bar.appendChild(b);
+    });
+  }
+  (function initLock(){
+    buildLockPresets();
+    lockFen.value = LOCK_PRESETS[0][1];
+    renderLock();
+  })();
+
+  /* ══════════ ENGINE TEST (formerly free play) ══════════
+     Element ids keep the `play` prefix — only the label changed. */
+  const POS = PA.createPosition();
+  POS.loadFen(PA.START_FEN);
+  let playFlip=false, playSel=null;
+  const playStatus = document.getElementById('playStatus');
+  const playFenEl = document.getElementById('playFen');
+  const playFedHint = document.getElementById('playFedHint');
+  const playCustomBox = document.getElementById('playCustom');
+  const pcEl = id => document.getElementById(id);
+
+  /* Federation rule sets — the same presets the Engine Builder offers, so a ruling
+     here matches what the downloaded engine would produce. */
+  const PLAY_FED = {
+    fide: {claim:true,  hardCap:true,  resignIsFlag:true,  mate:'fide', depth:5, lock:true},
+    uscf: {claim:true,  hardCap:false, resignIsFlag:false, mate:'uscf', depth:5, lock:true},
+    ours: {claim:false, hardCap:true,  resignIsFlag:true,  mate:'ours', depth:5, lock:true}
+  };
+  const playFedEls = ()=>[...document.querySelectorAll('input[name="playFed"]')];
+  function playFedName(){
+    const el = playFedEls().find(x=>x.checked);
+    if(!el) return 'fide';
+    return (el.value === 'custom' || PLAY_FED[el.value]) ? el.value : 'fide';
+  }
+  const pcMate = ()=>{
+    const el = [...document.querySelectorAll('input[name="pcMate"]')].find(x=>x.checked);
+    return el ? el.value : 'helper';
+  };
+  /* Active rules. 'custom' reads the option controls directly.
+     NOTE on the mate criterion: the Engine Builder offers helper/forced only, and its
+     forced path calls classifyOursFlag — so forced maps to 'ours' here too, keeping a
+     custom rule set byte-for-byte equivalent to the engine the builder would emit. */
+  function playCfg(){
+    const name = playFedName();
+    if(name !== 'custom') return Object.assign({fed:name}, PLAY_FED[name]);
+    return {
+      fed: 'custom',
+      claim:        pcEl('pcClaim').checked,
+      hardCap:      pcEl('pcHardCap').checked,
+      resignIsFlag: pcEl('pcResign').checked,
+      lock:         pcEl('pcLock').checked,
+      mate:         pcMate() === 'helper' ? 'fide' : 'ours',
+      depth:        Math.max(1, Math.min(10, +pcEl('pcDepth').value || 5))
+    };
+  }
+  /* Custom summary reuses the builder's own wording keys, so the two always agree. */
+  function playCustomSummary(){
+    const c = playCfg();
+    return [
+      T(c.claim   ? 'build.sum.claimOn' : 'build.sum.claimOff'),
+      T(c.hardCap ? 'build.sum.capOn'   : 'build.sum.capOff'),
+      T('build.sum.resign', {val: T(c.resignIsFlag ? 'common.yes' : 'common.no')}),
+      c.mate === 'fide' ? T('build.sum.mateHelper') : T('build.sum.mateForced', {depth: c.depth}),
+      T(c.lock ? 'build.sum.lockOn' : 'build.sum.lockOff')
+    ].join(' · ') + '.';
+  }
+
+  /* Terminal state. While set, the board is frozen and the ruling is shown. */
+  let playOver = null;
+
+  /* Draw claim / offer.
+     armedBy — the side to move ticked the box but has not moved yet, so the claim
+               applies to the position AFTER their next move (FIDE 9.2/9.3 order).
+     offerBy — a draw offer waiting for the other side; accepted from the same box.
+     Both are side letters ('w'/'b') or null. */
+  let drawArmedBy = null;
+  let drawOfferBy = null;
+
+  // Repetition counter: repetitionKey → times seen (for threefold/fivefold)
+  let repMap = new Map();
+  function repReset(){ repMap = new Map(); repBump(); }
+  function repBump(){ const k=POS.repetitionKey(); repMap.set(k,(repMap.get(k)||0)+1); }
+  function repCount(){ return repMap.get(POS.repetitionKey())||0; }
+
+  function legalTargetsFrom(r,c){
+    const from = r*16+c;
+    const out = {};
+    for(const m of POS.legalMoves()){
+      if(PA.mFrom(m)===from){ const to=PA.mTo(m); out[(to>>4)+','+(to&7)]=true; }
+    }
+    return out;
+  }
+
+  // Post-move verdict: draw checks run CHEAPEST FIRST; the lock scan is LAST.
+  // order: mate/stalemate → dead material → 75/50 moves → 5/3 repetitions → lock.
+  // The 75/5 automatic ceiling applies only when the federation has hardCap.
+  function playStatusText(){
+    const cfg = playCfg();
+    const moves = POS.legalMoves();
+    const white = POS.turnWhite();
+
+    // 1) Mate / stalemate
+    if(moves.length===0){
+      if(POS.inCheck()) return T(white ? 'play.mate.black' : 'play.mate.white');
+      return T('play.stalemate');
+    }
+    // 2) Dead material
+    if(POS.deadMaterial()) return T('play.dead');
+    // 3) Move rule (halfmove counter, cheap)
+    const half = POS.halfmove;
+    if(cfg.hardCap && half >= 150) return T('play.rule75');
+    // 4) Repetition (cheap comparison)
+    const rc = repCount();
+    if(cfg.hardCap && rc >= 5) return T('play.rep5');
+    // 5) Locked position — MOST EXPENSIVE, last. A lock can only arise right after
+    //    an irreversible move (capture / pawn push = halfmove 0) → compute it only then.
+    if(cfg.lock && half === 0){
+      try {
+        const lk = LOCK.isLocked(POS.getFen());
+        if(lk.locked) return T('play.locked', {reason: TR(lk.reason)});
+      } catch(e){}
+    }
+    // claimable draws (the game does not end; informational)
+    let claim = '';
+    if(cfg.claim){
+      if(half >= 100) claim = T('play.claim50');
+      else if(rc >= 3) claim = T('play.claim3');
+    }
+
+    let extra='';
+    if(POS.inCheck()) extra = T('play.check');
+    return T(white ? 'play.turn.white' : 'play.turn.black') + extra + claim;
+  }
+
+  const sideToMove = ()=> POS.turnWhite() ? 'w' : 'b';
+
+  /* Is a 50-move / threefold draw claimable in the CURRENT position?
+     Returns 'rule50' | 'rep3' | null. Null whenever the claim floor is switched off. */
+  function claimableNow(){
+    if(!playCfg().claim) return null;
+    if(POS.halfmove >= 100) return 'rule50';
+    if(repCount() >= 3) return 'rep3';
+    return null;
+  }
+
+  /* fromFenInput=true → the FEN box is being typed in, so don't rewrite it. */
+  function renderPlay(fromFenInput){
+    const dots = (playSel && !playOver) ? legalTargetsFrom(playSel.r,playSel.c) : null;
+    drawBoard(document.getElementById('playBoard'),
+      POS.getFen(), {flip:playFlip, sel:playSel, dots, onClick:playClick});
+    // A ruling becomes a full verdict block (.headline/.reason/.meta are scoped to
+    // .verdict); otherwise the box stays a plain one-line status.
+    playStatus.className = playOver ? ('verdict show '+playOver.cls) : 'status';
+    playStatus.innerHTML = playOver ? playOverHtml() : playStatusText();
+    if(!fromFenInput) playFenEl.value = POS.getFen();
+    const fedName = playFedName();
+    playCustomBox.style.display = (fedName === 'custom') ? '' : 'none';
+    if(fedName === 'custom'){
+      playFedHint.innerHTML = playCustomSummary();
+      pcEl('pcDepthBox').style.display = (pcMate() === 'forced') ? '' : 'none';
+      // Not blocking, unlike the builder's download gate: constructing a degenerate
+      // rule set and watching what it does is a legitimate experiment.
+      pcEl('pcWarn').style.display =
+        (!pcEl('pcClaim').checked && !pcEl('pcHardCap').checked) ? '' : 'none';
+    } else {
+      playFedHint.textContent = T('play.fedHint.'+fedName);
+    }
+    renderDrawBox();
+
+    // The experiment buttons are meaningless once the game has ended.
+    for(const id of ['playTimeW','playTimeB','playResignW','playResignB'])
+      document.getElementById(id).disabled = !!playOver;
+  }
+
+  function playClick(r,c){
+    if(playOver) return;                  // board frozen after a ruling
+    const rows = fenRows(POS.getFen());
+    const ch = rows[r][c];
+    if(playSel){
+      const targets = legalTargetsFrom(playSel.r,playSel.c);
+      if(targets[r+','+c]){
+        const from=playSel.r*16+playSel.c, to=r*16+c;
+        // find the matching move (promotion defaults to queen)
+        let chosen=null;
+        for(const m of POS.legalMoves()){
+          if(PA.mFrom(m)===from && PA.mTo(m)===to){
+            chosen=m;
+            if(PA.mPromo(m)===PA.QUEEN) break;
+          }
+        }
+        if(chosen!==null){
+          const mover = sideToMove();
+          POS.make(chosen); repBump(); playSel=null;
+          // A pending offer lapses once the side it was made to has replied with a move.
+          if(drawOfferBy && drawOfferBy !== mover) drawOfferBy = null;
+          // An armed claim is judged on the position this move produced.
+          if(drawArmedBy === mover){
+            drawArmedBy = null;
+            const now = claimableNow();
+            if(now){ endDraw(now); return; }
+            drawOfferBy = mover;   // no claim → the move carries a draw offer across
+          }
+          renderPlay(); return;
+        }
+      }
+    }
+    // new selection
+    if(ch && (ch===ch.toUpperCase())===POS.turnWhite()) playSel={r,c};
+    else playSel=null;
+    renderPlay();
+  }
+
+  /* Terminal ruling. `parts` is a FUNCTION, not a finished string: a language change
+     must RETRANSLATE the ruling rather than redisplay the stale text, so the wording
+     is produced at render time from the stored verdict data. */
+  function playRuling(kind, parts){
+    return {kind, cls: kind==='win' ? 'v-win' : 'v-draw', parts};
+  }
+  function playOverHtml(){
+    const p = playOver.parts();
+    const pill = playOver.kind==='win'
+      ? `<span class="pill win">${T('flag.pill.win')}</span>`
+      : `<span class="pill draw">${T('flag.pill.draw')}</span>`;
+    return `<p class="headline">${pill}${p.head}</p><p class="reason">${p.reason}</p>`
+         + (p.meta ? `<p class="meta">${p.meta}</p>` : '');
+  }
+
+  /* Flag fall / resignation. isResign=true and a federation where resignation is
+     NOT a flag fall (USCF) → the resigning side simply loses, with no material test. */
+  function playFlagFall(loserIsWhite, isResign){
+    if(playOver) return;
+    const cfg = playCfg();
+    const causeKey = isResign ? (loserIsWhite ? 'play.resigned.white' : 'play.resigned.black')
+                              : (loserIsWhite ? 'flag.timeout.white'  : 'flag.timeout.black');
+    const winnerHeadKey = loserIsWhite ? 'flag.head.winBlack' : 'flag.head.winWhite';
+
+    if(isResign && !cfg.resignIsFlag){
+      playOver = playRuling('win', ()=>({
+        head: T(winnerHeadKey),
+        reason: T(causeKey) + ' ' + T('play.resignLoss')
+      }));
+      playSel=null; renderPlay(); return;
+    }
+
+    const res = adjudicateFlag(POS.getFen(), loserIsWhite, cfg.mate, cfg.depth);
+    if(res.error !== undefined){   // should not happen: the FEN comes from the engine
+      playOver = playRuling('draw', ()=>({
+        head: T('flag.invalidHead'),
+        reason: res.error ? I18N.trFenError(res.error) : T('flag.invalidFen')
+      }));
+      renderPlay(); return;
+    }
+    playOver = playRuling(res.verdict, ()=>({
+      head: T(res.verdict==='win' ? winnerHeadKey : 'flag.head.draw'),
+      reason: T(causeKey) + ' ' + flagReasonText(res),
+      meta: T('flag.meta', {
+        win: materialSummary(res.win), lose: materialSummary(res.lose),
+        search: res.searched ? T('flag.searchPrefix') : '', ms: res.ms.toFixed(2)
+      })
+    }));
+    playSel=null; renderPlay();
+  }
+
+  /* End the game as a draw. mode: 'rule50' | 'rep3' | 'agree'. */
+  function endDraw(mode){
+    playOver = playRuling('draw', ()=>({
+      head: T('flag.head.draw'), reason: T('play.drawBy.'+mode)
+    }));
+    drawArmedBy = null; drawOfferBy = null; playSel = null;
+    renderPlay();
+  }
+
+  /* The draw box is an ACTION, not a setting. Ticking it means, in order:
+       1. an offer is pending against me            → accept it (draw by agreement);
+       2. 50/3 already holds in this position       → claim it now, before moving;
+       3. otherwise                                 → arm the claim: after my next
+          move, if 50/3 has arisen it is a draw, and if not the move carries a draw
+          offer to the opponent, who accepts from this same box.
+     Unticking before moving withdraws the armed claim. */
+  function playDrawToggle(){
+    const box = document.getElementById('playDrawAct');
+    if(playOver){ box.checked = false; return; }
+    const side = sideToMove();
+
+    if(!box.checked){                       // withdrawn before moving
+      if(drawArmedBy === side) drawArmedBy = null;
+      renderPlay(); return;
+    }
+    if(drawOfferBy && drawOfferBy !== side){ endDraw('agree'); return; }
+    const now = claimableNow();
+    if(now){ endDraw(now); return; }
+    drawArmedBy = side;
+    renderPlay();
+  }
+
+  /* Reflect the draw state in the box: label text, tick, and the arrival effect. */
+  function renderDrawBox(){
+    const box = document.getElementById('playDrawAct');
+    const opt = document.getElementById('playDrawOpt');
+    const msg = document.getElementById('playDrawMsg');
+    const side = sideToMove();
+    const incoming = !playOver && drawOfferBy && drawOfferBy !== side;
+    const armed = !playOver && drawArmedBy === side;
+
+    box.disabled = !!playOver;
+    box.checked = armed;
+    opt.classList.toggle('armed', !!armed);
+    opt.classList.toggle('offer', !!incoming);
+
+    if(playOver){ msg.innerHTML = ''; return; }
+    const cfg = playCfg();
+    if(incoming){
+      msg.innerHTML = T('play.drawMsg.incoming',
+        {side: T(drawOfferBy === 'w' ? 'side.white' : 'side.black')});
+    } else if(armed){
+      msg.innerHTML = T(cfg.claim ? 'play.drawMsg.armed' : 'play.drawMsg.armedOffer');
+    } else {
+      const now = claimableNow();
+      msg.innerHTML = now ? T('play.drawMsg.claimable.'+now)
+                          : T(cfg.claim ? 'play.drawMsg.idle' : 'play.drawMsg.idleNoClaim');
+    }
+  }
+
+  document.getElementById('playTimeW').addEventListener('click', ()=>playFlagFall(true,  false));
+  document.getElementById('playTimeB').addEventListener('click', ()=>playFlagFall(false, false));
+  document.getElementById('playResignW').addEventListener('click', ()=>playFlagFall(true,  true));
+  document.getElementById('playResignB').addEventListener('click', ()=>playFlagFall(false, true));
+  document.getElementById('playDrawAct').addEventListener('change', playDrawToggle);
+
+  // Changing the rule set clears any ruling and any pending claim/offer, since both
+  // belonged to the previous rules.
+  function playRulesChanged(){
+    playOver = null; drawArmedBy = null; drawOfferBy = null; renderPlay();
+  }
+  playFedEls().forEach(el=>el.addEventListener('change', playRulesChanged));
+  ['pcClaim','pcHardCap','pcResign','pcLock','pcDepth'].forEach(id=>
+    pcEl(id).addEventListener('change', playRulesChanged));
+  pcEl('pcDepth').addEventListener('input', playRulesChanged);
+  [...document.querySelectorAll('input[name="pcMate"]')].forEach(el=>
+    el.addEventListener('change', playRulesChanged));
+
+  document.getElementById('playReset').addEventListener('click', ()=>{
+    POS.loadFen(PA.START_FEN); playSel=null; playOver=null;
+    drawArmedBy=null; drawOfferBy=null; repReset(); renderPlay();
+  });
+  document.getElementById('playFlip').addEventListener('click', ()=>{ playFlip=!playFlip; renderPlay(); });
+
+  /* Loading a position is what makes the flag-fall buttons testable — from the
+     opening position every flag fall is trivially a win. Invalid input is reported
+     and left alone, so a half-typed FEN is never clobbered. */
+  const playFenMsg = document.getElementById('playFenMsg');
+  function playLoadFen(fen, fromInput){
+    const probe = PA.createPosition();
+    const r = probe.loadFen(String(fen).trim());
+    if(!r.ok){
+      playFenMsg.style.display = '';
+      playFenMsg.textContent = r.error ? I18N.trFenError(r.error) : T('flag.invalidFen');
+      return false;
+    }
+    playFenMsg.style.display = 'none';
+    POS.loadFen(String(fen).trim());
+    playSel = null; playOver = null; drawArmedBy = null; drawOfferBy = null; repReset();
+    renderPlay(fromInput);
+    return true;
+  }
+  playFenEl.addEventListener('input', ()=>playLoadFen(playFenEl.value, true));
+
+  // Preset bar reuses the flag-fall material cases — the positions worth experimenting
+  // on. Rebuilt on a language change, like the other bars.
+  function buildPlayPresets(){
+    const bar = document.getElementById('playPresets');
+    bar.innerHTML = '';
+    FLAG_PRESETS.forEach(([key,fen])=>{
+      const b=document.createElement('button'); b.textContent=T(key);
+      b.addEventListener('click', ()=>playLoadFen(fen, false));
+      bar.appendChild(b);
+    });
+  }
+  buildPlayPresets();
+
+  /* ══════════ ENGINE BUILDER ══════════ */
+  const cfgClaim   = document.getElementById('cfgClaim');
+  const cfgHardCap = document.getElementById('cfgHardCap');
+  const cfgResign  = document.getElementById('cfgResign');
+  const cfgLock    = document.getElementById('cfgLock');
+  const cfgDepth   = document.getElementById('cfgDepth');
+  const cfgDepthBox= document.getElementById('cfgDepthBox');
+  const cfgSummary = document.getElementById('cfgSummary');
+  const cfgFilename= document.getElementById('cfgFilename');
+  const cfgDrawWarn= document.getElementById('cfgDrawWarn');
+  const cfgMateEls = ()=>document.querySelectorAll('input[name="cfgMate"]');
+  function cfgMate(){ for(const el of cfgMateEls()) if(el.checked) return el.value; return 'helper'; }
+  function setMate(v){ for(const el of cfgMateEls()) el.checked = (el.value===v); }
+  function clampDepth(){ let v=Math.round(Number(cfgDepth.value)); if(!Number.isFinite(v)) v=5; v=Math.max(1,Math.min(10,v)); cfgDepth.value=v; return v; }
+
+  // The three ready-made presets.
+  const CFG_PRESETS = {
+    fide: { claim:true,  hardCap:true,  resignIsFlag:true,  mate:'helper', lock:true },
+    uscf: { claim:true,  hardCap:false, resignIsFlag:false, mate:'forced', lock:true },
+    ours: { claim:false, hardCap:true,  resignIsFlag:true,  mate:'forced', lock:true }
+  };
+  function applyPreset(name){
+    const p = CFG_PRESETS[name]; if(!p) return;
+    cfgClaim.checked   = p.claim;
+    cfgHardCap.checked = p.hardCap;
+    cfgResign.checked  = p.resignIsFlag;
+    cfgLock.checked    = p.lock;
+    setMate(p.mate);
+    updateCfg();
+  }
+
+  // Read the current interface options into a cfg object.
+  function readCfg(){
+    return {
+      claim: cfgClaim.checked,
+      hardCap: cfgHardCap.checked,
+      resignIsFlag: cfgResign.checked,
+      mate: cfgMate(),
+      depth: clampDepth(),
+      lock: cfgLock.checked
+    };
+  }
+
+  // Constraint: at least one of claim / automatic ending must be selected.
+  function drawRuleValid(){ return cfgClaim.checked || cfgHardCap.checked; }
+
+  function updateCfg(){
+    const cfg = readCfg();
+    // Forced selected → the depth box appears (helper needs no search).
+    cfgDepthBox.style.display = (cfg.mate==='forced') ? '' : 'none';
+    document.getElementById('cfgLockOpt').classList.toggle('locked-on', cfg.lock);
+    // Draw-limit constraint
+    const valid = drawRuleValid();
+    cfgDrawWarn.style.display = valid ? 'none' : '';
+    document.getElementById('cfgDownload').disabled = !valid;
+
+    // Summary
+    const lines = [];
+    lines.push(T(cfg.claim   ? 'build.sum.claimOn' : 'build.sum.claimOff'));
+    lines.push(T(cfg.hardCap ? 'build.sum.capOn'   : 'build.sum.capOff'));
+    lines.push(T('build.sum.resign', {val: T(cfg.resignIsFlag ? 'common.yes' : 'common.no')}));
+    lines.push(cfg.mate==='helper' ? T('build.sum.mateHelper')
+                                   : T('build.sum.mateForced', {depth: cfg.depth}));
+    lines.push(T(cfg.lock ? 'build.sum.lockOn' : 'build.sum.lockOff'));
+    cfgSummary.innerHTML = T('build.sum.prefix') + lines.join(' · ') + '.';
+  }
+
+  cfgClaim.addEventListener('change', updateCfg);
+  cfgHardCap.addEventListener('change', updateCfg);
+  cfgResign.addEventListener('change', updateCfg);
+  cfgLock.addEventListener('change', updateCfg);
+  cfgDepth.addEventListener('input', updateCfg);
+  cfgMateEls().forEach(el=>el.addEventListener('change', updateCfg));
+  document.getElementById('cfgPresets').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-preset]'); if(!b) return;
+    applyPreset(b.dataset.preset);
+  });
+  updateCfg();
+
+  document.getElementById('cfgDownload').addEventListener('click', ()=>{
+    if(!drawRuleValid()) return;
+    const cfg = readCfg();
+    const src = buildEngineSource(cfg);
+    const blob = new Blob([src], {type:'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const parts = ['perfect-arbiter'];
+    if(cfg.claim) parts.push('claim50-3');
+    if(cfg.hardCap) parts.push('auto75-5');
+    parts.push(cfg.resignIsFlag?'resign-flag':'resign-loss');
+    parts.push(cfg.mate==='helper'?'helper':('forced-d'+cfg.depth));
+    if(cfg.lock) parts.push('lock');
+    const fname = parts.join('_')+'.js';
+    a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    cfgFilename.textContent = T('build.downloaded', {name: fname});
+  });
+
+  /* ══════════ LANGUAGE SELECTOR ══════════
+     A language change never RECOMPUTES a verdict; it only REDRAWS.
+     That matters because the lock scan is expensive. */
+  const langSel = document.getElementById('langSel');
+
+  function applyLanguage(lang){
+    I18N.setLang(lang);
+    langSel.value = I18N.getLang();
+    try { localStorage.setItem('pa.lang', I18N.getLang()); } catch(e){}
+
+    I18N.applyStatic();       // static text carrying data-i18n + <title>, <html lang>
+    buildFlagPresets();       // preset labels
+    buildLockPresets();
+    buildPlayPresets();
+    syncFlagMethod(false);    // standard hint (the current verdict is kept)
+    updateCfg();              // builder summary
+    renderFlagVerdict();      // redraw from cache
+    renderLockVerdict();      // redraw from cache
+    renderPlay();             // game status text
+  }
+
+  langSel.addEventListener('change', ()=>applyLanguage(langSel.value));
+
+  (function initLang(){
+    let saved = null;
+    try { saved = localStorage.getItem('pa.lang'); } catch(e){}
+    if(saved !== 'tr' && saved !== 'en'){
+      // No stored choice → follow the browser; start in English unless it is Turkish.
+      const nav = String(navigator.language || 'tr').toLowerCase();
+      saved = nav.startsWith('tr') ? 'tr' : 'en';
+    }
+    applyLanguage(saved);
+  })();
+})();
+
+</script>
+</body>
+</html>
