@@ -113,6 +113,7 @@ button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
 .board{
   display:grid; grid-template-columns:repeat(8,var(--sq,2.7rem)); grid-template-rows:repeat(8,var(--sq,2.7rem));
   border:2px solid var(--line); border-radius:.35rem; overflow:hidden; user-select:none; touch-action:manipulation;
+  position:relative;   /* anchors the promotion picker */
 }
 .sq{
   display:flex; align-items:center; justify-content:center; font-size:1.7rem; line-height:1;
@@ -142,6 +143,29 @@ button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
 .sq.hl::after{content:""; position:absolute; inset:0; background:var(--hlbg); box-shadow:inset 0 0 0 3px var(--hl)}
 .sq.sel::after{content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 3px var(--accent)}
 .sq.dot::before{content:""; width:26%; height:26%; border-radius:50%; background:rgba(0,0,0,.28); position:absolute}
+
+/* Promotion picker. A four-cell strip laid INSIDE the board, in the promotion file,
+   running from the promotion square toward the centre — so it never leaves the board
+   and is never clipped by .board's overflow. Everything is sized in --sq, so it
+   tracks the board at every breakpoint; left/top are set inline from the VISUAL
+   square index, which already accounts for flip. */
+.promo-back{position:absolute; inset:0; z-index:4; background:rgba(0,0,0,.4); cursor:pointer}
+.promo{
+  position:absolute; z-index:5; box-sizing:border-box;
+  width:var(--sq,2.7rem); height:calc(var(--sq,2.7rem) * 4);
+  display:grid; grid-template-rows:repeat(4,1fr);
+  border:2px solid var(--accent); border-radius:.35rem; overflow:hidden;
+  box-shadow:0 6px 20px rgba(0,0,0,.55);
+}
+.promo button{
+  appearance:none; -webkit-appearance:none; border:0; margin:0; padding:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.7rem; line-height:1; cursor:pointer; background:var(--sq-l);
+}
+.promo button:nth-child(even){background:var(--sq-d)}
+.promo button:hover, .promo button:focus-visible{
+  background:var(--hlbg); box-shadow:inset 0 0 0 3px var(--hl); outline:none;
+}
 /* Coordinates. The label tracks use the SAME --sq track size as the board, so each
    label lines up with its file/rank. The 2px offsets clear the board's 2px border. */
 .ranks,.files{font-size:.7rem; color:var(--muted); font-family:ui-monospace,monospace}
@@ -2319,12 +2343,15 @@ const I18N = (() => {
     'build.downloaded':'İndirildi: {name}',
 
     /* ── Preset positions: flag ── */
-    'fp.start':'Başlangıç',
-    'fp.krk':'K+R vs K',
-    'fp.knk':'K+N vs K',
+    'play.promo.q':'Vezir',
+    'play.promo.r':'Kale',
+    'play.promo.b':'Fil',
+    'play.promo.n':'At',
     'fp.krkn':'K+R vs K+N',
     'fp.kbnk':'K+B+N vs K',
-    'fp.kbk':'Zıt fil (KB vs K)',
+    'fp.corner':'Köşe piyonu',
+    'fp.nnp':'İki at bir piyon',
+    'fp.nn':'Sadece iki at',
 
     /* ── Preset positions: lock ── */
     'lp.shuttle':'Mekik dokuyan taşlar',
@@ -2520,12 +2547,15 @@ const I18N = (() => {
     'build.downloaded':'Downloaded: {name}',
 
     /* ── Preset positions: flag ── */
-    'fp.start':'Starting position',
-    'fp.krk':'K+R vs K',
-    'fp.knk':'K+N vs K',
+    'play.promo.q':'Queen',
+    'play.promo.r':'Rook',
+    'play.promo.b':'Bishop',
+    'play.promo.n':'Knight',
     'fp.krkn':'K+R vs K+N',
     'fp.kbnk':'K+B+N vs K',
-    'fp.kbk':'Lone bishop (K+B vs K)',
+    'fp.corner':'Corner pawn',
+    'fp.nnp':'Two knights and a pawn',
+    'fp.nn':'Two knights only',
 
     /* ── Preset positions: lock ── */
     'lp.shuttle':'Shuttling pieces',
@@ -2799,12 +2829,11 @@ const I18N = (() => {
   function flagMethod(){ for(const el of flagMethodEls()) if(el.checked) return el.value; return 'fide'; }
 
   const FLAG_PRESETS = [
-    ['fp.start', PA.START_FEN],
-    ['fp.krk',  '8/8/8/4k3/8/8/4K3/R7 w - - 0 1'],
-    ['fp.knk',  '8/8/8/4k3/8/8/4K3/1N6 w - - 0 1'],
-    ['fp.krkn', '8/8/8/4k3/6n1/8/4K3/R7 w - - 0 1'],
-    ['fp.kbnk', '8/8/8/4k3/8/8/4K3/2B1N3 w - - 0 1'],
-    ['fp.kbk',  '8/8/8/4k3/8/8/4K3/2B5 w - - 0 1'],
+    ['fp.krkn',   '8/8/8/4k3/6n1/8/4K3/R7 w - - 0 1'],
+    ['fp.kbnk',   '8/8/8/4k3/8/8/4K3/2B1N3 w - - 0 1'],
+    ['fp.corner', '8/8/2N5/8/8/p7/k1K5/8 w - - 0 1'],
+    ['fp.nnp',    '8/8/8/5K2/7k/7p/7N/7N w - - 0 1'],
+    ['fp.nn',     '8/8/4k3/8/8/5N2/1K1N4/8 w - - 0 1'],
   ];
 
   function renderFlag(hl, sel){
@@ -2903,7 +2932,7 @@ const I18N = (() => {
   syncFlagMethod();
 
   (function initFlag(){
-    flagFen.value = FLAG_PRESETS[1][1];
+    flagFen.value = FLAG_PRESETS[0][1];
     renderFlag();
   })();
 
@@ -3112,6 +3141,7 @@ const I18N = (() => {
     const dots = (playSel && !playOver) ? legalTargetsFrom(playSel.r,playSel.c) : null;
     drawBoard(document.getElementById('playBoard'),
       POS.getFen(), {flip:playFlip, sel:playSel, dots, onClick:playClick});
+    renderPromoPicker();               // re-attached after every board redraw
     // A ruling becomes a full verdict block (.headline/.reason/.meta are scoped to
     // .verdict); otherwise the box stays a plain one-line status.
     playStatus.className = playOver ? ('verdict show '+playOver.cls) : 'status';
@@ -3136,36 +3166,93 @@ const I18N = (() => {
       document.getElementById(id).disabled = !!playOver;
   }
 
+  /* Promotion picker. While open, playPromo = {r, c, opts:{pieceType -> move}} and the
+     board is inert (the backdrop swallows clicks). The pawn stays selected, so
+     cancelling just returns to the pre-click state. */
+  let playPromo = null;
+
+  /* Applies a chosen move plus the post-move bookkeeping (lapsed offers, armed claims).
+     Shared by the ordinary path and the promotion picker. */
+  function playApplyMove(chosen){
+    const mover = sideToMove();
+    POS.make(chosen); repBump(); playSel=null; playPromo=null;
+    // A pending offer lapses once the side it was made to has replied with a move.
+    if(drawOfferBy && drawOfferBy !== mover) drawOfferBy = null;
+    // An armed claim is judged on the position this move produced.
+    if(drawArmedBy === mover){
+      drawArmedBy = null;
+      const now = refreshAdj().claim || null;
+      if(now){ endDraw(now); return; }
+      drawOfferBy = mover;   // no claim → the move carries a draw offer across
+    }
+    renderPlay();
+  }
+
+  const PROMO_LETTER = {};
+  PROMO_LETTER[PA.QUEEN]='q'; PROMO_LETTER[PA.ROOK]='r';
+  PROMO_LETTER[PA.BISHOP]='b'; PROMO_LETTER[PA.KNIGHT]='n';
+
+  /* Draws the picker into the board. Called from renderPlay AFTER drawBoard, since
+     drawBoard clears the board's children. */
+  function renderPromoPicker(){
+    if(!playPromo) return;
+    const boardEl = document.getElementById('playBoard');
+    const vr = playFlip ? 7-playPromo.r : playPromo.r;   // VISUAL square of the promotion
+    const vc = playFlip ? 7-playPromo.c : playPromo.c;
+    const down = vr <= 3;                 // grow toward the centre, never off the board
+    const top  = down ? vr : vr-3;
+    const white = POS.turnWhite();        // move not made yet → this is the mover
+    const order = [PA.QUEEN, PA.ROOK, PA.BISHOP, PA.KNIGHT];   // classic, nearest first
+    const cells = down ? order : order.slice().reverse();
+
+    const back = document.createElement('div');
+    back.className = 'promo-back';
+    back.addEventListener('click', ()=>{ playPromo=null; renderPlay(); });
+
+    const box = document.createElement('div');
+    box.className = 'promo';
+    box.style.left = 'calc(var(--sq,2.7rem) * '+vc+')';
+    box.style.top  = 'calc(var(--sq,2.7rem) * '+top+')';
+
+    for(const pc of cells){
+      const letter = PROMO_LETTER[pc];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = T('play.promo.'+letter);
+      btn.setAttribute('aria-label', btn.title);
+      const g = document.createElement('span');
+      g.className = 'p' + (white ? '' : ' black');
+      g.textContent = GLYPH[white ? letter.toUpperCase() : letter];
+      btn.appendChild(g);
+      btn.addEventListener('click', e=>{ e.stopPropagation(); playApplyMove(playPromo.opts[pc]); });
+      box.appendChild(btn);
+    }
+    boardEl.appendChild(back);
+    boardEl.appendChild(box);
+  }
+
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape' && playPromo){ playPromo=null; renderPlay(); }
+  });
+
   function playClick(r,c){
-    if(playOver) return;                  // board frozen after a ruling
+    if(playOver || playPromo) return;     // frozen after a ruling / while picking
     const rows = fenRows(POS.getFen());
     const ch = rows[r][c];
     if(playSel){
       const targets = legalTargetsFrom(playSel.r,playSel.c);
       if(targets[r+','+c]){
         const from=playSel.r*16+playSel.c, to=r*16+c;
-        // find the matching move (promotion defaults to queen)
-        let chosen=null;
+        // Collect every legal move for this from→to. A promotion yields four of them;
+        // anything else yields exactly one.
+        const opts = {}; let plain = null, anyPromo = false;
         for(const m of POS.legalMoves()){
-          if(PA.mFrom(m)===from && PA.mTo(m)===to){
-            chosen=m;
-            if(PA.mPromo(m)===PA.QUEEN) break;
-          }
+          if(PA.mFrom(m)!==from || PA.mTo(m)!==to) continue;
+          const pr = PA.mPromo(m);
+          if(pr){ opts[pr] = m; anyPromo = true; } else plain = m;
         }
-        if(chosen!==null){
-          const mover = sideToMove();
-          POS.make(chosen); repBump(); playSel=null;
-          // A pending offer lapses once the side it was made to has replied with a move.
-          if(drawOfferBy && drawOfferBy !== mover) drawOfferBy = null;
-          // An armed claim is judged on the position this move produced.
-          if(drawArmedBy === mover){
-            drawArmedBy = null;
-            const now = refreshAdj().claim || null;
-            if(now){ endDraw(now); return; }
-            drawOfferBy = mover;   // no claim → the move carries a draw offer across
-          }
-          renderPlay(); return;
-        }
+        if(anyPromo){ playPromo = {r, c, opts}; renderPlay(); return; }   // ask, don't assume
+        if(plain!==null){ playApplyMove(plain); return; }
       }
     }
     // new selection
@@ -3226,7 +3313,7 @@ const I18N = (() => {
     playOver = playRuling('draw', ()=>({
       head: T('flag.head.draw'), reason: T('play.drawBy.'+mode)
     }));
-    drawArmedBy = null; drawOfferBy = null; playSel = null;
+    drawArmedBy = null; drawOfferBy = null; playSel = null; playPromo = null;
     renderPlay();
   }
 
@@ -3300,7 +3387,7 @@ const I18N = (() => {
     el.addEventListener('change', playRulesChanged));
 
   document.getElementById('playReset').addEventListener('click', ()=>{
-    POS.loadFen(PA.START_FEN); playSel=null; playOver=null;
+    POS.loadFen(PA.START_FEN); playSel=null; playPromo=null; playOver=null;
     drawArmedBy=null; drawOfferBy=null; repReset(); renderPlay();
   });
   document.getElementById('playFlip').addEventListener('click', ()=>{ playFlip=!playFlip; renderPlay(); });
@@ -3319,7 +3406,7 @@ const I18N = (() => {
     }
     playFenMsg.style.display = 'none';
     POS.loadFen(String(fen).trim());
-    playSel = null; playOver = null; drawArmedBy = null; drawOfferBy = null; repReset();
+    playSel = null; playPromo = null; playOver = null; drawArmedBy = null; drawOfferBy = null; repReset();
     renderPlay(fromInput);
     return true;
   }
