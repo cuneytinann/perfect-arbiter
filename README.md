@@ -1,6 +1,6 @@
 # Perfect Arbiter
 
-Satranç kural motoru ve hakemi — kanıt temelli, hızlı hükümler. Tek dosyalık bir web uygulaması (`index.html`) olarak çalışır; çekirdek kilit-tespit algoritması ayrı bir modülde (`lockcore.js`) tutulur.
+Satranç kural motoru ve hakemi — kanıt temelli, hızlı hükümler. Tek dosyalık bir web uygulaması (`index.html`) olarak çalışır; çekirdek kilit-tespit algoritması sayfa içindeki `src-lock` bloğunda tutulur ve motor üretici tarafından aynen gömülür.
 
 Felsefe: **hakem, bot değil.** Amaç en iyi hamleyi bulmak değil, kurallara göre kesin ve doğru hüküm vermektir. **Soundness kutsaldır**: verilen her kesin hüküm (mat, kilit, kazanç) %100 doğru olmalıdır. Belirsizlikte daima güvenli tarafa düşülür.
 
@@ -77,34 +77,37 @@ USCF'ye yakın ama iki at + piyon durumunda **piyon geometrisi** şartı: iki at
 
 Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`check1`):
 
-- Taş sayısı **8–30** arası (alt: yetersiz materyal; üst: standart oyunda üretilemez).
+- Taş sayısı **8–26** arası, iki uç **dahil** (alt: yetersiz materyal; üst: kapsam sınırı).
 - Her tarafta **tam 1 şah**.
 - **Vezir yok** — algoritmanın çekirdek varsayımı (vezir varsa duvar arkasından uzun menzilli kırıcı hep mümkün olur).
+- **Kale yok** — aynı gerekçeyle kapsam dışı; kale duvar boyunca kayarak kırıcı açabilir.
 - Her tarafta **en az 3 piyon** (piyon-duvarı için gerekli minimum).
-- **Terfi tutarlılığı** (her iki taraf): fazladan ağır taşların toplamı, feda edilebilecek piyon bütçesini aşmamalı. `extra = max(0,R−2) + max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8−P`. Karma fazlalıklar (örn. 2 fazla kale + 1 fazla fil) birikimli olarak tek bütçeye vurur.
+- **Terfi tutarlılığı** (her iki taraf): fazladan taşların toplamı, feda edilebilecek piyon bütçesini aşmamalı. `extra = max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8−P`. Karma fazlalıklar (örn. 1 fazla at + 1 fazla fil) birikimli olarak tek bütçeye vurur. Kale terimi yoktur: kale zaten bir üstteki kuralla elenir.
 
 Sağlanmıyorsa → **KAPSAM DIŞI** (arayüzde). Bu bir materyal ön-koşuludur; pozisyon değerlendirilemez.
 
-### Kontrol 2 — Piyon tuğlası + geometrik budama
+### Kontrol 2 — At hareketsizliği + fil erken-kırıcısı
 
-**Tuğla (yön-duyarlı):** aynı sütunda siyah piyon üstte (satır `r`), hemen altında beyaz piyon (satır `r+1`). İkisi de karşı karşıya kilitli — beyaz yukarı, siyah aşağı ilerleyemez. **Kavuşma satırı** = `r + 0.5`. Bu, tarafa bağlı olmayan tek bir temas çizgisidir; arkada biriken piyonlar onu değiştirmez.
+**At (`knightHasMove`):** İki taraf için, herhangi bir atın locked-legalite'de bir hamlesi (boş kareye gitme veya rakip taş alma) varsa → kilit değil. At piyon duvarının üstünden sıçrayabildiği için, gerçek kilitte tüm atlar kendi taşlarına gömülü olmalıdır. Saf geometri; şah güvenliğine bakılmaz. (Kale K1'de elendiği için bu kontrol yalnız ata düşer.)
 
-Budamalar (`check2`, yalnız "kilit değil" yönünde):
-
-- Tuğla sayısı **< 3** → yetersiz (KAPSAM DIŞI).
-- **Tam 3 tuğla** → sütunlar `{a,d,g}`, `{b,d,g}`, `{b,e,g}` veya `{b,e,h}` desenlerinden biri olmalı (yoksa duvar tahtayı bölemez, örn. `a,c,e` → g,h tarafı açık). **Ve** üç kavuşma satırı eşit olmalı.
-- **≥ 4 tuğla** → bitişik sütunda (`|Δc|=1`) ve eşit kavuşmada (`Δr=0`) iki tuğla varsa çapraz alım açılır → kilit değil.
-
-### Kontrol 3 — At/kale hareketsizliği + fil erken-kırıcısı
-
-**At/kale (`knightRookHasMove`):** İki taraf için, herhangi bir at veya kalenin locked-legalite'de bir hamlesi (boş kareye gitme veya rakip taş alma) varsa → kilit değil. Bu taşlar piyon duvarının üstünden (at sıçrar) veya boyunca (kale kayar) oynayabildiği için, gerçek kilitte tümü kendi taşlarına gömülü olmalıdır. Saf geometri; şah güvenliğine bakılmaz.
-
-**Fil erken-kırıcısı (`bishopEarlyBreak`):** Fil yalnız kendi renginde gezer/alır ve kendi piyonunu alamaz. Eşik piyonu = her sütunda en ileri beyaz/siyah piyon (birikmede dış piyon). Kural:
+**Fil erken-kırıcısı (`bishopEarlyBreak`):** Fil yalnız kendi renginde gezer/alır ve kendi piyonunu alamaz. Eşik piyonu = **her iki renkten piyon bulunan** her sütundaki en ileri beyaz ve en ileri siyah piyon (birikmede dış piyon). Kural:
 
 - Bir fil ETKİSİZDİR (kilit olabilir) eğer: filin renginde kendi eşik piyonu varsa (dokunamaz) **veya** rakip eşik piyonları filden farklı renkteyse (erişemez).
 - Kilit KIRILIR eğer: **rakip** eşik piyonu fille **aynı** renk (alabilir) **ve** fil hareketli.
 
 Yani: kendi piyonuyla aynı renk kilidi **korur**; rakip piyonuyla aynı renk kilidi **kırar**.
+
+Not — bu bir yaklaşıklıktır: eşik maskeleri sütun bazında değil tahta genelinde toplanır ve filin hedefe gerçekten *ulaşıp ulaşamadığı* sorulmaz, yalnız "hareketli mi" sorulur. Erken-kırıcı yalnız "kilit değil" diyebildiği için soundness etkilenmez; bedeli olası completeness kaybıdır.
+
+### Kontrol 3 — Piyon tuğlası + geometrik budama
+
+**Tuğla (yön-duyarlı):** aynı sütunda siyah piyon üstte (satır `r`), hemen altında beyaz piyon (satır `r+1`). İkisi de karşı karşıya kilitli — beyaz yukarı, siyah aşağı ilerleyemez. **Kavuşma satırı** = `r + 0.5`. Bu, tarafa bağlı olmayan tek bir temas çizgisidir; arkada biriken piyonlar onu değiştirmez.
+
+Budamalar (`check3`, yalnız "kilit değil" yönünde):
+
+- Tuğla sayısı **< 3** → yetersiz (KAPSAM DIŞI).
+- **Tam 3 tuğla** → sütunlar `{a,d,g}`, `{b,d,g}`, `{b,e,g}` veya `{b,e,h}` desenlerinden biri olmalı (yoksa duvar tahtayı bölemez, örn. `a,c,e` → g,h tarafı açık). **Ve** üç kavuşma satırı eşit olmalı.
+- **≥ 4 tuğla** → bitişik sütunda (`|Δc|=1`) ve eşit kavuşmada (`Δr=0`) iki tuğla varsa çapraz alım açılır → kilit değil.
 
 ### En passant
 
@@ -128,7 +131,7 @@ Her düğümde tüm türler kontrol edildiği için, bir tarafın taşının har
 
 ### Kontrol 5 — Şahın nihai soundness garantisi
 
-Tahtadaki tüm piyonlar hariç tüm taşlar (her iki tarafın şah/fil/at/kalesi) silinir; yalnız piyon duvarı kalır. Test edilen şah, karşı piyon tehdidine ve dolu karelere takılarak gezip **karşı şahın orijinal karesine** ulaşabiliyor mu? Ulaşabiliyorsa → kilit değil. Önce sırası olan taraf, sonra rakip.
+Tahtadaki tüm piyonlar hariç tüm taşlar (her iki tarafın şahı, fili, atı) silinir; yalnız piyon duvarı kalır. Test edilen şah, karşı piyon tehdidine ve dolu karelere takılarak gezip **karşı şahın orijinal karesine** ulaşabiliyor mu? Ulaşabiliyorsa → kilit değil. Önce sırası olan taraf, sonra rakip.
 
 Şaha maksimum serbestlik verilir (yalnız piyon duvarı engel). En iyi ihtimalde bile karşıya geçemiyorsa gerçek oyunda da geçemez → yalnız ek bir gereklilik koşuludur, yanlış-pozitif üretmez. K4'ün şah dalının kaçırabileceği "figür-tıkalı gizli kapı" durumlarını yakalayan bir güvenlik katmanıdır.
 
@@ -181,13 +184,13 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 
 ---
 
-## 7. `lockcore.js` genel yapısı
+## 7. `src-lock` genel yapısı
 
-`makeLockDetector(PA)` bir fabrika fonksiyonudur; motor nesnesini (`PA`) alır ve kilit-tespit API'sini döndürür. Sayfadaki `src-lock` bloğuyla birebir aynı kaynaktır; ayrı modül olarak da (`module.exports = { makeLockDetector }`) kullanılabilir. Başlıca bileşenler:
+`makeLockDetector(PA)` bir fabrika fonksiyonudur; motor nesnesini (`PA`) alır ve kilit-tespit API'sini döndürür. Kaynak sayfadaki `src-lock` bloğudur; motor üretici bu bloğu olduğu gibi okuyup ürettiği `.js` dosyasına gömer, yani sayfa ile indirilen motor birebir aynı kodu çalıştırır. Başlıca bileşenler:
 
 - **Yardımcılar:** `fenToBoard`, `boardToFen`, `boardToPlacement` (tahta temsil dönüşümleri).
-- **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli).
-- **Kontroller:** `check1`, `check2`, `knightRookHasMove`, `bishopEarlyBreak`, `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull`, `kingReachesOpponent`.
+- **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli; yalnız P/N/B/K üretir — vezir ve kale K1'de elendiği için dalları yoktur).
+- **Kontroller:** `check1`, `knightHasMove`, `bishopEarlyBreak`, `check3`, `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull`, `kingReachesOpponent`.
 - **Mat doğrulaması:** `bishopCheckIsMate` (fil şah-mat kırıcısı için gerçek motora danışır).
 - **Giriş noktası:** `isLocked(fen)` → `{ locked, reason }`.
 
@@ -197,9 +200,9 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 
 ## 8. Notlar ve sınırlar
 
-- Kilit tespiti şu anda piyon-yapılı (duvar temelli) kilitlere odaklıdır; vezirli pozisyonlar kapsam dışıdır (K1).
+- Kilit tespiti şu anda piyon-yapılı (duvar temelli) kilitlere odaklıdır; vezir veya kale içeren pozisyonlar ve 26 taştan kalabalık pozisyonlar kapsam dışıdır (K1).
 - Fil erken-kırıcısı ve fil-void budaması, çok-fil pozisyonlarındaki taramayı hızlandırır ama bazı ağır pozisyonlar (çok sayıda hareketli fil) yine de görece yavaş kalabilir; bu, soundness'tan ödün vermeden yapılan bilinçli bir denge.
 - Bayrak düşmesi mat ölçütü olarak **helper mate** (FIDE — saf geometri) ve **forced mate** (USCF / karma — arama) yaklaşımlarının ikisi de tamamdır ve motor üreticide seçilebilir.
 - Bayrak sınıflandırıcısı (`makeFlagClassifier`, `src-flag`) hem arayüz hem üretilen motor tarafından ortak kaynak olarak kullanılır; böylece iki yerde tutarlılık garanti edilir.
 - Resign (terk) hükmü için `resign()` API'si ve `resignIsFlag` yapılandırması hazırdır; arayüzde terk butonu henüz yoktur (açık kapı bırakılmıştır).
-- `lockcore.js` C++/Java'ya taşınmaya uygundur; o durumda tahta temsili bitboard'a çevrilerek (`boardToPlacement` string anahtarları yerine sayısal anahtarlar) önemli hız kazancı elde edilebilir.
+- `src-lock` C++/Java'ya taşınmaya uygundur; o durumda tahta temsili bitboard'a çevrilerek (`boardToPlacement` string anahtarları yerine sayısal anahtarlar) önemli hız kazancı elde edilebilir.

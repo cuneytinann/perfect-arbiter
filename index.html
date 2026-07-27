@@ -257,7 +257,7 @@ button.btn.sm{padding:.35rem .6rem; font-size:.78rem; border-radius:.4rem}
   <section class="panel" id="panel-lock">
     <div class="card">
       <h2 data-i18n="lock.h2"></h2>
-      <p class="hint" data-i18n="lock.hint">Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.</p>
+      <p class="hint" data-i18n="lock.hint">Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, kale, 26+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.</p>
       <div class="row" style="margin-top:.8rem; align-items:flex-start">
         <div class="boardwrap">
           <div class="ranks" id="lockRanks"></div>
@@ -1242,9 +1242,10 @@ const PA = (() => {
    side to move) is ignored — a relaxation that is safe for soundness.
 
    FIVE CHECKS (in order; the first match returns "not locked"):
-   K1: 8 ≤ pieces ≤ 30, exactly 1+1 kings, no queen, ≥3 pawns a side, promotion-consistent.
-   K2: pawn bricks (direction-sensitive) + geometric pruning.
-   K3: knights/rooks immobile under locked-legality (both sides) + bishop early-breaker.
+   K1: 8 ≤ pieces ≤ 26, exactly 1+1 kings, no queen, no rook, ≥3 pawns a side,
+       promotion-consistent.
+   K2: knights immobile under locked-legality (both sides) + bishop early-breaker.
+   K3: pawn bricks (direction-sensitive) + geometric pruning.
    K4: three main nodes (pawn/bishop/king) × two sides, nested spread; all breakers
        at every node + ep + mate. Bishop-void pruning skips branches P and B.
    K5: final king guarantee — with only the pawn wall left, can one king reach the other?
@@ -1258,7 +1259,6 @@ function makeLockDetector(PA) {
   function cloneBoard(b){ return b.map(row=>row.slice()); }
   function inB(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
   function isWhite(p){ return p && p===p.toUpperCase(); }
-  function isBlack(p){ return p && p===p.toLowerCase(); }
   function sameSide(p,white){ return p && (isWhite(p)===white); }
 
   function fenToBoard(fen){
@@ -1287,8 +1287,6 @@ function makeLockDetector(PA) {
   const KNIGHT_D=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
   const KING_D=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
   const BISHOP_D=[[-1,-1],[-1,1],[1,-1],[1,1]];
-  const ROOK_D=[[-1,0],[1,0],[0,-1],[0,1]];
-  const QUEEN_D=BISHOP_D.concat(ROOK_D);
 
   function slideMoves(b,r,c,dirs,white){
     const out=[];
@@ -1326,19 +1324,8 @@ function makeLockDetector(PA) {
       case 'N': return KNIGHT_D.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>inB(nr,nc)&&!sameSide(b[nr][nc],white)).map(([nr,nc])=>({r:nr,c:nc,capture:!!b[nr][nc]}));
       case 'K': return KING_D.map(([dr,dc])=>[r+dr,c+dc]).filter(([nr,nc])=>inB(nr,nc)&&!sameSide(b[nr][nc],white)).map(([nr,nc])=>({r:nr,c:nc,capture:!!b[nr][nc]}));
       case 'B': return slideMoves(b,r,c,BISHOP_D,white);
-      case 'R': return slideMoves(b,r,c,ROOK_D,white);
-      case 'Q': return slideMoves(b,r,c,QUEEN_D,white);
     }
     return [];
-  }
-  function attackedByLL(b,r,c,byWhite){
-    for(const [dr,dc] of KNIGHT_D){ const nr=r+dr,nc=c+dc; if(inB(nr,nc)){const t=b[nr][nc]; if(t&&t.toUpperCase()==='N'&&isWhite(t)===byWhite) return true;} }
-    for(const [dr,dc] of KING_D){ const nr=r+dr,nc=c+dc; if(inB(nr,nc)){const t=b[nr][nc]; if(t&&t.toUpperCase()==='K'&&isWhite(t)===byWhite) return true;} }
-    const pr=byWhite?r+1:r-1;
-    for(const dc of [-1,1]){ const nc=c+dc; if(inB(pr,nc)){const t=b[pr][nc]; if(t&&t.toUpperCase()==='P'&&isWhite(t)===byWhite) return true;} }
-    for(const [dr,dc] of BISHOP_D){ let nr=r+dr,nc=c+dc; while(inB(nr,nc)){const t=b[nr][nc]; if(t){ if(isWhite(t)===byWhite&&(t.toUpperCase()==='B'||t.toUpperCase()==='Q')) return true; break;} nr+=dr;nc+=dc;} }
-    for(const [dr,dc] of ROOK_D){ let nr=r+dr,nc=c+dc; while(inB(nr,nc)){const t=b[nr][nc]; if(t){ if(isWhite(t)===byWhite&&(t.toUpperCase()==='R'||t.toUpperCase()==='Q')) return true; break;} nr+=dr;nc+=dc;} }
-    return false;
   }
   function findKing(b,white){ const k=white?'K':'k'; for(let r=0;r<8;r++)for(let c=0;c<8;c++) if(b[r][c]===k) return {r,c}; return null; }
 
@@ -1349,20 +1336,21 @@ function makeLockDetector(PA) {
   }
   function promotionConsistent(c){
     if(c.P>8) return false;
-    const extra=Math.max(0,c.R-2)+Math.max(0,c.N-2)+Math.max(0,c.B-2)+Math.max(0,c.Q-1);
+    const extra=Math.max(0,c.N-2)+Math.max(0,c.B-2)+Math.max(0,c.Q-1);
     return extra<=(8-c.P);
   }
   function check1(b){
     const m=countMaterial(b);
-    if(m.total<8||m.total>30) return {ok:false,why:'taş sayısı '+m.total+' (8–30 dışı)'};
+    if(m.total<8||m.total>26) return {ok:false,why:'taş sayısı '+m.total+' (8–26 dışı)'};
     if(m.W.K!==1||m.B.K!==1) return {ok:false,why:'her tarafta tam 1 şah olmalı'};
     if(m.W.Q>0||m.B.Q>0) return {ok:false,why:'vezir bulunamaz'};
+    if(m.W.R>0||m.B.R>0) return {ok:false,why:'kale bulunamaz'};
     if(m.W.P<3||m.B.P<3) return {ok:false,why:'her taraf en az 3 piyon'};
     if(!promotionConsistent(m.W)) return {ok:false,why:'beyaz materyal terfi-tutarsız'};
     if(!promotionConsistent(m.B)) return {ok:false,why:'siyah materyal terfi-tutarsız'};
     return {ok:true};
   }
-  // CHECK 2 — Pawn bricks + geometric pruning.
+  // CHECK 3 — Pawn bricks + geometric pruning.
   //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
   //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
   //   Pruning (only ever toward "not locked" → soundness-safe; avoids costly K4):
@@ -1372,7 +1360,7 @@ function makeLockDetector(PA) {
   //                     the three contact ranks must be equal too.
   //     • bricks >= 4 → two bricks on adjacent files (|Δc|=1) at equal contact
   //                     (Δr=0) open a diagonal capture → not locked.
-  function check2(b){
+  function check3(b){
     const bricks = [];                       // {c, r}  (r = black's row; contact r+0.5)
     for(let c=0;c<8;c++) for(let r=0;r<7;r++)
       if(b[r][c]==='p' && b[r+1][c]==='P') bricks.push({c, r});
@@ -1401,16 +1389,18 @@ function makeLockDetector(PA) {
     }
     return {ok:true, bricks:n};
   }
-  function knightRookHasMove(b,white){
+  // CHECK 2 — KNIGHT IMMOBILITY. K1 already rules out rooks, so this falls to the
+  //   knight alone: if any knight has a locked-legality move (empty square or enemy
+  //   capture), the lock is broken. Pure geometry; king safety is ignored.
+  function knightHasMove(b,white){
     for(let r=0;r<8;r++)for(let c=0;c<8;c++){ const p=b[r][c];
       if(!p||isWhite(p)!==white) continue;
-      const t=p.toUpperCase();
-      if(t==='N'||t==='R'){ if(pieceMoves(b,r,c,null).length>0) return true; }
+      if(p.toUpperCase()==='N'){ if(pieceMoves(b,r,c,null).length>0) return true; }
     }
     return false;
   }
 
-  // CHECK 3 — BISHOP EARLY-BREAKER (geometric pruning).
+  // CHECK 2 — BISHOP EARLY-BREAKER (geometric pruning).
   //   Threshold pawns = the pawns forming bricks. A bishop travels and captures
   //   only on its own square colour, and can never take its own pawn.
   //   A bishop is INERT (a lock may still hold) if:
@@ -1489,9 +1479,9 @@ function makeLockDetector(PA) {
   // LOCK-BREAKER TESTS (locked-legality based, on a given board)
   // ─────────────────────────────────────────────────────────────────────
 
-  // Is any knight/rook mobile, on either side?
-  function anyKnightRookMobile(b) {
-    return knightRookHasMove(b, true) || knightRookHasMove(b, false);
+  // Is any knight mobile, on either side?
+  function anyKnightMobile(b) {
+    return knightHasMove(b, true) || knightHasMove(b, false);
   }
 
   // Is (r,c) attacked by a byWhite PAWN?
@@ -1543,8 +1533,8 @@ function makeLockDetector(PA) {
       if (++nodes > MAX_NODES) return true;   // cap → ambiguity → count as a breaker
       const [b, epSq] = stack.pop();
 
-      // Does this piece type have a BREAKER move here? + knight/rook legality?
-      if (anyKnightRookMobile(b)) return true;
+      // Does this piece type have a BREAKER move here? + knight legality?
+      if (anyKnightMobile(b)) return true;
 
       for (let r=0;r<8;r++) for (let c=0;c<8;c++){
         const p=b[r][c];
@@ -1579,33 +1569,22 @@ function makeLockDetector(PA) {
     return false;
   }
 
-  // ── Searches sub-spread breakers for the TWO piece types other than the main one.
-  //    otherKinds: e.g. ['P','B'] — whichever is the main piece is excluded.
-  function otherPiecesBreak(b, otherKinds) {
-    for (const kind of otherKinds) {
-      // for both colours (pawns/bishops exist on both sides)
-      if (subSpreadBreaks(b, kind, true))  return true;
-      if (subSpreadBreaks(b, kind, false)) return true;
-    }
-    return false;
-  }
-
-  // ── MAIN SPREAD: the main piece spreads over multiple steps; at EVERY node the
-  //    sub-spread of the other two types (otherPiecesBreak) is called.
+  // ── MAIN SPREAD: the main piece spreads over multiple steps; at EVERY node
+  //    anyBreakerFull is called (knights + the multi-step sub-spread of the
+  //    pawns and bishops of BOTH sides — the main piece's own type included).
   //    moverKind: 'P' | 'B' | 'K'. In the king node the enemy king is DELETED and
   //    the king is blocked by enemy PAWN threats (bishop/king threats ignored).
   //    The king may also advance by capturing (not a breaker); visits reset then.
   //    Pawns/bishops roam by reversible moves only in the main node (breakers are
-  //    already caught by the sub-spread / boardHasBreaker).
+  //    already caught by anyBreakerFull).
   function mainSpread(board0, moverKind, moverWhite, epSq, epWhite) {
     let b0 = cloneBoard(board0);
     if (moverKind === 'K') {
       const ok = findKing(b0, !moverWhite);
       if (ok) b0[ok.r][ok.c] = '';
     }
-    const otherKinds = moverKind==='K' ? ['P','B'] : moverKind==='P' ? ['B'] : ['P'];
     // NOTE: whatever the main piece is, anyBreakerFull(b) runs at EVERY node (other
-    // types + other instances of this type + knights/rooks). Ep rights hold only at
+    // types + other instances of this type + knights). Ep rights hold only at
     // the root, so ep is attached to the root board on the stack.
 
     const seen = new Set();
@@ -1652,10 +1631,10 @@ function makeLockDetector(PA) {
     return false;
   }
 
-  // ── Are there ANY lock-breakers on a board? (knight/rook + pawn + bishop spread)
+  // ── Are there ANY lock-breakers on a board? (knight + pawn + bishop spread)
   //    Called at every main node. Pawns and bishops use multi-step sub-spread.
   function anyBreakerFull(b, epSq, epWhite) {
-    if (anyKnightRookMobile(b)) return true;
+    if (anyKnightMobile(b)) return true;
     // Ep rights belong only to the side to move → pass them to that side's pawn scan.
     if (subSpreadBreaks(b, 'P', true,  epWhite===true  ? epSq : null)) return true;
     if (subSpreadBreaks(b, 'P', false, epWhite===false ? epSq : null)) return true;
@@ -1731,8 +1710,6 @@ function makeLockDetector(PA) {
 
     const k1 = check1(b);
     if (!k1.ok) return { locked:false, reason:'K1 — '+k1.why };
-    const k2 = check2(b);
-    if (!k2.ok) return { locked:false, reason:'K2 — '+k2.why };
 
     // Order: the side to move plays first, so breakers are sought there first and
     // then for the opponent. (The verdict is order-independent, but this yields the
@@ -1741,11 +1718,15 @@ function makeLockDetector(PA) {
     const sides = [stm, !stm];
     const nm = (w)=> w ? 'beyaz' : 'siyah';
 
-    // K3: knights/rooks immobile (both sides) + bishop early-breaker
+    // K2: knights immobile (both sides) + bishop early-breaker
     for (const w of sides)
-      if (knightRookHasMove(b, w)) return { locked:false, reason:'K3 — '+nm(w)+' at/kale hareketli' };
+      if (knightHasMove(b, w)) return { locked:false, reason:'K2 — '+nm(w)+' at hareketli' };
     const bEB = bishopEarlyBreak(b);
-    if (bEB) return { locked:false, reason:'K3 — '+nm(bEB.white)+' fil ('+FILES[bEB.c]+(8-bEB.r)+') eşik piyonuyla aynı renkte ve hareketli' };
+    if (bEB) return { locked:false, reason:'K2 — '+nm(bEB.white)+' fil ('+FILES[bEB.c]+(8-bEB.r)+') eşik piyonuyla aynı renkte ve hareketli' };
+
+    // K3: pawn bricks + geometric pruning
+    const k3 = check3(b);
+    if (!k3.ok) return { locked:false, reason:'K3 — '+k3.why };
 
     // En passant: the engine's ep square (p.ep) is passed to the K4 ROOT node, where
     // the pawn diagonal-capture scan catches the ep capture (mv.ep) as a breaker. Ep
@@ -1767,13 +1748,13 @@ function makeLockDetector(PA) {
   }
 
   return {
-    emptyBoard,cloneBoard,inB,isWhite,isBlack,sameSide,
+    emptyBoard,cloneBoard,inB,isWhite,sameSide,
     fenToBoard,boardToPlacement,boardToFen,
-    pieceMoves,pawnMoves,slideMoves,attackedByLL,findKing,
-    countMaterial,promotionConsistent,check1,check2,knightRookHasMove,bishopEarlyBreak,bishopsFullyVoid,
-    anyKnightRookMobile,pawnAttacksSquare,bishopCheckIsMate,
-    subSpreadBreaks,otherPiecesBreak,anyBreakerFull,mainSpread,kingReachesOpponent,isLocked,
-    KNIGHT_D,KING_D,BISHOP_D,ROOK_D,QUEEN_D,FILES,
+    pieceMoves,pawnMoves,slideMoves,findKing,
+    countMaterial,promotionConsistent,check1,check3,knightHasMove,bishopEarlyBreak,bishopsFullyVoid,
+    anyKnightMobile,pawnAttacksSquare,bishopCheckIsMate,
+    subSpreadBreaks,anyBreakerFull,mainSpread,kingReachesOpponent,isLocked,
+    KNIGHT_D,KING_D,BISHOP_D,FILES,
   };
 }
 </script>
@@ -2238,7 +2219,7 @@ const I18N = (() => {
 
     /* ── Locked position ── */
     'lock.h2':'Kilitli Pozisyon Tespiti',
-    'lock.hint':'Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.',
+    'lock.hint':'Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, kale, 26+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.',
     'lock.btn':'🔒 Kilit Analizi Yap',
     'lock.pill.lock':'MUTLAK KİLİT',
     'lock.pill.scope':'KAPSAM DIŞI',
@@ -2439,7 +2420,7 @@ const I18N = (() => {
 
     /* ── Locked position ── */
     'lock.h2':'Locked Position Detection',
-    'lock.hint':'Proves absolute draws — positions where even two cooperating sides can open no irreversible move. Three outcomes: <b>ABSOLUTE LOCK</b> (100% sound, certain draw), <b>NOT LOCKED</b> (evaluated, a lock-breaker exists), <b>OUT OF SCOPE</b> (material or structure preconditions unmet — e.g. a queen, 30+ pieces, or promotion-inconsistent material; cannot be evaluated). The decisive squares are highlighted.',
+    'lock.hint':'Proves absolute draws — positions where even two cooperating sides can open no irreversible move. Three outcomes: <b>ABSOLUTE LOCK</b> (100% sound, certain draw), <b>NOT LOCKED</b> (evaluated, a lock-breaker exists), <b>OUT OF SCOPE</b> (material or structure preconditions unmet — e.g. a queen, a rook, 26+ pieces, or promotion-inconsistent material; cannot be evaluated). The decisive squares are highlighted.',
     'lock.btn':'🔒 Run Lock Analysis',
     'lock.pill.lock':'ABSOLUTE LOCK',
     'lock.pill.scope':'OUT OF SCOPE',
@@ -2628,25 +2609,26 @@ const I18N = (() => {
     [/^Geçersiz FEN: (.*)$/, m=>'Invalid FEN: '+trFenError(m[1]).replace(/^FEN: /,'')],
     [/^tahta ayrıştırılamadı$/, ()=>'board could not be parsed'],
 
-    [/^K1 — taş sayısı (\d+) \(8–30 dışı\)$/, m=>`K1 — piece count ${m[1]} (outside 8–30)`],
+    [/^K1 — taş sayısı (\d+) \(8–26 dışı\)$/, m=>`K1 — piece count ${m[1]} (outside 8–26)`],
     [/^K1 — her tarafta tam 1 şah olmalı$/, ()=>'K1 — each side must have exactly 1 king'],
     [/^K1 — vezir bulunamaz$/, ()=>'K1 — no queen may be present'],
+    [/^K1 — kale bulunamaz$/, ()=>'K1 — no rook may be present'],
     [/^K1 — her taraf en az 3 piyon$/, ()=>'K1 — each side needs at least 3 pawns'],
     [/^K1 — (beyaz|siyah) materyal terfi-tutarsız$/,
       m=>`K1 — ${SIDE_EN[m[1]]}'s material is promotion-inconsistent`],
 
-    [/^K2 — 3 tuğla yok \(bulunan: (\d+)\)$/, m=>`K2 — fewer than 3 bricks (found: ${m[1]})`],
-    [/^K2 — 3 tuğla geçersiz sütun deseni \((.+)\) — duvar tahtayı bölemez$/,
-      m=>`K2 — invalid 3-brick file pattern (${m[1]}) — the wall cannot split the board`],
-    [/^K2 — 3 tuğla kavuşma hizası farklı \(r\+0\.5 eşit değil\)$/,
-      ()=>'K2 — the three bricks sit on different contact ranks (r+0.5 not equal)'],
-    [/^K2 — yan yana aynı hizada tuğla \((.+) kavuşma (.+)\) — çapraz alım$/,
-      m=>`K2 — adjacent bricks on the same contact rank (${m[1]}, contact ${m[2]}) — a diagonal capture opens`],
+    [/^K3 — 3 tuğla yok \(bulunan: (\d+)\)$/, m=>`K3 — fewer than 3 bricks (found: ${m[1]})`],
+    [/^K3 — 3 tuğla geçersiz sütun deseni \((.+)\) — duvar tahtayı bölemez$/,
+      m=>`K3 — invalid 3-brick file pattern (${m[1]}) — the wall cannot split the board`],
+    [/^K3 — 3 tuğla kavuşma hizası farklı \(r\+0\.5 eşit değil\)$/,
+      ()=>'K3 — the three bricks sit on different contact ranks (r+0.5 not equal)'],
+    [/^K3 — yan yana aynı hizada tuğla \((.+) kavuşma (.+)\) — çapraz alım$/,
+      m=>`K3 — adjacent bricks on the same contact rank (${m[1]}, contact ${m[2]}) — a diagonal capture opens`],
 
-    [/^K3 — (beyaz|siyah) at\/kale hareketli$/,
-      m=>`K3 — ${SIDE_EN[m[1]]} has a mobile knight/rook`],
-    [/^K3 — (beyaz|siyah) fil \((.+)\) eşik piyonuyla aynı renkte ve hareketli$/,
-      m=>`K3 — ${SIDE_EN[m[1]]}'s bishop (${m[2]}) shares square colour with an opposing threshold pawn and is mobile`],
+    [/^K2 — (beyaz|siyah) at hareketli$/,
+      m=>`K2 — ${SIDE_EN[m[1]]} has a mobile knight`],
+    [/^K2 — (beyaz|siyah) fil \((.+)\) eşik piyonuyla aynı renkte ve hareketli$/,
+      m=>`K2 — ${SIDE_EN[m[1]]}'s bishop (${m[2]}) shares square colour with an opposing threshold pawn and is mobile`],
 
     [/^K4 — (beyaz|siyah) (\w) ana düğümünde kilit-kırıcı$/,
       m=>`K4 — lock-breaker found in ${SIDE_EN[m[1]]}'s ${m[2]} main node`],
@@ -2981,13 +2963,13 @@ const I18N = (() => {
     // Split the result into three classes:
     //   locked        → ABSOLUTE LOCK
     //   OUT OF SCOPE  → outside the algorithm's class: K1 (material precondition),
-    //                   K2's "not enough bricks" case (n<3), or an invalid FEN.
+    //                   K3's "not enough bricks" case (n<3), or an invalid FEN.
     //   NOT LOCKED    → evaluated, and a real lock-breaking structure exists:
-    //                   K2 geometric pruning, K3, en passant, K4, K5.
+    //                   K2, K3 geometric pruning, en passant, K4, K5.
     // NOTE: classification ALWAYS runs on the core's Turkish reason; the translation
     // is applied only when printing. So the language can never affect the verdict.
     const reason = res.reason;
-    const notEnoughBricks = /^K2 — 3 tuğla yok/.test(reason);
+    const notEnoughBricks = /^K3 — 3 tuğla yok/.test(reason);
     const outOfScope = !res.locked && (
       /^(K1|Geçersiz FEN|tahta ayrıştırılamadı)/.test(reason) || notEnoughBricks
     );
