@@ -98,9 +98,23 @@ USCF'ye yakın ama iki at + piyon durumunda **piyon geometrisi** şartı: iki at
 
 K2'nin üç alt testi de aynı, hiç değiştirilmemiş tahta üzerinde çalışan saf geometri sorularıdır; hiçbiri diğerini beslemez, sıraları yalnızca maliyet ve gerekçe metni içindir. Bu yüzden tek bir kontrol altında toplanmışlardır. Asıl kırılım K2 ile K3 arasındadır: K3'e kadar tahtaya dokunulmaz, K3'ten itibaren taşlar gezdirilir.
 
+### Taraf sırası
+
+Kontroller taraf bazında değil, **kontrol bazında** dolaşılır: beyaz için K1–K4, sonra siyah için K1–K4 **değil**. K1 tahtanın tamamını sayar, taraftan bağımsızdır. Tarafa bağlı olan her testte sıra şudur: **önce hamle sırası kimdeyse o, sonra rakip.**
+
+| | sıralama |
+|---|---|
+| K1 | taraftan bağımsız (tek geçiş) |
+| K2a | sırası olan → rakip |
+| K2b, K2c | tahta geneli (tek geçiş) |
+| K3 | ana düğüm sırası **P → B → Ş** sabit; her birinin içinde sırası olan → rakip |
+| K4 | sırası olan → rakip |
+
+Hüküm bu sıralamadan **bağımsızdır** — her kontrol aynı, değişmemiş tahta üzerinde saf bir testtir ve yalnızca "kilit değil" diyebilir. Sıralamanın tek etkisi, basılan gerekçenin bir sonraki hamlede kırıcıyı gerçekten oynayabilecek tarafı adlandırmasıdır.
+
 ### Kontrol 1 — Aritmetik sınırlar
 
-Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`check1`):
+Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`kontrol1AritmetikSinirlar`) — tahtanın tamamını sayar, taraftan bağımsızdır:
 
 - Taş sayısı **8–30** arası, iki uç **dahil**. Üst sınır vezirsiz tam kadrodur: `2 şah + 16 piyon + (2 kale + 2 at + 2 fil)×2 = 30`.
 - Her tarafta **tam 1 şah**.
@@ -129,7 +143,7 @@ Not — bu bir yaklaşıklıktır: eşik maskeleri sütun bazında değil tahta 
 
 **Tuğla (yön-duyarlı):** aynı sütunda siyah piyon üstte (satır `r`), hemen altında beyaz piyon (satır `r+1`). İkisi de karşı karşıya kilitli — beyaz yukarı, siyah aşağı ilerleyemez. **Kavuşma satırı** = `r + 0.5`. Bu, tarafa bağlı olmayan tek bir temas çizgisidir; arkada biriken piyonlar onu değiştirmez.
 
-Budamalar (`checkBricks`, yalnız "kilit değil" yönünde):
+Budamalar (`kontrol2cPiyonTuglalari`, yalnız "kilit değil" yönünde):
 
 - Tuğla sayısı **< 3** → yetersiz (KAPSAM DIŞI).
 - **Tam 3 tuğla** → sütunlar `{a,d,g}`, `{b,d,g}`, `{b,e,g}` veya `{b,e,h}` desenlerinden biri olmalı (yoksa duvar tahtayı bölemez, örn. `a,c,e` → g,h tarafı açık). **Ve** üç kavuşma satırı eşit olmalı.
@@ -242,7 +256,8 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 
 - **Yardımcılar:** `fenToBoard`, `boardToFen`, `boardToPlacement` (tahta temsil dönüşümleri).
 - **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli; P/N/B/R/K üretir — vezir K1'de elendiği için dalı yoktur). Yön sabitleri: `KNIGHT_D`, `KING_D`, `BISHOP_D`, `ROOK_D`.
-- **Kontroller:** `check1` (K1), `knightOrRookHasMove` (K2a), `bishopEarlyBreak` (K2b), `checkBricks` (K2c), `anyKnightOrRookMobile` (düğümlenme), `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull` (K3), `kingReachesOpponent` (K4).
+- **Kontroller (dört adlandırılmış giriş noktası):** `kontrol1AritmetikSinirlar`, `kontrol2GeometrikSinirlar`, `kontrol3Yayilim`, `kontrol4SahGarantisi`. Her biri bir **gerekçe dizesi** (kırıcı bulundu / kapsam dışı) ya da **`null`** (bu kontrol sağlandı) döner; dördü de sessiz kalırsa hüküm kilittir.
+- **Alt yardımcılar:** `knightOrRookHasMove` (K2a), `bishopEarlyBreak` (K2b), `kontrol2cPiyonTuglalari` (K2c), `anyKnightOrRookMobile` (düğümlenme), `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull` (K3), `kingReachesOpponent` (K4).
 - **Mat doğrulaması:** `bishopCheckIsMate` (fil şah-mat kırıcısı için gerçek motora danışır).
 - **Giriş noktası:** `isLocked(fen)` → `{ locked, reason }`.
 

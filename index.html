@@ -2540,22 +2540,6 @@
             Math.max(0, c.Q - 1);
           return extra <= 8 - c.P;
         }
-        function check1(b) {
-          const m = countMaterial(b);
-          if (m.total < 8 || m.total > 30)
-            return { ok: false, why: "taş sayısı " + m.total + " (8–30 dışı)" };
-          if (m.W.K !== 1 || m.B.K !== 1)
-            return { ok: false, why: "her tarafta tam 1 şah olmalı" };
-          if (m.W.Q > 0 || m.B.Q > 0)
-            return { ok: false, why: "vezir bulunamaz" };
-          if (m.W.P < 3 || m.B.P < 3)
-            return { ok: false, why: "her taraf en az 3 piyon" };
-          if (!promotionConsistent(m.W))
-            return { ok: false, why: "beyaz materyal terfi-tutarsız" };
-          if (!promotionConsistent(m.B))
-            return { ok: false, why: "siyah materyal terfi-tutarsız" };
-          return { ok: true };
-        }
         // CHECK 2c — PAWN BRICKS + geometric pruning.
         //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
         //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
@@ -2566,7 +2550,7 @@
         //                     the three contact ranks must be equal too.
         //     • bricks >= 4 → two bricks on adjacent files (|Δc|=1) at equal contact
         //                     (Δr=0) open a diagonal capture → not locked.
-        function checkBricks(b) {
+        function kontrol2cPiyonTuglalari(b) {
           const bricks = []; // {c, r}  (r = black's row; contact r+0.5)
           for (let c = 0; c < 8; c++)
             for (let r = 0; r < 7; r++)
@@ -3025,6 +3009,92 @@
         // ─────────────────────────────────────────────────────────────────────
         // FULL LOCK DETECTION
         // ─────────────────────────────────────────────────────────────────────
+        /* Side ordering, used by every side-dependent check:
+     sides[0] = the side to move, sides[1] = the opponent. The VERDICT is
+     order-independent (each check is a pure test on the same immutable board), but the
+     side to move is asked first so the printed reason names the side that can actually
+     play the breaker next. */
+        const nm = (w) => (w ? "beyaz" : "siyah");
+
+        /* ── KONTROL 1 — ARİTMETİK SINIRLAR ──────────────────────────────────
+     Board-wide, side-independent: it counts, it does not walk. Failing it means
+     OUT OF SCOPE, not "not locked".
+       8 ≤ pieces ≤ 30 (upper bound = a full army minus both queens)
+       no queen · exactly 1 king each · at least 3 pawns each
+       promotion-consistent: surplus R/N/B charged against the missing-pawn budget */
+        function kontrol1AritmetikSinirlar(b) {
+          const m = countMaterial(b);
+          if (m.total < 8 || m.total > 30)
+            return "K1 — taş sayısı " + m.total + " (8–30 dışı)";
+          if (m.W.K !== 1 || m.B.K !== 1)
+            return "K1 — her tarafta tam 1 şah olmalı";
+          if (m.W.Q > 0 || m.B.Q > 0) return "K1 — vezir bulunamaz";
+          if (m.W.P < 3 || m.B.P < 3) return "K1 — her taraf en az 3 piyon";
+          if (!promotionConsistent(m.W))
+            return "K1 — beyaz materyal terfi-tutarsız";
+          if (!promotionConsistent(m.B))
+            return "K1 — siyah materyal terfi-tutarsız";
+          return null;
+        }
+
+        /* ── KONTROL 2 — GEOMETRİK SINIRLAR ──────────────────────────────────
+     Three static tests on the UNTOUCHED board — nothing moves yet. Cheapest first:
+       2a  knights and rooks must be geometrically frozen (side to move first, then
+           the opponent). Pure geometry: king safety is never consulted.
+       2b  bishop early-breaker: a bishop sharing square colour with an ENEMY
+           threshold pawn, and able to move at all.
+       2c  pawn bricks: at least 3, splitting the board, on one contact rank, with no
+           two adjacent bricks level. */
+        function kontrol2GeometrikSinirlar(b, sides) {
+          // 2a — side to move first, then the opponent
+          for (const w of sides) {
+            const mob = knightOrRookHasMove(b, w);
+            if (mob) return "K2 — " + nm(w) + " " + mob + " hareketli";
+          }
+          // 2b — bishop early-breaker
+          const bEB = bishopEarlyBreak(b);
+          if (bEB)
+            return (
+              "K2 — " +
+              nm(bEB.white) +
+              " fil (" +
+              FILES[bEB.c] +
+              (8 - bEB.r) +
+              ") eşik piyonuyla aynı renkte ve hareketli"
+            );
+          // 2c — pawn bricks
+          const k2c = kontrol2cPiyonTuglalari(b);
+          return k2c.ok ? null : "K2 — " + k2c.why;
+        }
+
+        /* ── KONTROL 3 — YAYILIM ─────────────────────────────────────────────
+     The first check that MOVES anything. Main-node order is fixed: pawn, then bishop,
+     then king; within each, the side to move goes first. At every node of every spread
+     all other breakers are rescanned (anyBreakerFull), including the knot test.
+     Ep rights live on the root node only. */
+        function kontrol3Yayilim(b, sides, epSq, epWhite) {
+          const nodes = bishopsFullyVoid(b) ? ["K"] : ["P", "B", "K"];
+          for (const kind of nodes)
+            for (const w of sides)
+              if (mainSpread(b, kind, w, epSq, epWhite))
+                return (
+                  "K3 — " + nm(w) + " " + kind + " ana düğümünde kilit-kırıcı"
+                );
+          return null;
+        }
+
+        /* ── KONTROL 4 — ŞAHIN NİHAİ GARANTİSİ ───────────────────────────────
+     Everything except the pawn wall is deleted and the king is given maximum freedom.
+     If it cannot cross even then, it cannot cross in a real game. Side to move first. */
+        function kontrol4SahGarantisi(b, sides) {
+          for (const w of sides)
+            if (kingReachesOpponent(b, w))
+              return "K4 — " + nm(w) + " şah karşı şaha ulaşabiliyor";
+          return null;
+        }
+
+        /* Each kontrolN returns a REASON STRING (a breaker was found / out of scope) or
+     null (this check is satisfied). A lock is the verdict when all four stay silent. */
         function isLocked(fen) {
           const p = PA.createPosition();
           const r = p.loadFen(fen);
@@ -3036,73 +3106,20 @@
           const b = fenToBoard(p.getFen());
           if (!b) return { locked: false, reason: "tahta ayrıştırılamadı" };
 
-          const k1 = check1(b);
-          if (!k1.ok) return { locked: false, reason: "K1 — " + k1.why };
-
-          // Order: the side to move plays first, so breakers are sought there first and
-          // then for the opponent. (The verdict is order-independent, but this yields the
-          // right reason.) sides[0]=side to move, sides[1]=opponent.
           const stm = p.turnWhite();
           const sides = [stm, !stm];
-          const nm = (w) => (w ? "beyaz" : "siyah");
-
-          // K2a: knights AND rooks immobile (both sides)
-          for (const w of sides) {
-            const mob = knightOrRookHasMove(b, w);
-            if (mob)
-              return {
-                locked: false,
-                reason: "K2 — " + nm(w) + " " + mob + " hareketli",
-              };
-          }
-          // K2b: bishop early-breaker
-          const bEB = bishopEarlyBreak(b);
-          if (bEB)
-            return {
-              locked: false,
-              reason:
-                "K2 — " +
-                nm(bEB.white) +
-                " fil (" +
-                FILES[bEB.c] +
-                (8 - bEB.r) +
-                ") eşik piyonuyla aynı renkte ve hareketli",
-            };
-
-          // K2c: pawn bricks + geometric pruning
-          const k2c = checkBricks(b);
-          if (!k2c.ok) return { locked: false, reason: "K2 — " + k2c.why };
-
-          // En passant: the engine's ep square (p.ep) is passed to the K3 ROOT node, where
-          // the pawn diagonal-capture scan catches the ep capture (mv.ep) as a breaker. Ep
-          // belongs only to the side to move (epWhite) — no separate ep block is needed.
+          // Ep belongs to the side to move and holds only at the root of a spread.
           const epSq = p.ep !== -1 ? { r: p.ep >> 4, c: p.ep & 7 } : null;
-          const epWhite = stm;
 
-          // K3: three main nodes × two sides (side to move first). If the bishops are void,
-          // branches 1 (P) and 2 (B) are skipped and only branch 3 (K) runs.
-          const nodes = bishopsFullyVoid(b) ? ["K"] : ["P", "B", "K"];
-          for (const kind of nodes)
-            for (const w of sides)
-              if (mainSpread(b, kind, w, epSq, epWhite))
-                return {
-                  locked: false,
-                  reason:
-                    "K3 — " +
-                    nm(w) +
-                    " " +
-                    kind +
-                    " ana düğümünde kilit-kırıcı",
-                };
-          // K4: final king guarantee — side to move first, then the opponent.
-          for (const w of sides)
-            if (kingReachesOpponent(b, w))
-              return {
-                locked: false,
-                reason: "K4 — " + nm(w) + " şah karşı şaha ulaşabiliyor",
-              };
+          let why =
+            kontrol1AritmetikSinirlar(b) ||
+            kontrol2GeometrikSinirlar(b, sides) ||
+            kontrol3Yayilim(b, sides, epSq, stm) ||
+            kontrol4SahGarantisi(b, sides);
 
-          return { locked: true, reason: "K1–K4 geçti — MUTLAK KİLİT" };
+          return why
+            ? { locked: false, reason: why }
+            : { locked: true, reason: "K1–K4 geçti — MUTLAK KİLİT" };
         }
 
         return {
@@ -3120,8 +3137,11 @@
           findKing,
           countMaterial,
           promotionConsistent,
-          check1,
-          checkBricks,
+          kontrol1AritmetikSinirlar,
+          kontrol2GeometrikSinirlar,
+          kontrol2cPiyonTuglalari,
+          kontrol3Yayilim,
+          kontrol4SahGarantisi,
           knightOrRookHasMove,
           bishopEarlyBreak,
           bishopsFullyVoid,
