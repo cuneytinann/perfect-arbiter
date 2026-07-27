@@ -2297,17 +2297,22 @@
    and the target holds no friendly piece. King safety (pins, discovered check,
    side to move) is ignored — a relaxation that is safe for soundness.
 
-   FIVE CHECKS (in order; the first match returns "not locked"):
-   K1: 8 ≤ pieces ≤ 30, exactly 1+1 kings, no queen, ≥3 pawns a side,
-       promotion-consistent (surplus R/N/B charged against the missing-pawn budget).
-   K2: knights AND rooks immobile under locked-legality (both sides) + bishop
-       early-breaker. Both jump or slide past the wall, so both must be buried.
-   K3: pawn bricks (direction-sensitive) + geometric pruning.
-   K4: three main nodes (pawn/bishop/king) × two sides, nested spread; all breakers
+   FOUR CHECKS (in order; the first match returns "not locked"):
+   K1: MATERIAL ARITHMETIC — 8 ≤ pieces ≤ 30, exactly 1+1 kings, no queen,
+       ≥3 pawns a side, promotion-consistent (surplus R/N/B charged against the
+       missing-pawn budget).
+   K2: GEOMETRIC LIMITS — three static tests on the untouched board, cheapest first:
+         a) knights AND rooks immobile under locked-legality (both sides). Both jump
+            or slide past the wall, so both must be buried in their own men.
+         b) bishop early-breaker: a bishop sharing square colour with an enemy
+            THRESHOLD pawn (the front-line pawn of a contested file) and able to move.
+         c) pawn bricks — at least 3, splitting the board, on one contact rank, with
+            no two adjacent bricks level (which would open a diagonal capture).
+   K3: SPREAD — three main nodes (pawn/bishop/king) × two sides, nested; all breakers
        at every node + ep + mate. Bishop-void pruning skips branches P and B.
        KNOTTING: knight/rook mobility is retested at EVERY node, so a shuffle that
        frees a buried knight or rook breaks the lock immediately.
-   K5: final king guarantee — with only the pawn wall left, can one king reach the other?
+   K4: FINAL KING GUARANTEE — with only the pawn wall left, can one king reach the other?
    Each check tests the SIDE TO MOVE first, then the opponent.
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -2551,17 +2556,17 @@
             return { ok: false, why: "siyah materyal terfi-tutarsız" };
           return { ok: true };
         }
-        // CHECK 3 — Pawn bricks + geometric pruning.
+        // CHECK 2c — PAWN BRICKS + geometric pruning.
         //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
         //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
-        //   Pruning (only ever toward "not locked" → soundness-safe; avoids costly K4):
+        //   Pruning (only ever toward "not locked" → soundness-safe; avoids costly K3):
         //     • bricks < 3  → insufficient.
         //     • bricks == 3 → the files must match {a,d,g}|{b,d,g}|{b,e,g}|{b,e,h}, else
         //                     the wall cannot split the board (a,c,e leaves g,h open);
         //                     the three contact ranks must be equal too.
         //     • bricks >= 4 → two bricks on adjacent files (|Δc|=1) at equal contact
         //                     (Δr=0) open a diagonal capture → not locked.
-        function check3(b) {
+        function checkBricks(b) {
           const bricks = []; // {c, r}  (r = black's row; contact r+0.5)
           for (let c = 0; c < 8; c++)
             for (let r = 0; r < 7; r++)
@@ -2622,10 +2627,7 @@
             }
           return { ok: true, bricks: n };
         }
-        // CHECK 2 — KNIGHT IMMOBILITY. K1 already rules out rooks, so this falls to the
-        //   knight alone: if any knight has a locked-legality move (empty square or enemy
-        //   capture), the lock is broken. Pure geometry; king safety is ignored.
-        // CHECK 2 — KNIGHT / ROOK IMMOBILITY.
+        // CHECK 2a — KNIGHT / ROOK IMMOBILITY.
         //   A knight jumps the pawn wall and a rook slides along it, so in a genuine lock
         //   BOTH must be completely buried in their own pieces. Pure geometry: no check
         //   safety, no turn order — can the piece reach any square at all (empty square
@@ -2644,7 +2646,7 @@
           return null;
         }
 
-        // CHECK 2 — BISHOP EARLY-BREAKER (geometric pruning).
+        // CHECK 2b — BISHOP EARLY-BREAKER (geometric pruning).
         //   Threshold pawns = the pawns forming bricks. A bishop travels and captures
         //   only on its own square colour, and can never take its own pawn.
         //   A bishop is INERT (a lock may still hold) if:
@@ -2964,7 +2966,7 @@
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // CHECK 5 — FINAL KING GUARANTEE
+        // CHECK 4 — FINAL KING GUARANTEE
         //   Every piece except PAWNS is removed — both sides' kings, bishops, knights
         //   and rooks go; both sides' PAWNS (the wall) stay. The king under test:
         //     • cannot enter squares ATTACKED by enemy pawns (the wall),
@@ -3044,7 +3046,7 @@
           const sides = [stm, !stm];
           const nm = (w) => (w ? "beyaz" : "siyah");
 
-          // K2: knights AND rooks immobile (both sides) + bishop early-breaker
+          // K2a: knights AND rooks immobile (both sides)
           for (const w of sides) {
             const mob = knightOrRookHasMove(b, w);
             if (mob)
@@ -3053,6 +3055,7 @@
                 reason: "K2 — " + nm(w) + " " + mob + " hareketli",
               };
           }
+          // K2b: bishop early-breaker
           const bEB = bishopEarlyBreak(b);
           if (bEB)
             return {
@@ -3066,17 +3069,17 @@
                 ") eşik piyonuyla aynı renkte ve hareketli",
             };
 
-          // K3: pawn bricks + geometric pruning
-          const k3 = check3(b);
-          if (!k3.ok) return { locked: false, reason: "K3 — " + k3.why };
+          // K2c: pawn bricks + geometric pruning
+          const k2c = checkBricks(b);
+          if (!k2c.ok) return { locked: false, reason: "K2 — " + k2c.why };
 
-          // En passant: the engine's ep square (p.ep) is passed to the K4 ROOT node, where
+          // En passant: the engine's ep square (p.ep) is passed to the K3 ROOT node, where
           // the pawn diagonal-capture scan catches the ep capture (mv.ep) as a breaker. Ep
           // belongs only to the side to move (epWhite) — no separate ep block is needed.
           const epSq = p.ep !== -1 ? { r: p.ep >> 4, c: p.ep & 7 } : null;
           const epWhite = stm;
 
-          // K4: three main nodes × two sides (side to move first). If the bishops are void,
+          // K3: three main nodes × two sides (side to move first). If the bishops are void,
           // branches 1 (P) and 2 (B) are skipped and only branch 3 (K) runs.
           const nodes = bishopsFullyVoid(b) ? ["K"] : ["P", "B", "K"];
           for (const kind of nodes)
@@ -3085,21 +3088,21 @@
                 return {
                   locked: false,
                   reason:
-                    "K4 — " +
+                    "K3 — " +
                     nm(w) +
                     " " +
                     kind +
                     " ana düğümünde kilit-kırıcı",
                 };
-          // K5: final king guarantee — side to move first, then the opponent.
+          // K4: final king guarantee — side to move first, then the opponent.
           for (const w of sides)
             if (kingReachesOpponent(b, w))
               return {
                 locked: false,
-                reason: "K5 — " + nm(w) + " şah karşı şaha ulaşabiliyor",
+                reason: "K4 — " + nm(w) + " şah karşı şaha ulaşabiliyor",
               };
 
-          return { locked: true, reason: "K1–K5 geçti — MUTLAK KİLİT" };
+          return { locked: true, reason: "K1–K4 geçti — MUTLAK KİLİT" };
         }
 
         return {
@@ -3118,7 +3121,7 @@
           countMaterial,
           promotionConsistent,
           check1,
-          check3,
+          checkBricks,
           knightOrRookHasMove,
           bishopEarlyBreak,
           bishopsFullyVoid,
@@ -3449,7 +3452,7 @@
        'halfmove' — the last move was a capture or a pawn push (halfmove reset to 0),
                     so the wall structure itself just changed.
        'ep'       — an en passant right just LAPSED. While it existed it was itself a
-                    lock-breaker (K4 sees the ep capture at its root node), so the
+                    lock-breaker (K3 sees the ep capture at its root node), so the
                     position could not be ruled locked. The move that lets it expire
                     is reversible, so halfmove is NOT 0 — the halfmove rule alone
                     would miss such a lock forever.
@@ -3751,7 +3754,7 @@ if (typeof module !== 'undefined')
             "intro.toolsH": "Bölümler",
             "intro.tool.lock.t": "Kilitli Pozisyon",
             "intro.tool.lock.d":
-              "Bir pozisyonun mutlak berabere olduğunu kanıtlar: taraflar işbirliği yapsa bile hiçbir alım, terfi veya mat açılamıyorsa oyun sonsuza dek sürer → FIDE 75-hamle / 5-tekrar tavanı gereği kesin berabere. Beş kontrol (K1–K5) ucuzdan pahalıya uygulanır, fark yaratan kareler vurgulanır.",
+              "Bir pozisyonun mutlak berabere olduğunu kanıtlar: taraflar işbirliği yapsa bile hiçbir alım, terfi veya mat açılamıyorsa oyun sonsuza dek sürer → FIDE 75-hamle / 5-tekrar tavanı gereği kesin berabere. Dört kontrol (K1–K4) ucuzdan pahalıya uygulanır, fark yaratan kareler vurgulanır.",
             "intro.tool.flag.t": "Bayrak Düşmesi",
             "intro.tool.flag.d":
               "Bir tarafın süresi bittiğinde, karşı tarafın mat edecek materyali var mı? Hüküm anında verilir, gerekçesiyle ve geçen süreyle (<code>ms</code>) birlikte gösterilir.",
@@ -4014,7 +4017,7 @@ if (typeof module !== 'undefined')
             "intro.toolsH": "Sections",
             "intro.tool.lock.t": "Locked Position",
             "intro.tool.lock.d":
-              "Proves that a position is an absolute draw: if even two cooperating sides can open no capture, promotion or mate, the game runs forever → a certain draw under FIDE's 75-move / 5-repetition ceiling. Five checks (K1–K5) run cheapest first, and the decisive squares are highlighted.",
+              "Proves that a position is an absolute draw: if even two cooperating sides can open no capture, promotion or mate, the game runs forever → a certain draw under FIDE's 75-move / 5-repetition ceiling. Four checks (K1–K4) run cheapest first, and the decisive squares are highlighted.",
             "intro.tool.flag.t": "Flag Fall",
             "intro.tool.flag.d":
               "When one side runs out of time, does the opponent hold mating material? The ruling is immediate, shown with its reason and the time it took (<code>ms</code>).",
@@ -4363,23 +4366,23 @@ if (typeof module !== 'undefined')
           ],
 
           [
-            /^K3 — 3 tuğla yok \(bulunan: (\d+)\)$/,
-            (m) => `K3 — fewer than 3 bricks (found: ${m[1]})`,
+            /^K2 — 3 tuğla yok \(bulunan: (\d+)\)$/,
+            (m) => `K2 — fewer than 3 bricks (found: ${m[1]})`,
           ],
           [
-            /^K3 — 3 tuğla geçersiz sütun deseni \((.+)\) — duvar tahtayı bölemez$/,
+            /^K2 — 3 tuğla geçersiz sütun deseni \((.+)\) — duvar tahtayı bölemez$/,
             (m) =>
-              `K3 — invalid 3-brick file pattern (${m[1]}) — the wall cannot split the board`,
+              `K2 — invalid 3-brick file pattern (${m[1]}) — the wall cannot split the board`,
           ],
           [
-            /^K3 — 3 tuğla kavuşma hizası farklı \(r\+0\.5 eşit değil\)$/,
+            /^K2 — 3 tuğla kavuşma hizası farklı \(r\+0\.5 eşit değil\)$/,
             () =>
-              "K3 — the three bricks sit on different contact ranks (r+0.5 not equal)",
+              "K2 — the three bricks sit on different contact ranks (r+0.5 not equal)",
           ],
           [
-            /^K3 — yan yana aynı hizada tuğla \((.+) kavuşma (.+)\) — çapraz alım$/,
+            /^K2 — yan yana aynı hizada tuğla \((.+) kavuşma (.+)\) — çapraz alım$/,
             (m) =>
-              `K3 — adjacent bricks on the same contact rank (${m[1]}, contact ${m[2]}) — a diagonal capture opens`,
+              `K2 — adjacent bricks on the same contact rank (${m[1]}, contact ${m[2]}) — a diagonal capture opens`,
           ],
 
           [
@@ -4394,20 +4397,20 @@ if (typeof module !== 'undefined')
           ],
 
           [
-            /^K4 — (beyaz|siyah) (\w) ana düğümünde kilit-kırıcı$/,
+            /^K3 — (beyaz|siyah) (\w) ana düğümünde kilit-kırıcı$/,
             (m) =>
-              `K4 — lock-breaker found in ${SIDE_EN[m[1]]}'s ${m[2]} main node`,
+              `K3 — lock-breaker found in ${SIDE_EN[m[1]]}'s ${m[2]} main node`,
           ],
 
           [
-            /^K5 — (beyaz|siyah) şah karşı şaha ulaşabiliyor$/,
+            /^K4 — (beyaz|siyah) şah karşı şaha ulaşabiliyor$/,
             (m) =>
-              `K5 — ${SIDE_EN[m[1]]}'s king can reach the opposing king's square`,
+              `K4 — ${SIDE_EN[m[1]]}'s king can reach the opposing king's square`,
           ],
 
           [
-            /^K1–K5 geçti — MUTLAK KİLİT$/,
-            () => "K1–K5 passed — ABSOLUTE LOCK",
+            /^K1–K4 geçti — MUTLAK KİLİT$/,
+            () => "K1–K4 passed — ABSOLUTE LOCK",
           ],
         ];
 
@@ -4876,13 +4879,13 @@ if (typeof module !== 'undefined')
           // Split the result into three classes:
           //   locked        → ABSOLUTE LOCK
           //   OUT OF SCOPE  → outside the algorithm's class: K1 (material precondition),
-          //                   K3's "not enough bricks" case (n<3), or an invalid FEN.
+          //                   K2c's "not enough bricks" case (n<3), or an invalid FEN.
           //   NOT LOCKED    → evaluated, and a real lock-breaking structure exists:
-          //                   K2, K3 geometric pruning, en passant, K4, K5.
+          //                   K2 (immobility / bishop / brick geometry), ep, K3, K4.
           // NOTE: classification ALWAYS runs on the core's Turkish reason; the translation
           // is applied only when printing. So the language can never affect the verdict.
           const reason = res.reason;
-          const notEnoughBricks = /^K3 — 3 tuğla yok/.test(reason);
+          const notEnoughBricks = /^K2 — 3 tuğla yok/.test(reason);
           const outOfScope =
             !res.locked &&
             (/^(K1|Geçersiz FEN|tahta ayrıştırılamadı)/.test(reason) ||
