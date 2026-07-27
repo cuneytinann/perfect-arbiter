@@ -8,18 +8,34 @@ Felsefe: **hakem, bot değil.** Amaç en iyi hamleyi bulmak değil, kurallara g�
 
 ## 1. Uygulama yapısı
 
-Dört bölümlü arayüz:
+Beş bölümlü arayüz:
 
-- **Bayrak Düşmesi** — Bir tarafın süresi bittiğinde, karşı tarafın mat edecek materyali olup olmadığına göre *kazanç / berabere* hükmü. **İki hakemlik yaklaşımı** seçilebilir: **FIDE** (helper mate — saf geometri, arama yok) ve **USCF** (forced mate — hafif taşlarda arama). Butona basınca sonuç anında çıkar (animasyon yok), süre `ms` olarak gösterilir, fark yaratan kareler vurgulanır.
+- **Tanıtım** — Soundness ilkesi ve bölümlerin ne işe yaradığı.
 - **Kilitli Pozisyon** — Bir pozisyonun mutlak berabere (kilit) olup olmadığını kanıtlar. Üç sonuç: **MUTLAK KİLİT** (kesin berabere), **KİLİT DEĞİL** (değerlendirildi, kırıcı var), **KAPSAM DIŞI** (algoritmanın ön-koşulları sağlanmıyor).
-- **Serbest Oyun** — Motorun tüm kurallarıyla iki kişilik oyun; mat, pat, ölü materyal, 50/75 hamle, 3/5 tekrar, kilit tespiti sıralı olarak kontrol edilir.
+- **Bayrak Düşmesi** — Bir tarafın süresi bittiğinde, karşı tarafın mat edecek materyali olup olmadığına göre *kazanç / berabere* hükmü. Panelde iki hakemlik yaklaşımı seçilebilir: **FIDE** (helper mate — saf geometri, arama yok) ve **USCF** (forced mate — hafif taşlarda arama). Butona basınca sonuç anında çıkar (animasyon yok), süre `ms` olarak gösterilir, fark yaratan kareler vurgulanır.
+- **Motor Deneme** — Motorun tüm kurallarıyla iki kişilik oyun; mat, pat, ölü materyal, 50/75 hamle, 3/5 tekrar, kilit tespiti sıralı olarak kontrol edilir. Kural seti FIDE / USCF / karma preset'lerinden seçilir ya da **özel** olarak elle kurulur. Ayrıca bayrak düşürme ve terk butonlarıyla bu hükümler doğrudan denenebilir.
 - **Motor Üretici** — Hakem motorunu esnek seçeneklerle veya üç hazır preset'le (FIDE / USCF / karma) yapılandırıp tek dosya olarak indirme. Kod sergilenmez, yalnızca indirilir.
+
+### Kaynak blokları
+
+Uygulama tek bir `index.html`; mantık altı `<script>` bloğuna ayrılmıştır. İlk dördü **paylaşılan çekirdektir** ve üretilen motora birebir kopyalanır:
+
+| Blok | İçerik | İndirilen motora girer mi |
+|---|---|---|
+| `src-engine` | `PA` — 0x88 tahta, Zobrist, hamle üretimi, `legalMoves`, `perft`, forced-mate araması, `material`, FEN g/ç | evet |
+| `src-flag` | `makeFlagClassifier(PA)` — evrensel katman + üç bayrak sınıflandırıcısı | evet |
+| `src-arbiter` | `makeArbiter(PA, CFG, LOCK, describe)` — tek kural uygulama hattı: `flagFall`, `resign`, `adjudicate` | evet |
+| `src-lock` | `makeLockDetector(PA)` — K1–K5 kilit tespiti | yalnız seçiliyse |
+| *(üretici)* | `buildEngineSource(cfg)` — blokları okuyup `.js` üretir | hayır |
+| `src-i18n` | `I18N` — TR/EN sözlük, `t`, `applyStatic`, `trReason` | hayır (yalnız arayüz) |
+
+**Hüküm hattı tek yerdedir.** Sayfa ve indirilen motor aynı `makeArbiter`'ı çalıştırır; aralarındaki tek fark yapılandırma (`CFG`) ve metnin nasıl basıldığıdır. Hükümler prozayla değil **kod + veri** olarak döner (`flag.*`, `adj.*`); sayfa bunları i18n sözlüğüyle, indirilen motor `src-arbiter` içindeki gömülü İngilizce tabloyla yazıya döker. Böylece bir hükmün sayfada ve indirilen motorda farklı çıkması yapısal olarak imkânsızdır.
 
 ---
 
 ## 2. Bayrak düşmesi hakemliği
 
-Bir tarafın bayrağı düştüğünde soru: karşı tarafın (süresi bitmeyen = *kazanan aday*) mat edebilecek materyali var mı? Süresi biten taraf *kaybeden aday*. Üç kural seti üç farklı ölçüt kullanır — arayüzde ikisi (FIDE, USCF), motor üreticide üçü de (karma dahil) seçilebilir.
+Bir tarafın bayrağı düştüğünde soru: karşı tarafın (süresi bitmeyen = *kazanan aday*) mat edebilecek materyali var mı? Süresi biten taraf *kaybeden aday*. Üç kural seti üç farklı ölçüt kullanır. Üçü de **Motor Deneme**'de (preset ya da özel yapılandırma) ve **Motor Üretici**'de seçilebilir; Bayrak Düşmesi paneli hızlı karşılaştırma için yalnız FIDE ve USCF'yi sunar.
 
 Tüm yaklaşımlar ortak bir **evrensel katman**la başlar (`makeFlagClassifier` içinde, `src-flag` bloğu — hem arayüz hem üretilen motor bu tek kaynağı kullanır). Evrensel katman önce mutlak berabereleri, hızlı kazanç hunisini ve geometrik kesin beraberleri ayıklar; kesin karar veremediği "belirsiz sınıfları" (tek at / tek renk fil / iki at) yaklaşıma göre çözer.
 
@@ -49,7 +65,7 @@ FIDE'nin 2023 değişikliği (5.1.2): resign de artık bayrak düşmesi gibi, ra
 
 (K+R vs K+N'de USCF berabere verir — forced mate yoktur; FIDE'den ayrıldığı nokta budur.)
 
-### c) Karma (yalnız motor üreticide)
+### c) Karma
 
 USCF'ye yakın ama iki at + piyon durumunda **piyon geometrisi** şartı: iki at + loser'da yalnızca piyon(lar) ve hepsi **tek sütunda** ise doğrudan kazanç; aksi halde (piyonsuz / farklı sütun / başka taş) arama. Resign bayrak düşmesi *sayılır*.
 
@@ -77,18 +93,19 @@ USCF'ye yakın ama iki at + piyon durumunda **piyon geometrisi** şartı: iki at
 
 Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`check1`):
 
-- Taş sayısı **8–26** arası, iki uç **dahil** (alt: yetersiz materyal; üst: kapsam sınırı).
+- Taş sayısı **8–30** arası, iki uç **dahil**. Üst sınır vezirsiz tam kadrodur: `2 şah + 16 piyon + (2 kale + 2 at + 2 fil)×2 = 30`.
 - Her tarafta **tam 1 şah**.
 - **Vezir yok** — algoritmanın çekirdek varsayımı (vezir varsa duvar arkasından uzun menzilli kırıcı hep mümkün olur).
-- **Kale yok** — aynı gerekçeyle kapsam dışı; kale duvar boyunca kayarak kırıcı açabilir.
 - Her tarafta **en az 3 piyon** (piyon-duvarı için gerekli minimum).
-- **Terfi tutarlılığı** (her iki taraf): fazladan taşların toplamı, feda edilebilecek piyon bütçesini aşmamalı. `extra = max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8−P`. Karma fazlalıklar (örn. 1 fazla at + 1 fazla fil) birikimli olarak tek bütçeye vurur. Kale terimi yoktur: kale zaten bir üstteki kuralla elenir.
+- **Terfi tutarlılığı** (her iki taraf): başlangıç kadrosunu (2 kale, 2 at, 2 fil) aşan her taş bir terfiden gelmiş olmalıdır ve her terfi bir piyona mal olur. Eksik piyon sayısı `8−P` bütçedir: `extra = max(0,R−2) + max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8−P`. Karma fazlalıklar (örn. 1 fazla kale + 1 fazla at) birikimli olarak tek bütçeye vurur.
+
+**Kale kapsam dışı değildir.** Kale duvar boyunca kayabildiği için eskiden K1'de eleniyordu; artık K2'nin hareketsizlik şartına tabidir — hareket edebilen bir kale zaten kilidi anında kırar, edemiyorsa pozisyon değerlendirilmeye devam eder. Bu, kapsamı daraltmadan genişletir.
 
 Sağlanmıyorsa → **KAPSAM DIŞI** (arayüzde). Bu bir materyal ön-koşuludur; pozisyon değerlendirilemez.
 
-### Kontrol 2 — At hareketsizliği + fil erken-kırıcısı
+### Kontrol 2 — At/kale hareketsizliği + fil erken-kırıcısı
 
-**At (`knightHasMove`):** İki taraf için, herhangi bir atın locked-legalite'de bir hamlesi (boş kareye gitme veya rakip taş alma) varsa → kilit değil. At piyon duvarının üstünden sıçrayabildiği için, gerçek kilitte tüm atlar kendi taşlarına gömülü olmalıdır. Saf geometri; şah güvenliğine bakılmaz. (Kale K1'de elendiği için bu kontrol yalnız ata düşer.)
+**At ve kale (`knightOrRookHasMove`):** İki taraf için, herhangi bir atın **veya kalenin** locked-legalite'de bir hamlesi (boş kareye gitme veya rakip taş alma) varsa → kilit değil. At piyon duvarının üstünden sıçrar, kale duvar boyunca kayar; gerçek bir kilitte ikisi de kendi taşlarına tamamen gömülü olmalıdır. Ölçüt saf geometridir: hamle edince şahın açıkta kalıp kalmayacağı sorulmaz, yalnızca "gidebileceği bir kare var mı, yoksa hepsi kendi taşlarıyla mı kapalı" sorulur.
 
 **Fil erken-kırıcısı (`bishopEarlyBreak`):** Fil yalnız kendi renginde gezer/alır ve kendi piyonunu alamaz. Eşik piyonu = **her iki renkten piyon bulunan** her sütundaki en ileri beyaz ve en ileri siyah piyon (birikmede dış piyon). Kural:
 
@@ -113,16 +130,21 @@ Budamalar (`check3`, yalnız "kilit değil" yönünde):
 
 Motorun ep karesi, K4'ün kök düğümüne geçirilir. Orada piyon çapraz-alım taraması ep alımını (sütun-değiştiren geri-dönülemez hamle) doğal olarak yakalar. Ep hakkı yalnız sırası olan taraftadır ve yalnızca kök düğümde geçerlidir (bir hamle sonrası düşer). Ayrı bir ep bloğuna gerek yoktur — akışın içindedir.
 
+Bunun bir sonucu var: ep hakkı varken pozisyon **kilit sayılamaz**, hak düştüğü anda kilide dönüşebilir. Hakkın düşmesi geri-alınabilir bir hamleyle olduğu için taramayı `halfmove` kuralı tetiklemez; bu yüzden §5'teki `ep` tetikleyicisi vardır.
+
 ### Kontrol 4 — Simülasyon: iç içe yayılım
 
 En pahalı ve en güçlü kontrol. İki katmanlı yayılım (`mainSpread` + `subSpreadBreaks`):
 
 **Ana yayılım:** Bir "ana taş" (piyon, fil veya şah), çok-adımlı geri-alınabilir hamlelerle (boş kareye kayma) tahtada gezer. Ana taş 3 kez değişir (P, B, K), her biri iki taraf için → 6 ana yayılım. **Her durakta**, `anyBreakerFull` diğer taş türlerinin bir kırıcı açıp açmadığını kontrol eder.
 
+**Düğümlenme (her düğümde):** Ana taş her durakta, `anyKnightOrRookMobile` iki tarafın atlarını ve kalelerini yeniden yoklar. Taşlar gezerken gömülü bir at veya kale serbest kalıyorsa kilit **anında** kırılır. Bu, K2'nin kök düğümdeki statik testinin dinamik karşılığıdır.
+
 **Kırıcı = geri-dönülemez hamle**, ama her taş türü için farklı tanımlanır:
 
 - **Piyon:** terfi **veya** çapraz (sütun-değiştiren) alım **veya** en passant → kırıcı. Düz ilerleme kırıcı değil, sadece yeni düğüm açar.
 - **Fil:** taş alımı (karşı şah hariç) **veya** şah-çek-mat (`bishopCheckIsMate` ile motora doğrulatılır) → kırıcı. Boş kareye kayma kırıcı değil.
+- **At / kale:** ana taş olmazlar (kilit adayında zaten hareketsizdirler) ve `pieceMoves` üzerinden sorgulanırlar; katkıları yalnızca düğümlenme testidir.
 - **Şah:** kendisi kırıcı üretmez; sadece gezerek başka taşların önünü açar. Ana taş şahken karşı şah silinir (iki şah bitişemez) ve şah karşı piyon tehdidine takılır.
 
 Her düğümde tüm türler kontrol edildiği için, bir tarafın taşının hareketiyle diğer tarafın (ör. filinin) kırıcı yolunun açılması da yakalanır — bu, iki taşlı helper-mate senaryolarını kapsar (bir fil şahı sıkıştırır, diğer fil mat eder).
@@ -143,7 +165,18 @@ Kilit tespiti pahalıdır (özellikle çok-fil pozisyonlarında). Bu yüzden hak
 
 Beraberlik kontrolleri ucuzdan pahalıya sıralanır: `mat/pat → ölü materyal → 75/50 hamle → 5/3 tekrar → kilit`. Kilit yalnız diğer hiçbir beraberlik tetiklenmediyse hesaplanır.
 
-Ayrıca kilit yalnız **halfmove sayacı 0 iken** (yani son hamle bir taş alımı veya piyon sürmesiydi) kontrol edilir. Çünkü kilit ancak geri-dönülemez bir hamleden hemen sonra oluşabilir; geri-alınabilir hamleler duvar yapısını değiştirmez. Kilit bir kez oluşunca kalıcıdır ve oluştuğu anda (halfmove 0) yakalanır. Bu, gereksiz taramayı büyük ölçüde eler (ölçümde ~500× hızlanma).
+### Tetikleyici katmanı (`lockTrigger`)
+
+Kilidin *ne zaman* taranacağına ayrı bir dış katman karar verir: `lockTrigger(fen, prevFen)` → `'halfmove' | 'ep' | null`. Kural hattının içine gömülü bir `if` değil, bağımsız olarak çağrılabilen ve dışa açılan bir işlevdir. Kilit ancak pozisyonun geleceğinin geri-dönülemez biçimde daraldığı bir anda **oluşabilir**; katman bu anları tanır:
+
+- **`halfmove`** — son hamle bir taş alımı veya piyon sürmesiydi (`halfmove` 0'a düştü), yani duvar yapısının kendisi değişti.
+- **`ep`** — bir en passant hakkı **düştü**. Hak varken kendisi bir kilit-kırıcıydı (K4 kök düğümde ep alımını görür), dolayısıyla pozisyon kilit sayılamazdı. Hakkın düşmesine yol açan hamle ise geri-alınabilirdir, yani `halfmove` **0 değildir** — tek başına `halfmove` kuralı böyle bir kilidi sonsuza dek kaçırırdı.
+
+Bu anların dışında pozisyon, zaten taranmış bir pozisyonun yeniden dizilişidir; tarama atlanır. Bir tetikleyiciyi kaçırmak completeness'a mal olur, **asla soundness'a değil**: taranmamış bir kilit yalnızca "kilit değil" diye raporlanır.
+
+`prevFen` son hamleden **önceki** pozisyondur; verilmezse yalnız `halfmove` kuralı çalışabilir. Bu, gereksiz taramayı büyük ölçüde eler (ölçümde ~500× hızlanma).
+
+Somut örnek: `4k3/4p3/3p4/1p1P3p/1P2P2P/8/8/1K6 b - - 0 1` pozisyonunda siyah `e7-e5` oynar; ep karesi `e6` açılır ve `dxe6 e.p.` kilidi kırdığı için hüküm "devam"dır. Beyaz `Kb1-a1` gibi geri-alınabilir bir hamle yapınca ep hakkı düşer ve pozisyon mutlak kilide dönüşür — `halfmove` 1 olduğu için eski kapı bunu hiç taramazdı, `ep` tetikleyicisi yakalar.
 
 ---
 
@@ -155,32 +188,42 @@ Ayrıca kilit yalnız **halfmove sayacı 0 iken** (yani son hamle bir taş alım
 
 - **İddia alt sınırı — 50 hamle / 3 tekrar:** açık/kapalı. Oyuncu iddia ederse berabere (otomatik bitmez). Kapatılırsa iddiayla bitmez — ör. K+R vs K+Q gibi uzun sonlarda kazanan matı bulana dek oynamak zorunda kalır.
 - **Otomatik bitme üst sınırı — 75 hamle / 5 tekrar:** açık/kapalı. FIDE'nin zorunlu tavanı; iddiaya gerek kalmadan otomatik berabere.
-- **Resign bayrak düşmesi sayılır / sayılmaz:** açıksa (FIDE 5.1.2 / karma) terk eden, rakip mat kuramıyorsa berabere; kapalıysa (USCF) terk doğrudan kayıp. (Arayüzde terk butonu henüz yok; bu bayrak üretilen motorun `resign()` API davranışını belirler.)
-- **Bayrak düşmesi mat ölçütü — Helper / Forced:** Helper (FIDE — saf geometri, arama yok) veya Forced (USCF / karma — hafif taşlarda arama). Forced seçiliyse **derinlik** (1–10) girilir.
+- **Resign bayrak düşmesi sayılır / sayılmaz:** açıksa (FIDE 5.1.2 / karma) terk eden, rakip mat kuramıyorsa berabere; kapalıysa (USCF) terk doğrudan kayıp. (Motor Deneme'deki terk butonları ve üretilen motorun `resign()` API'si aynı bayrağı okur.)
+- **Bayrak düşmesi mat ölçütü — FIDE / USCF / Karma:** `src-flag`'teki **üç sınıflandırıcının üçü de** doğrudan seçilebilir; seçim `ARBITER_CONFIG.flag` alanına olduğu gibi yazılır. FIDE aramasızdır; USCF ve karma seçildiğinde **derinlik** (1–10) girilir.
 - **Kilitli pozisyon taraması:** var/yok. Seçilince motora dahil edilir.
+
+> Bu seçenek eskiden ikili bir *helper / forced* anahtarıydı ve `forced` her iki durumda da karma sınıflandırıcıya bağlanıyordu — yani USCF preset'i seçilip indirilen motor aslında karma kuralla hükmediyordu. Artık `flag` birincil alandır, `mate` yalnız türetilmiş bir etikettir.
 
 **Kısıt:** İddia veya otomatik bitmeden en az biri seçili olmalıdır (aksi halde indirme kilitlenir).
 
 ### Üç hazır preset
 
-| | İddia 50/3 | Otomatik 75/5 | Resign = bayrak | Mat ölçütü | Kilit |
+| | İddia 50/3 | Otomatik 75/5 | Resign = bayrak | Bayrak sınıflandırıcısı (`flag`) | Kilit |
 |---|---|---|---|---|---|
-| **FIDE** | açık | açık | evet | helper | var |
-| **USCF** | açık | kapalı | hayır | forced | var |
-| **Karma** | kapalı | açık | evet | forced | var |
+| **FIDE** | açık | **açık** | evet | `fide` — helper mate, aramasız | var |
+| **USCF** | açık | **kapalı** | hayır | `uscf` — forced mate | var |
+| **Karma** | **kapalı** | açık | evet | `ours` — forced mate + tek-sütun piyon kuralı | var |
 
-Presetlerden bağımsız özel yapılandırmalar da üretilebilir.
+Bu tablo kodda tek bir yerde (`RULESETS`) yaşar ve hem Motor Üretici preset'lerini hem Motor Deneme federasyonlarını hem de üretilen her motoru besler; üç yerde ayrıklaşması mümkün değildir. Pratik sonuçları:
+
+- **FIDE** — 50 hamle / 3 tekrarda taraf *iddia edebilir*; 75 hamle / 5 tekrarda iddiaya gerek kalmadan **otomatik berabere**.
+- **USCF** — 50 hamle / 3 tekrarda iddia edilebilir, ama **otomatik tavan yoktur**: iddia gelmezse oyun 75/5'i geçse bile sürer.
+- **Karma** — **iddia yoktur** (50/3'te oyun sürer); yalnız 75 hamle / 5 tekrarda otomatik berabere.
+
+Presetlerden bağımsız özel yapılandırmalar da üretilebilir. Motor Deneme'nin "özel" seçeneği aynı seçenek kümesini sunar, dolayısıyla orada kurulan her kural seti birebir indirilebilir bir motora karşılık gelir. Özel'e geçildiğinde kontroller o an aktif olan kural setinden doldurulur.
 
 ### Üretilen motor API'si
 
 Üretilen motor `Arbiter()` API'si sunar:
 
 - `adjudicate(fen, repCount)` — tam pozisyon hükmü (`{ over, result, reason }`).
+- `adjudicate(fen, { repCount, prevFen })` — aynısı, ama `prevFen` verildiğinde **ep tetikleyicisi** de çalışır. Sayı biçimi geriye dönük uyumlu kalır; o biçimde yalnız `halfmove` tetikleyicisi devrededir.
+- `lockTrigger(fen, prevFen)` — kilit taramasının gerekip gerekmediği (`'halfmove' | 'ep' | null`).
 - `flagFall(fen, whiteLostOnTime)` — bayrak düşmesi (`{ result, reason }`).
 - `resign(fen, whiteResigns)` — terk hükmü (resignIsFlag'e göre).
 - `isLocked(fen)` — kilit seçiliyse (`{ locked, reason }`).
 
-Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motoru, `makeFlagClassifier` (bayrak sınıflandırıcısı) ve seçiliyse `makeLockDetector` — sayfadakiyle birebir aynıdır (`src-engine`, `src-flag`, `src-lock` bloklarından okunur).
+Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motoru, `makeFlagClassifier`, `makeArbiter` ve seçiliyse `makeLockDetector` — sayfadakiyle birebir aynıdır: `buildEngineSource` bu blokların metnini `src-engine`, `src-flag`, `src-arbiter`, `src-lock` script etiketlerinden okuyup dosyaya yapıştırır, üretilen tek şey `ARBITER_CONFIG` ve ince `Arbiter()` sarmalayıcısıdır. Kural hattı **üretilmez**, yalnızca yapılandırmaya bağlanır.
 
 ---
 
@@ -189,8 +232,8 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 `makeLockDetector(PA)` bir fabrika fonksiyonudur; motor nesnesini (`PA`) alır ve kilit-tespit API'sini döndürür. Kaynak sayfadaki `src-lock` bloğudur; motor üretici bu bloğu olduğu gibi okuyup ürettiği `.js` dosyasına gömer, yani sayfa ile indirilen motor birebir aynı kodu çalıştırır. Başlıca bileşenler:
 
 - **Yardımcılar:** `fenToBoard`, `boardToFen`, `boardToPlacement` (tahta temsil dönüşümleri).
-- **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli; yalnız P/N/B/K üretir — vezir ve kale K1'de elendiği için dalları yoktur).
-- **Kontroller:** `check1`, `knightHasMove`, `bishopEarlyBreak`, `check3`, `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull`, `kingReachesOpponent`.
+- **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli; P/N/B/R/K üretir — vezir K1'de elendiği için dalı yoktur). Yön sabitleri: `KNIGHT_D`, `KING_D`, `BISHOP_D`, `ROOK_D`.
+- **Kontroller:** `check1`, `knightOrRookHasMove`, `anyKnightOrRookMobile` (düğümlenme), `bishopEarlyBreak`, `check3`, `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull`, `kingReachesOpponent`.
 - **Mat doğrulaması:** `bishopCheckIsMate` (fil şah-mat kırıcısı için gerçek motora danışır).
 - **Giriş noktası:** `isLocked(fen)` → `{ locked, reason }`.
 
@@ -200,9 +243,10 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 
 ## 8. Notlar ve sınırlar
 
-- Kilit tespiti şu anda piyon-yapılı (duvar temelli) kilitlere odaklıdır; vezir veya kale içeren pozisyonlar ve 26 taştan kalabalık pozisyonlar kapsam dışıdır (K1).
+- Kilit tespiti piyon-yapılı (duvar temelli) kilitlere odaklıdır; vezir içeren ve 30 taştan kalabalık pozisyonlar kapsam dışıdır (K1). Kale kapsam içindedir: hareketsizse değerlendirilir, hareketliyse K2'de kilidi kırar.
 - Fil erken-kırıcısı ve fil-void budaması, çok-fil pozisyonlarındaki taramayı hızlandırır ama bazı ağır pozisyonlar (çok sayıda hareketli fil) yine de görece yavaş kalabilir; bu, soundness'tan ödün vermeden yapılan bilinçli bir denge.
-- Bayrak düşmesi mat ölçütü olarak **helper mate** (FIDE — saf geometri) ve **forced mate** (USCF / karma — arama) yaklaşımlarının ikisi de tamamdır ve motor üreticide seçilebilir.
-- Bayrak sınıflandırıcısı (`makeFlagClassifier`, `src-flag`) hem arayüz hem üretilen motor tarafından ortak kaynak olarak kullanılır; böylece iki yerde tutarlılık garanti edilir.
-- Resign (terk) hükmü için `resign()` API'si ve `resignIsFlag` yapılandırması hazırdır; arayüzde terk butonu henüz yoktur (açık kapı bırakılmıştır).
+- Bayrak düşmesi mat ölçütünün üç sınıflandırıcısı da (FIDE helper, USCF forced, karma forced) tamamdır ve Motor Deneme'de de Motor Üretici'de de seçilebilir.
+- Bayrak sınıflandırıcısı (`makeFlagClassifier`, `src-flag`) ve hüküm hattı (`makeArbiter`, `src-arbiter`) hem arayüz hem üretilen motor tarafından ortak kaynak olarak kullanılır; böylece iki yerde tutarlılık garanti edilir.
+- Terk hükmü `resign()` API'si ve `resignIsFlag` yapılandırmasıyla çalışır; Motor Deneme'deki terk butonları da aynı yolu kullanır.
+- Dil katmanı (`src-i18n`) yalnız **görüntüleme anında** devreye girer. Çekirdek — özellikle `isLocked` — gerekçelerini Türkçe döndürmeye devam eder; sınıflandırma bu Türkçe metin üzerinden yapılır, çeviri `trReason` ile en son uygulanır. Dil değiştirmek bir hükmü **yeniden hesaplamaz**, yalnız yeniden çizer (kilit taraması pahalı olduğu için bu önemlidir).
 - `src-lock` C++/Java'ya taşınmaya uygundur; o durumda tahta temsili bitboard'a çevrilerek (`boardToPlacement` string anahtarları yerine sayısal anahtarlar) önemli hız kazancı elde edilebilir.

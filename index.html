@@ -749,7 +749,7 @@
             açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100
             sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi,
             kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları
-            sağlanmıyor — ör. vezir, kale, 26+ taş veya terfi-tutarsız materyal;
+            sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal;
             değerlendirilemez). Fark yaratan kareler vurgulanır.
           </p>
           <div class="row" style="margin-top: 0.8rem; align-items: flex-start">
@@ -978,14 +978,18 @@
                     <label
                       ><input
                         type="radio"
-                        name="pcMate"
-                        value="helper"
+                        name="pcFlag"
+                        value="fide"
                         checked />
-                      <span data-i18n="build.mate.helper"></span
+                      <span data-i18n="build.flag.fide"></span
                     ></label>
                     <label
-                      ><input type="radio" name="pcMate" value="forced" />
-                      <span data-i18n="build.mate.forced"></span
+                      ><input type="radio" name="pcFlag" value="uscf" />
+                      <span data-i18n="build.flag.uscf"></span
+                    ></label>
+                    <label
+                      ><input type="radio" name="pcFlag" value="ours" />
+                      <span data-i18n="build.flag.ours"></span
                     ></label>
                   </div>
                 </div>
@@ -1072,8 +1076,8 @@
                 helper/forced mat kuramıyorsa berabere. Kapalı (USCF): terk
                 doğrudan kayıp.
                 <span class="hint" style="margin: 0"
-                  >(Arayüzde terk butonu henüz yok; bu bayrak üretilen motorun
-                  API davranışını belirler.)</span
+                  >(Motor Deneme'deki terk butonları ve üretilen motorun
+                  <code>resign()</code> API'si aynı bayrağı okur.)</span
                 >
               </div>
             </div>
@@ -1085,23 +1089,34 @@
               <div class="d" data-i18n="build.mate.d"></div>
               <div class="radiogrp">
                 <label
-                  ><input type="radio" name="cfgMate" value="helper" checked />
-                  <span data-i18n="build.mate.helper"></span>
+                  ><input type="radio" name="cfgFlag" value="fide" checked />
+                  <span data-i18n="build.flag.fide"></span>
                   <span
                     class="hint"
                     style="margin: 0"
-                    data-i18n="build.mate.helperNote"
+                    data-i18n="build.flag.fideNote"
                   ></span
                 ></label>
               </div>
               <div class="radiogrp">
                 <label
-                  ><input type="radio" name="cfgMate" value="forced" />
-                  <span data-i18n="build.mate.forced"></span>
+                  ><input type="radio" name="cfgFlag" value="uscf" />
+                  <span data-i18n="build.flag.uscf"></span>
                   <span
                     class="hint"
                     style="margin: 0"
-                    data-i18n="build.mate.forcedNote"
+                    data-i18n="build.flag.uscfNote"
+                  ></span
+                ></label>
+              </div>
+              <div class="radiogrp">
+                <label
+                  ><input type="radio" name="cfgFlag" value="ours" />
+                  <span data-i18n="build.flag.ours"></span>
+                  <span
+                    class="hint"
+                    style="margin: 0"
+                    data-i18n="build.flag.oursNote"
                   ></span
                 ></label>
               </div>
@@ -2283,12 +2298,15 @@
    side to move) is ignored — a relaxation that is safe for soundness.
 
    FIVE CHECKS (in order; the first match returns "not locked"):
-   K1: 8 ≤ pieces ≤ 26, exactly 1+1 kings, no queen, no rook, ≥3 pawns a side,
-       promotion-consistent.
-   K2: knights immobile under locked-legality (both sides) + bishop early-breaker.
+   K1: 8 ≤ pieces ≤ 30, exactly 1+1 kings, no queen, ≥3 pawns a side,
+       promotion-consistent (surplus R/N/B charged against the missing-pawn budget).
+   K2: knights AND rooks immobile under locked-legality (both sides) + bishop
+       early-breaker. Both jump or slide past the wall, so both must be buried.
    K3: pawn bricks (direction-sensitive) + geometric pruning.
    K4: three main nodes (pawn/bishop/king) × two sides, nested spread; all breakers
        at every node + ep + mate. Bishop-void pruning skips branches P and B.
+       KNOTTING: knight/rook mobility is retested at EVERY node, so a shuffle that
+       frees a buried knight or rook breaks the lock immediately.
    K5: final king guarantee — with only the pawn wall left, can one king reach the other?
    Each check tests the SIDE TO MOVE first, then the opponent.
    ═══════════════════════════════════════════════════════════════════════ */
@@ -2391,6 +2409,12 @@
           [1, -1],
           [1, 1],
         ];
+        const ROOK_D = [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ];
 
         function slideMoves(b, r, c, dirs, white) {
           const out = [];
@@ -2458,6 +2482,8 @@
                 .map(([nr, nc]) => ({ r: nr, c: nc, capture: !!b[nr][nc] }));
             case "B":
               return slideMoves(b, r, c, BISHOP_D, white);
+            case "R":
+              return slideMoves(b, r, c, ROOK_D, white);
           }
           return [];
         }
@@ -2496,22 +2522,27 @@
               B.K,
           };
         }
+        // Promotion consistency: every piece BEYOND the starting complement (2 rooks,
+        // 2 knights, 2 bishops, 1 queen) must have come from a promoted pawn, and each
+        // promotion costs one pawn. Missing pawns = 8 - P, so the surplus cannot exceed
+        // that budget. Mixed surpluses accumulate against the one budget.
         function promotionConsistent(c) {
           if (c.P > 8) return false;
           const extra =
-            Math.max(0, c.N - 2) + Math.max(0, c.B - 2) + Math.max(0, c.Q - 1);
+            Math.max(0, c.R - 2) +
+            Math.max(0, c.N - 2) +
+            Math.max(0, c.B - 2) +
+            Math.max(0, c.Q - 1);
           return extra <= 8 - c.P;
         }
         function check1(b) {
           const m = countMaterial(b);
-          if (m.total < 8 || m.total > 26)
-            return { ok: false, why: "taş sayısı " + m.total + " (8–26 dışı)" };
+          if (m.total < 8 || m.total > 30)
+            return { ok: false, why: "taş sayısı " + m.total + " (8–30 dışı)" };
           if (m.W.K !== 1 || m.B.K !== 1)
             return { ok: false, why: "her tarafta tam 1 şah olmalı" };
           if (m.W.Q > 0 || m.B.Q > 0)
             return { ok: false, why: "vezir bulunamaz" };
-          if (m.W.R > 0 || m.B.R > 0)
-            return { ok: false, why: "kale bulunamaz" };
           if (m.W.P < 3 || m.B.P < 3)
             return { ok: false, why: "her taraf en az 3 piyon" };
           if (!promotionConsistent(m.W))
@@ -2594,16 +2625,23 @@
         // CHECK 2 — KNIGHT IMMOBILITY. K1 already rules out rooks, so this falls to the
         //   knight alone: if any knight has a locked-legality move (empty square or enemy
         //   capture), the lock is broken. Pure geometry; king safety is ignored.
-        function knightHasMove(b, white) {
+        // CHECK 2 — KNIGHT / ROOK IMMOBILITY.
+        //   A knight jumps the pawn wall and a rook slides along it, so in a genuine lock
+        //   BOTH must be completely buried in their own pieces. Pure geometry: no check
+        //   safety, no turn order — can the piece reach any square at all (empty square
+        //   or enemy capture), or is every destination blocked by its own men?
+        //   Returns the piece name (truthy) or null. Tested for both sides.
+        function knightOrRookHasMove(b, white) {
           for (let r = 0; r < 8; r++)
             for (let c = 0; c < 8; c++) {
               const p = b[r][c];
               if (!p || isWhite(p) !== white) continue;
-              if (p.toUpperCase() === "N") {
-                if (pieceMoves(b, r, c, null).length > 0) return true;
-              }
+              const t = p.toUpperCase();
+              if (t !== "N" && t !== "R") continue;
+              if (pieceMoves(b, r, c, null).length > 0)
+                return t === "N" ? "at" : "kale";
             }
-          return false;
+          return null;
         }
 
         // CHECK 2 — BISHOP EARLY-BREAKER (geometric pruning).
@@ -2700,9 +2738,13 @@
         // LOCK-BREAKER TESTS (locked-legality based, on a given board)
         // ─────────────────────────────────────────────────────────────────────
 
-        // Is any knight mobile, on either side?
-        function anyKnightMobile(b) {
-          return knightHasMove(b, true) || knightHasMove(b, false);
+        // Is any knight OR rook mobile, on either side? This is the KNOTTING test: it runs
+        // at every spread node, so the moment a shuffle frees a buried knight or rook the
+        // lock breaks immediately.
+        function anyKnightOrRookMobile(b) {
+          return !!(
+            knightOrRookHasMove(b, true) || knightOrRookHasMove(b, false)
+          );
         }
 
         // Is (r,c) attacked by a byWhite PAWN?
@@ -2762,7 +2804,7 @@
             const [b, epSq] = stack.pop();
 
             // Does this piece type have a BREAKER move here? + knight legality?
-            if (anyKnightMobile(b)) return true;
+            if (anyKnightOrRookMobile(b)) return true;
 
             for (let r = 0; r < 8; r++)
               for (let c = 0; c < 8; c++) {
@@ -2910,7 +2952,7 @@
         // ── Are there ANY lock-breakers on a board? (knight + pawn + bishop spread)
         //    Called at every main node. Pawns and bishops use multi-step sub-spread.
         function anyBreakerFull(b, epSq, epWhite) {
-          if (anyKnightMobile(b)) return true;
+          if (anyKnightOrRookMobile(b)) return true;
           // Ep rights belong only to the side to move → pass them to that side's pawn scan.
           if (subSpreadBreaks(b, "P", true, epWhite === true ? epSq : null))
             return true;
@@ -3002,13 +3044,15 @@
           const sides = [stm, !stm];
           const nm = (w) => (w ? "beyaz" : "siyah");
 
-          // K2: knights immobile (both sides) + bishop early-breaker
-          for (const w of sides)
-            if (knightHasMove(b, w))
+          // K2: knights AND rooks immobile (both sides) + bishop early-breaker
+          for (const w of sides) {
+            const mob = knightOrRookHasMove(b, w);
+            if (mob)
               return {
                 locked: false,
-                reason: "K2 — " + nm(w) + " at hareketli",
+                reason: "K2 — " + nm(w) + " " + mob + " hareketli",
               };
+          }
           const bEB = bishopEarlyBreak(b);
           if (bEB)
             return {
@@ -3075,10 +3119,10 @@
           promotionConsistent,
           check1,
           check3,
-          knightHasMove,
+          knightOrRookHasMove,
           bishopEarlyBreak,
           bishopsFullyVoid,
-          anyKnightMobile,
+          anyKnightOrRookMobile,
           pawnAttacksSquare,
           bishopCheckIsMate,
           subSpreadBreaks,
@@ -3398,12 +3442,46 @@
           return v;
         }
 
+        /* ── LOCK TRIGGER LAYER ───────────────────────────────────────────────
+     When is it even POSSIBLE for a lock to have just come into being? Only at a
+     moment when the position's future irreversibly narrowed:
+
+       'halfmove' — the last move was a capture or a pawn push (halfmove reset to 0),
+                    so the wall structure itself just changed.
+       'ep'       — an en passant right just LAPSED. While it existed it was itself a
+                    lock-breaker (K4 sees the ep capture at its root node), so the
+                    position could not be ruled locked. The move that lets it expire
+                    is reversible, so halfmove is NOT 0 — the halfmove rule alone
+                    would miss such a lock forever.
+
+     Between these moments the position is only a reshuffle of one already scanned, so
+     the scan is skipped. Missing a trigger costs completeness, never soundness: an
+     unscanned lock is simply reported as "not locked".
+
+     prevFen is the position BEFORE the last move; without it only the halfmove rule
+     can fire. Returns the trigger name or null. */
+        function fenField(fen, i) {
+          return String(fen).trim().split(/\s+/)[i];
+        }
+        function fenEp(fen) {
+          var e = fenField(fen, 3);
+          return e && e !== "-" ? e : null;
+        }
+        function lockTrigger(fen, prevFen) {
+          var h = parseInt(fenField(fen, 4), 10);
+          if (!Number.isFinite(h) || h === 0) return "halfmove";
+          if (prevFen && fenEp(prevFen) && !fenEp(fen)) return "ep";
+          return null;
+        }
+
         /* Full position verdict. Draw checks run CHEAPEST FIRST and the lock scan is
-     LAST, since it is by far the most expensive. A lock can only arise directly
-     after an irreversible move (halfmove 0), so it is computed only then.
-     Note the automatic ceiling and the claimable floor can never contend with the
-     lock scan: they need halfmove ≥ 100, the lock needs halfmove 0. */
-        function adjudicate(fen, repCount) {
+     LAST, since it is by far the most expensive; lockTrigger decides whether it runs
+     at all. `ctx` is either a repetition count (legacy) or
+     { repCount, prevFen } — prevFen is what enables the 'ep' trigger. */
+        function adjudicate(fen, ctx) {
+          var repCount = typeof ctx === "number" ? ctx : ctx && ctx.repCount;
+          var prevFen =
+            ctx && typeof ctx === "object" && ctx.prevFen ? ctx.prevFen : null;
           var p = PA.createPosition();
           var r = p.loadFen(String(fen).trim());
           if (!r.ok)
@@ -3461,7 +3539,8 @@
               whiteToMove: whiteToMove,
             });
 
-          if (CFG.lock && LOCK && half === 0) {
+          var trig = CFG.lock && LOCK ? lockTrigger(p.getFen(), prevFen) : null;
+          if (trig) {
             try {
               var lk = LOCK.isLocked(String(fen).trim());
               if (lk.locked)
@@ -3471,6 +3550,7 @@
                   code: "adj.locked",
                   data: { reason: lk.reason },
                   lockReason: lk.reason,
+                  lockTrigger: trig,
                   whiteToMove: whiteToMove,
                 });
             } catch (e) {
@@ -3510,6 +3590,7 @@
 
         return {
           fenRows: fenRows,
+          lockTrigger: lockTrigger,
           flagFall: flagFall,
           resign: resign,
           adjudicate: adjudicate,
@@ -3529,22 +3610,32 @@
    ══════════════════════════════════════════════════════════════════ */
       function buildEngineSource(cfg) {
         // cfg fields: claim (bool, 50/3 claimable), hardCap (bool, 75/5 automatic),
-        //   resignIsFlag (bool), mate ('helper'|'forced'), depth (int 1-10), lock (bool).
-        const mateHelper = cfg.mate === "helper";
+        //   resignIsFlag (bool), flag ('fide'|'uscf'|'ours'), depth (int 1-10), lock (bool).
+        // `flag` is written straight through, so ALL THREE classifiers in src-flag are
+        // reachable from a generated engine — it used to be squeezed into a helper/forced
+        // boolean, which silently mapped the USCF preset onto the hybrid classifier.
+        const FLAG_DESC = {
+          fide: "FIDE — helper mate (pure geometry, no search)",
+          uscf: "USCF — forced mate (depth " + cfg.depth + ")",
+          ours: "hybrid — forced mate (depth " + cfg.depth + ")",
+        };
+        const flag = FLAG_DESC[cfg.flag] ? cfg.flag : "fide";
         const HEADER = `/* Perfect Arbiter — configured arbiter engine
    Build configuration:
      • 50 moves / 3 repetitions (claim) : ${cfg.claim ? "ON" : "off"}
      • 75 moves / 5 repetitions (auto)  : ${cfg.hardCap ? "ON" : "off"}
      • Resignation counts as flag fall  : ${cfg.resignIsFlag ? "YES" : "no"}
-     • Flag-fall mate criterion         : ${mateHelper ? "helper mate (pure geometry)" : "forced mate (depth " + cfg.depth + ")"}
+     • Flag-fall mate criterion         : ${FLAG_DESC[flag]}
      • Locked-position detection        : ${cfg.lock ? "INCLUDED" : "excluded"}
 
    Usage (Node or browser):
      const A = Arbiter();
      A.adjudicate(fen, repCount);       // → { over, result, code, reason }
+     A.adjudicate(fen, { repCount, prevFen });  // prevFen enables the ep-lapse
+                                        // lock trigger; without it only halfmove 0 does
      A.flagFall(fen, whiteLostOnTime);  // → { result, code, reason }
      A.resign(fen, whiteResigns);       // → { result, code, reason }
-     ${cfg.lock ? "A.isLocked(fen);                   // → { locked, reason }" : ""}
+     ${cfg.lock ? "A.isLocked(fen);                   // → { locked, reason }\n     A.lockTrigger(fen, prevFen);       // → 'halfmove' | 'ep' | null" : ""}
 */
 `;
 
@@ -3553,8 +3644,8 @@ var ARBITER_CONFIG = {
   claim:        ${cfg.claim ? "true" : "false"},   // ${cfg.claim ? "50/3 claimable floor" : "no claimable floor"}
   hardCap:      ${cfg.hardCap ? "true" : "false"},   // ${cfg.hardCap ? "75/5 automatic ceiling" : "no automatic ceiling"}
   resignIsFlag: ${cfg.resignIsFlag ? "true" : "false"},   // is resignation ruled like a flag fall
-  flag:         '${mateHelper ? "fide" : "ours"}',   // fide = pure geometry; ours = forced mate + hybrid rule
-  depth:        ${cfg.depth},
+  flag:         '${flag}',   // fide = helper mate (geometry) | uscf = forced mate | ours = forced mate + single-file pawn rule
+  depth:        ${cfg.depth},   // ignored when flag = 'fide'
   lock:         ${cfg.lock ? "true" : "false"}
 };
 `;
@@ -3570,6 +3661,7 @@ function Arbiter(){
     config: ARBITER_CONFIG,
     adjudicate: A.adjudicate,
     flagFall: A.flagFall,
+    lockTrigger: A.lockTrigger,
     resign: A.resign${cfg.lock ? ",\n    isLocked: function(fen){ return LOCK.isLocked(fen); }" : ""}
   };
 }
@@ -3714,7 +3806,7 @@ if (typeof module !== 'undefined')
             /* ── Locked position ── */
             "lock.h2": "Kilitli Pozisyon Tespiti",
             "lock.hint":
-              "Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, kale, 26+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.",
+              "Mutlak berabere (helper iki taraf bile hiçbir geri-dönülemez hamle açamıyor) pozisyonları kanıtlar. Üç sonuç: <b>MUTLAK KİLİT</b> (%100 sound, kesin berabere), <b>KİLİT DEĞİL</b> (değerlendirildi, kilit-kırıcı var), <b>KAPSAM DIŞI</b> (materyal/yapı ön-koşulları sağlanmıyor — ör. vezir, 30+ taş veya terfi-tutarsız materyal; değerlendirilemez). Fark yaratan kareler vurgulanır.",
             "lock.btn": "🔒 Kilit Analizi Yap",
             "lock.pill.lock": "MUTLAK KİLİT",
             "lock.pill.scope": "KAPSAM DIŞI",
@@ -3817,15 +3909,18 @@ if (typeof module !== 'undefined')
             "build.flagSection": "Bayrak düşmesi hakemliği",
             "build.resign.t": "Resign de bayrak düşmesi sayılır",
             "build.resign.d":
-              'Açık (FIDE 5.1.2 / bizim karma): bir taraf terk ederse, rakip helper/forced mat kuramıyorsa berabere. Kapalı (USCF): terk doğrudan kayıp. <span class="hint" style="margin:0">(Arayüzde terk butonu henüz yok; bu bayrak üretilen motorun API davranışını belirler.)</span>',
+              'Açık (FIDE 5.1.2 / bizim karma): bir taraf terk ederse, rakip helper/forced mat kuramıyorsa berabere. Kapalı (USCF): terk doğrudan kayıp. <span class="hint" style="margin:0">(Motor Deneme\'deki terk butonları ve üretilen motorun <code>resign()</code> API\'si aynı bayrağı okur.)</span>',
             "build.mate.t": "Bayrak düşmesi vs. materyal — mat ölçütü",
             "build.mate.d":
-              "Bir tarafın süresi bittiğinde karşı tarafın mat edebilirliği nasıl ölçülür.",
-            "build.mate.helper": "Helper mate",
-            "build.mate.helperNote": "(FIDE — saf geometri, arama yok)",
-            "build.mate.forced": "Forced mate",
-            "build.mate.forcedNote":
-              "(USCF / karma — hafif taşlarda arama gerekir)",
+              "Bir tarafın süresi bittiğinde karşı tarafın mat edebilirliği nasıl ölçülür. Üç sınıflandırıcı da üretilen motora girebilir.",
+            "build.flag.fide": "FIDE — helper mate",
+            "build.flag.fideNote": "(saf geometri, arama yok)",
+            "build.flag.uscf": "USCF — forced mate",
+            "build.flag.uscfNote":
+              "(hafif taşlarda arama; iki at + rakipte piyon → doğrudan kazanç)",
+            "build.flag.ours": "Karma — forced mate",
+            "build.flag.oursNote":
+              "(arama; iki at + rakipte yalnız tek sütunda piyon → doğrudan kazanç)",
             "build.mate.depthLabel": "Forced mate derinliği",
             "build.mate.depthUnit": "yarım hamle (1–10)",
             "build.lockSection": "Kilitli pozisyon",
@@ -3839,9 +3934,12 @@ if (typeof module !== 'undefined')
             "build.sum.capOn": "<code>75/5</code> otomatik: <b>açık</b>",
             "build.sum.capOff": "<code>75/5</code> otomatik: kapalı",
             "build.sum.resign": "Resign bayrak sayılır: <b>{val}</b>",
-            "build.sum.mateHelper": "Bayrak: <b>helper mate</b> (saf geometri)",
-            "build.sum.mateForced":
-              "Bayrak: <b>forced mate</b>, derinlik <code>{depth}</code>",
+            "build.sum.flagFide":
+              "Bayrak: <b>FIDE helper mate</b> (saf geometri)",
+            "build.sum.flagUscf":
+              "Bayrak: <b>USCF forced mate</b>, derinlik <code>{depth}</code>",
+            "build.sum.flagOurs":
+              "Bayrak: <b>karma forced mate</b>, derinlik <code>{depth}</code>",
             "build.sum.lockOn": "Kilitli pozisyon: <b>dahil</b>",
             "build.sum.lockOff": "Kilitli pozisyon: hariç",
             "build.downloaded": "İndirildi: {name}",
@@ -3973,7 +4071,7 @@ if (typeof module !== 'undefined')
             /* ── Locked position ── */
             "lock.h2": "Locked Position Detection",
             "lock.hint":
-              "Proves absolute draws — positions where even two cooperating sides can open no irreversible move. Three outcomes: <b>ABSOLUTE LOCK</b> (100% sound, certain draw), <b>NOT LOCKED</b> (evaluated, a lock-breaker exists), <b>OUT OF SCOPE</b> (material or structure preconditions unmet — e.g. a queen, a rook, 26+ pieces, or promotion-inconsistent material; cannot be evaluated). The decisive squares are highlighted.",
+              "Proves absolute draws — positions where even two cooperating sides can open no irreversible move. Three outcomes: <b>ABSOLUTE LOCK</b> (100% sound, certain draw), <b>NOT LOCKED</b> (evaluated, a lock-breaker exists), <b>OUT OF SCOPE</b> (material or structure preconditions unmet — e.g. a queen, 30+ pieces, or promotion-inconsistent material; cannot be evaluated). The decisive squares are highlighted.",
             "lock.btn": "🔒 Run Lock Analysis",
             "lock.pill.lock": "ABSOLUTE LOCK",
             "lock.pill.scope": "OUT OF SCOPE",
@@ -4076,15 +4174,18 @@ if (typeof module !== 'undefined')
             "build.flagSection": "Flag-fall arbitration",
             "build.resign.t": "Resignation counts as a flag fall",
             "build.resign.d":
-              'On (FIDE 5.1.2 / our hybrid): if a player resigns and the opponent cannot construct a helper/forced mate, the game is a draw. Off (USCF): resignation is an outright loss. <span class="hint" style="margin:0">(There is no resign button in the interface yet; this flag governs the generated engine\'s API behaviour.)</span>',
+              'On (FIDE 5.1.2 / our hybrid): if a player resigns and the opponent cannot construct a helper/forced mate, the game is a draw. Off (USCF): resignation is an outright loss. <span class="hint" style="margin:0">(The resign buttons in Engine Test and the generated engine\'s <code>resign()</code> API read the same flag.)</span>',
             "build.mate.t": "Flag fall vs. material — mate criterion",
             "build.mate.d":
-              "How the opponent's ability to mate is measured when a player runs out of time.",
-            "build.mate.helper": "Helper mate",
-            "build.mate.helperNote": "(FIDE — pure geometry, no search)",
-            "build.mate.forced": "Forced mate",
-            "build.mate.forcedNote":
-              "(USCF / hybrid — requires a search on minor pieces)",
+              "How the opponent's ability to mate is measured when a player runs out of time. All three classifiers can be built into the generated engine.",
+            "build.flag.fide": "FIDE — helper mate",
+            "build.flag.fideNote": "(pure geometry, no search)",
+            "build.flag.uscf": "USCF — forced mate",
+            "build.flag.uscfNote":
+              "(search on minor pieces; two knights + a loser pawn → outright win)",
+            "build.flag.ours": "Hybrid — forced mate",
+            "build.flag.oursNote":
+              "(search; two knights + loser pawns all on one file → outright win)",
             "build.mate.depthLabel": "Forced-mate depth",
             "build.mate.depthUnit": "ply (1–10)",
             "build.lockSection": "Locked position",
@@ -4098,9 +4199,12 @@ if (typeof module !== 'undefined')
             "build.sum.capOn": "<code>75/5</code> automatic: <b>on</b>",
             "build.sum.capOff": "<code>75/5</code> automatic: off",
             "build.sum.resign": "Resignation counts as flag: <b>{val}</b>",
-            "build.sum.mateHelper": "Flag: <b>helper mate</b> (pure geometry)",
-            "build.sum.mateForced":
-              "Flag: <b>forced mate</b>, depth <code>{depth}</code>",
+            "build.sum.flagFide":
+              "Flag: <b>FIDE helper mate</b> (pure geometry)",
+            "build.sum.flagUscf":
+              "Flag: <b>USCF forced mate</b>, depth <code>{depth}</code>",
+            "build.sum.flagOurs":
+              "Flag: <b>hybrid forced mate</b>, depth <code>{depth}</code>",
             "build.sum.lockOn": "Locked position: <b>included</b>",
             "build.sum.lockOff": "Locked position: excluded",
             "build.downloaded": "Downloaded: {name}",
@@ -4241,15 +4345,14 @@ if (typeof module !== 'undefined')
           [/^tahta ayrıştırılamadı$/, () => "board could not be parsed"],
 
           [
-            /^K1 — taş sayısı (\d+) \(8–26 dışı\)$/,
-            (m) => `K1 — piece count ${m[1]} (outside 8–26)`,
+            /^K1 — taş sayısı (\d+) \(8–30 dışı\)$/,
+            (m) => `K1 — piece count ${m[1]} (outside 8–30)`,
           ],
           [
             /^K1 — her tarafta tam 1 şah olmalı$/,
             () => "K1 — each side must have exactly 1 king",
           ],
           [/^K1 — vezir bulunamaz$/, () => "K1 — no queen may be present"],
-          [/^K1 — kale bulunamaz$/, () => "K1 — no rook may be present"],
           [
             /^K1 — her taraf en az 3 piyon$/,
             () => "K1 — each side needs at least 3 pawns",
@@ -4280,8 +4383,9 @@ if (typeof module !== 'undefined')
           ],
 
           [
-            /^K2 — (beyaz|siyah) at hareketli$/,
-            (m) => `K2 — ${SIDE_EN[m[1]]} has a mobile knight`,
+            /^K2 — (beyaz|siyah) (at|kale) hareketli$/,
+            (m) =>
+              `K2 — ${SIDE_EN[m[1]]} has a mobile ${m[2] === "at" ? "knight" : "rook"}`,
           ],
           [
             /^K2 — (beyaz|siyah) fil \((.+)\) eşik piyonuyla aynı renkte ve hareketli$/,
@@ -4430,9 +4534,14 @@ if (typeof module !== 'undefined')
               T("build.sum.resign", {
                 val: T(c.resignIsFlag ? "common.yes" : "common.no"),
               }),
-              c.mate === "helper"
-                ? T("build.sum.mateHelper")
-                : T("build.sum.mateForced", { depth: c.depth }),
+              c.flag === "fide"
+                ? T("build.sum.flagFide")
+                : T(
+                    c.flag === "uscf"
+                      ? "build.sum.flagUscf"
+                      : "build.sum.flagOurs",
+                    { depth: c.depth },
+                  ),
               T(c.lock ? "build.sum.lockOn" : "build.sum.lockOff"),
             ].join(" · ") + "."
           );
@@ -4856,27 +4965,26 @@ if (typeof module !== 'undefined')
             ? el.value
             : "fide";
         }
-        const pcMate = () => {
+        const pcFlag = () => {
           const el = [
-            ...document.querySelectorAll('input[name="pcMate"]'),
+            ...document.querySelectorAll('input[name="pcFlag"]'),
           ].find((x) => x.checked);
-          return el ? el.value : "helper";
+          return el ? el.value : "fide";
         };
-        /* Active rules. 'custom' reads the option controls directly.
-     NOTE on the mate criterion: the Engine Builder offers helper/forced only, and its
-     forced path calls classifyOursFlag — so forced maps to flag:'ours' here too, keeping
-     a custom rule set equivalent to the engine the builder would emit. */
+        /* Active rules. 'custom' reads the option controls directly, offering the SAME
+     three flag standards as the Engine Builder — so a custom rule set here is always
+     reproducible as a downloadable engine, and vice versa. */
         function playCfg() {
           const name = playFedName();
           if (name !== "custom") return RULESETS[name];
-          const mate = pcMate();
+          const flag = pcFlag();
           return {
             claim: pcEl("pcClaim").checked,
             hardCap: pcEl("pcHardCap").checked,
             resignIsFlag: pcEl("pcResign").checked,
             lock: pcEl("pcLock").checked,
-            mate: mate,
-            flag: mate === "helper" ? "fide" : "ours",
+            flag: flag,
+            mate: flag === "fide" ? "helper" : "forced",
             depth: Math.max(1, Math.min(10, +pcEl("pcDepth").value || 5)),
           };
         }
@@ -4923,8 +5031,15 @@ if (typeof module !== 'undefined')
      longer restated here. One adjudication per position: the lock scan is expensive, so
      the result is cached and reused by both the status line and the draw box. */
         let lastAdj = null;
+        /* The position BEFORE the last move — the lock trigger layer needs it to see an
+     en passant right lapse. Null at a fresh position (nothing has been played, so only
+     the halfmove trigger can fire). */
+        let prevFen = null;
         function refreshAdj() {
-          lastAdj = arbiterFor(playCfg()).adjudicate(POS.getFen(), repCount());
+          lastAdj = arbiterFor(playCfg()).adjudicate(POS.getFen(), {
+            repCount: repCount(),
+            prevFen: prevFen,
+          });
           return lastAdj;
         }
 
@@ -4991,7 +5106,7 @@ if (typeof module !== 'undefined')
           if (fedName === "custom") {
             playFedHint.innerHTML = ruleSummary(playCfg());
             pcEl("pcDepthBox").style.display =
-              pcMate() === "forced" ? "" : "none";
+              pcFlag() === "fide" ? "none" : "";
             // Not blocking, unlike the builder's download gate: constructing a degenerate
             // rule set and watching what it does is a legitimate experiment.
             pcEl("pcWarn").style.display =
@@ -5022,6 +5137,7 @@ if (typeof module !== 'undefined')
      Shared by the ordinary path and the promotion picker. */
         function playApplyMove(chosen) {
           const mover = sideToMove();
+          prevFen = POS.getFen(); // the position this move is played FROM
           POS.make(chosen);
           repBump();
           playSel = null;
@@ -5312,14 +5428,35 @@ if (typeof module !== 'undefined')
           drawOfferBy = null;
           renderPlay();
         }
+        /* Switching to 'custom' seeds the controls from the rule set that was active, so
+     the custom panel opens on the rules just being watched rather than on a fixed
+     default that contradicts the selected federation. */
+        function seedCustomFrom(name) {
+          const p = RULESETS[name];
+          if (!p) return;
+          pcEl("pcClaim").checked = p.claim;
+          pcEl("pcHardCap").checked = p.hardCap;
+          pcEl("pcResign").checked = p.resignIsFlag;
+          pcEl("pcLock").checked = p.lock;
+          for (const el of document.querySelectorAll('input[name="pcFlag"]'))
+            el.checked = el.value === p.flag;
+          pcEl("pcDepth").value = p.depth;
+        }
+        let lastFed = playFedName();
         playFedEls().forEach((el) =>
-          el.addEventListener("change", playRulesChanged),
+          el.addEventListener("change", () => {
+            const now = playFedName();
+            if (now === "custom" && lastFed !== "custom")
+              seedCustomFrom(lastFed);
+            lastFed = now;
+            playRulesChanged();
+          }),
         );
         ["pcClaim", "pcHardCap", "pcResign", "pcLock", "pcDepth"].forEach(
           (id) => pcEl(id).addEventListener("change", playRulesChanged),
         );
         pcEl("pcDepth").addEventListener("input", playRulesChanged);
-        [...document.querySelectorAll('input[name="pcMate"]')].forEach((el) =>
+        [...document.querySelectorAll('input[name="pcFlag"]')].forEach((el) =>
           el.addEventListener("change", playRulesChanged),
         );
 
@@ -5330,6 +5467,7 @@ if (typeof module !== 'undefined')
           playOver = null;
           drawArmedBy = null;
           drawOfferBy = null;
+          prevFen = null; // no move has been played into this position
           repReset();
           renderPlay();
         });
@@ -5359,6 +5497,7 @@ if (typeof module !== 'undefined')
           playOver = null;
           drawArmedBy = null;
           drawOfferBy = null;
+          prevFen = null; // no move has been played into this position
           repReset();
           renderPlay(fromInput);
           return true;
@@ -5398,14 +5537,14 @@ if (typeof module !== 'undefined')
         const cfgSummary = document.getElementById("cfgSummary");
         const cfgFilename = document.getElementById("cfgFilename");
         const cfgDrawWarn = document.getElementById("cfgDrawWarn");
-        const cfgMateEls = () =>
-          document.querySelectorAll('input[name="cfgMate"]');
-        function cfgMate() {
-          for (const el of cfgMateEls()) if (el.checked) return el.value;
-          return "helper";
+        const cfgFlagEls = () =>
+          document.querySelectorAll('input[name="cfgFlag"]');
+        function cfgFlag() {
+          for (const el of cfgFlagEls()) if (el.checked) return el.value;
+          return "fide";
         }
-        function setMate(v) {
-          for (const el of cfgMateEls()) el.checked = el.value === v;
+        function setFlagStd(v) {
+          for (const el of cfgFlagEls()) el.checked = el.value === v;
         }
         function clampDepth() {
           let v = Math.round(Number(cfgDepth.value));
@@ -5422,17 +5561,20 @@ if (typeof module !== 'undefined')
           cfgHardCap.checked = p.hardCap;
           cfgResign.checked = p.resignIsFlag;
           cfgLock.checked = p.lock;
-          setMate(p.mate);
+          setFlagStd(p.flag);
           updateCfg();
         }
 
-        // Read the current interface options into a cfg object.
+        /* Read the current interface options into a cfg object. `flag` is the primary
+     field — `mate` is kept as a derived convenience label only. */
         function readCfg() {
+          const flag = cfgFlag();
           return {
             claim: cfgClaim.checked,
             hardCap: cfgHardCap.checked,
             resignIsFlag: cfgResign.checked,
-            mate: cfgMate(),
+            flag: flag,
+            mate: flag === "fide" ? "helper" : "forced",
             depth: clampDepth(),
             lock: cfgLock.checked,
           };
@@ -5445,8 +5587,8 @@ if (typeof module !== 'undefined')
 
         function updateCfg() {
           const cfg = readCfg();
-          // Forced selected → the depth box appears (helper needs no search).
-          cfgDepthBox.style.display = cfg.mate === "forced" ? "" : "none";
+          // USCF / hybrid → the depth box appears (FIDE's helper mate needs no search).
+          cfgDepthBox.style.display = cfg.flag === "fide" ? "none" : "";
           document
             .getElementById("cfgLockOpt")
             .classList.toggle("locked-on", cfg.lock);
@@ -5463,7 +5605,7 @@ if (typeof module !== 'undefined')
         cfgResign.addEventListener("change", updateCfg);
         cfgLock.addEventListener("change", updateCfg);
         cfgDepth.addEventListener("input", updateCfg);
-        cfgMateEls().forEach((el) => el.addEventListener("change", updateCfg));
+        cfgFlagEls().forEach((el) => el.addEventListener("change", updateCfg));
         document.getElementById("cfgPresets").addEventListener("click", (e) => {
           const b = e.target.closest("button[data-preset]");
           if (!b) return;
@@ -5482,7 +5624,11 @@ if (typeof module !== 'undefined')
           if (cfg.claim) parts.push("claim50-3");
           if (cfg.hardCap) parts.push("auto75-5");
           parts.push(cfg.resignIsFlag ? "resign-flag" : "resign-loss");
-          parts.push(cfg.mate === "helper" ? "helper" : "forced-d" + cfg.depth);
+          parts.push(
+            cfg.flag === "fide"
+              ? "fide-helper"
+              : cfg.flag + "-forced-d" + cfg.depth,
+          );
           if (cfg.lock) parts.push("lock");
           const fname = parts.join("_") + ".js";
           a.href = url;
