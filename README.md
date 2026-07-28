@@ -146,9 +146,18 @@ Meşru tek yol hiç hareket etmemiş olmaktır: **başlangıç yatayındaki** (b
 
 Bu bir kapsam hijyeni meselesidir, soundness meselesi değil: "burada geri-dönülemez hamle yok" ifadesi pozisyonun kendi özelliğidir, oraya nasıl gelindiğinden bağımsızdır.
 
-**2. `zitRenkFilCifti` — bir tarafta hem açık hem koyu kare fili varsa eleme.** Fil kare rengini asla değiştiremez, ama iki zıt renk fil birlikte tahtanın tamamını kapsar; duvarın parite yapısı ne olursa olsun biri o renkte iş görür.
+**2. `zitRenkFilCifti` — bir tarafta hem açık hem koyu karede **hareketli** fil varsa eleme.** Fil kare rengini asla değiştiremez, ama iki zıt renk fil birlikte tahtanın tamamını kapsar; duvarın parite yapısı ne olursa olsun biri o renkte iş görür.
 
-Bu testin donmuş fil testinden **sonra** gelmesi tasarım gereğidir. Buraya kadar ayakta kalan her fil ya hareketlidir ya da başlangıç yatayında kıpırdamadan duruyordur; yani çift gerçekten tahtayı kapsar. Kurala yönelik eski itiraz — "iki fil de gömülü olabilir, o zaman hiçbir şeyi kapsamazlar" — bir adım önce zaten cevaplanmış olur.
+**Donmuş fil çifte sayılmaz.** Bu şart olmadan kural, bir adım önce verilen başlangıç yatayı muafiyetini sessizce iptal ederdi: kendi kıpırdamamış piyonlarına kapanmış c1+f1 filleri ①'de donmuş diye muaf tutulur, hemen ardından ②'de "çift" diye elenirdi — oysa birlikte hiçbir şeyi kapsamıyorlar.
+
+**İkisi de** hareketli olmalı, biri değil. Parite analizi yapmıyoruz, dolayısıyla duvarın hangi renge ihtiyaç duyduğunu bilmiyoruz; ilgili fil gömülüyken kapsama iddia etmek dayanaksız olurdu. Yalnız biri hareketliyse pozisyon K2'ye düşer, orada gerçek diyagonaller yürünür.
+
+| çift | sonuç |
+|---|---|
+| ikisi de hareketli, zıt renk | **eleme** |
+| ikisi de donmuş | K2'ye devam |
+| biri donmuş biri hareketli | K2'ye devam |
+| ikisi aynı renk | K2'ye devam |
 
 ### Kontrol 1d — Piyon tuğlası + geometrik budama
 

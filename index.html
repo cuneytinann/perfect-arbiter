@@ -2307,7 +2307,7 @@
          b) a mobile knight or rook.                                 → LOCK-BREAKER
          c) bishops, in this order:
               frozen off its home rank → OUT OF SCOPE (unreachable from real play)
-              one side holding both square colours → LOCK-BREAKER
+              one side holding both square colours, both mobile → eliminated
          d) pawn bricks — at least 3, splitting the board, on one contact rank, with
             no two adjacent bricks level (which would open a diagonal capture).
             Fewer than 3 → OUT OF SCOPE; the other failures are real breakers.
@@ -2665,21 +2665,29 @@
           return null;
         }
 
-        // KONTROL 1c (devamı) — OPPOSITE-COLOURED BISHOP PAIR ⇒ LOCK-BREAKER.
-        //   If ONE side holds bishops on BOTH square colours, no square is permanently
+        // KONTROL 1c (devamı) — MOBILE OPPOSITE-COLOURED BISHOP PAIR ⇒ eliminated.
+        //   If one side holds bishops on BOTH square colours, no square is permanently
         //   out of that side's reach: whatever the wall's colour parity, one of the two
         //   operates on it.
-        //   This runs AFTER the frozen-bishop test on purpose. Anything still standing
-        //   here is either mobile or sitting unmoved on its home rank, so the pair really
-        //   does cover the board — the old objection ("both bishops might be buried") was
-        //   already answered one step earlier.
+        //
+        //   That argument only holds for bishops that can actually MOVE, so a frozen
+        //   bishop does not count toward the pair. Without this the rule would quietly
+        //   undo the home-rank exemption granted one step earlier: c1+f1 walled in by
+        //   their own unmoved pawns are exempt as frozen, then instantly eliminated as a
+        //   "pair" — even though together they cover nothing at all.
+        //
+        //   BOTH must be mobile, not just one. We no longer do parity analysis, so we
+        //   cannot know which colour the wall needs; claiming coverage while the relevant
+        //   bishop is buried would be unfounded. When only one moves, the position simply
+        //   falls through to K2, which walks real diagonals.
         function zitRenkFilCifti(b, white) {
-          const slots = [null, null]; // [açık kare, koyu kare]
+          const slots = [null, null]; // [açık kare, koyu kare] — yalnız hareketli filler
           for (let r = 0; r < 8; r++)
             for (let c = 0; c < 8; c++) {
               const p = b[r][c];
               if (p !== "B" && p !== "b") continue;
               if (isWhite(p) !== white) continue;
+              if (pieceMoves(b, r, c, null).length === 0) continue; // donmuş fil kapsamaz
               const colour = (r + c) & 1; // 0 = açık, 1 = koyu
               if (!slots[colour]) slots[colour] = FILES[c] + (8 - r);
               if (slots[0] && slots[1]) return { a: slots[0], b: slots[1] };
@@ -3171,6 +3179,7 @@
           kontrol1Kapsam,
           kontrol1aAritmetik,
           kontrol1dPiyonTuglalari,
+          zitRenkFilCifti,
           kontrol2Yayilim,
           kontrol3SahGarantisi,
           knightOrRookHasMove,
@@ -4008,6 +4017,9 @@ if (typeof module !== 'undefined')
             "fp.corner": "Köşe piyonu",
             "fp.nnp": "İki at bir piyon",
             "fp.nn": "Sadece iki at",
+            "fp.smother1": "Boğmaca 1 — sıra beyazda",
+            "fp.smother2": "Boğmaca 2 — sıra siyahta",
+            "fp.smother3": "Boğmaca 3 — at uzakta",
 
             /* ── Preset positions: lock ── */
             "lp.shuttle": "Mekik dokuyan taşlar",
@@ -4274,6 +4286,9 @@ if (typeof module !== 'undefined')
             "fp.corner": "Corner pawn",
             "fp.nnp": "Two knights and a pawn",
             "fp.nn": "Two knights only",
+            "fp.smother1": "Smothered 1 — White to move",
+            "fp.smother2": "Smothered 2 — Black to move",
+            "fp.smother3": "Smothered 3 — knight far away",
 
             /* ── Preset positions: lock ── */
             "lp.shuttle": "Shuttling pieces",
@@ -4712,6 +4727,12 @@ if (typeof module !== 'undefined')
           ["fp.corner", "8/8/2N5/8/8/p7/k1K5/8 w - - 0 1"],
           ["fp.nnp", "8/8/8/5K2/7k/7p/7N/7N w - - 0 1"],
           ["fp.nn", "8/8/4k3/8/8/5N2/1K1N4/8 w - - 0 1"],
+          // Smothered-mate trio: the same K+N vs K+Q+R+2P material three times over.
+          // Helper mate says "white wins" in all three; forced mate only in the first,
+          // where Nf7# is on the board right now.
+          ["fp.smother1", "6rk/6pp/q7/4N3/8/8/8/1K6 w - - 0 1"],
+          ["fp.smother2", "6rk/6pp/q7/4N3/8/8/8/1K6 b - - 0 1"],
+          ["fp.smother3", "6rk/6pp/q7/8/8/3N4/8/1K6 w - - 0 1"],
         ];
 
         function renderFlag(hl, sel) {
