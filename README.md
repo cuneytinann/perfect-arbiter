@@ -128,9 +128,17 @@ Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`kontrol1aAr
 
 **At ve kale (`knightOrRookHasMove`) — hareketliyse kırıcı.** At piyon duvarının üstünden sıçrar, kale duvar boyunca kayar; gerçek bir kilitte ikisi de kendi taşlarına tamamen gömülü olmalıdır. Bu **KİLİT DEĞİL**'dir, kapsam dışı değil: hareketli bir at gayet meşru bir pozisyonda gerçek bir kırıcıdır.
 
-**Fil (`frozenBishop`) — hareketsizse KAPSAM DIŞI.** Tam tersi kural. Bir fili gömmek için her diyagonal komşusunun kendi taşınla dolu olması gerekir; ama fil o kareye ancak aynı diyagonallerden **girmiş** olabilir. Piyonlar geri gitmediğine göre, kareyi mühürleyen piyon filin geçmesi gereken anda zaten oradaydı — pozisyon standart oyundan doğamaz. Örnek: b2'de beyaz piyon varken a1'de beyaz fil. a1'in tek komşusu b2; ne c1'deki orijinal fil ne de bir terfi fili oraya girebilir.
+**Fil (`frozenBishop`) — başlangıç yatayı dışında hareketsizse KAPSAM DIŞI.** At/kalenin tam tersi kural. Bir fili gömmek için her diyagonal komşusunun kendi taşınla dolu olması gerekir; ama fil o kareye ancak aynı diyagonallerden **girmiş** olabilir. Piyonlar geri gitmediğine göre, kareyi mühürleyen piyon filin geçmesi gereken anda zaten oradaydı — yani hareket etmiş bir fil gömülü olamaz.
 
-> **Bilinen istisna, bilerek özel-durum yapılmadı:** fil kendi **evinde** (c1/f1/c8/f8) ve iki yanındaki piyonlar kıpırdamamışsa donmuştur ve tamamen meşrudur — başlangıç pozisyonunun kendisi. Böyle bir pozisyon da kapsam dışı sayılır. Yalnız completeness'a mal olur, soundness'a asla; ve iki yan piyonu hâlâ 2. yatayda olan bir duvar kilidi gerçekçi bir aday değildir.
+Meşru tek yol hiç hareket etmemiş olmaktır: **başlangıç yatayındaki** (beyaz için 1., siyah için 8.) bir fil kurulduğu yerde duruyor ve kendi kıpırdamamış piyonlarına kapanmış olabilir. Bu hem standart başlangıç pozisyonudur, hem de Chess960 filleri de başlangıç yatayına dizdiği için **her 960 kurulumu**. Bu yüzden başlangıç yatayındaki filler muaf tutulur — a1/g8 tipi kilitler algoritmanın sınıfı içinde kalır.
+
+| fil | konum | sonuç |
+|---|---|---|
+| donmuş | başlangıç yatayında | muaf — değerlendirmeye devam |
+| donmuş | yatay dışında | **KAPSAM DIŞI** |
+| hareketli | fark etmez | muaf — değerlendirmeye devam |
+
+Bu bir kapsam hijyeni meselesidir, soundness meselesi değil: "burada geri-dönülemez hamle yok" ifadesi pozisyonun kendi özelliğidir, oraya nasıl gelindiğinden bağımsızdır.
 
 ### Kontrol 1c — Piyon tuğlası + geometrik budama
 

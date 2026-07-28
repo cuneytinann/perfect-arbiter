@@ -2305,7 +2305,7 @@
          b) piece mobility under locked-legality ("delete the kings, ask for legal
             moves"), side to move first:
               knight / rook mobile → LOCK-BREAKER (an ordinary, legal position)
-              bishop frozen        → OUT OF SCOPE (unreachable from standard play)
+              bishop frozen off its home rank → OUT OF SCOPE (unreachable)
          c) pawn bricks — at least 3, splitting the board, on one contact rank, with
             no two adjacent bricks level (which would open a diagonal capture).
             Fewer than 3 → OUT OF SCOPE; the other failures are real breakers.
@@ -2631,23 +2631,27 @@
           return null;
         }
 
-        // KONTROL 1b — FROZEN BISHOP ⇒ OUT OF SCOPE.
-        //   A bishop with ZERO geometric moves cannot arise from standard play. To bury a
-        //   bishop every diagonal neighbour must hold a friendly man, and a bishop can only
-        //   ever have ENTERED such a square through one of those same diagonals. Pawns do
-        //   not retreat, so a pawn that seals the square was already there when the bishop
-        //   would have had to pass — the position is unreachable and gets ruled OUT OF
-        //   SCOPE rather than judged. Example: a white bishop on a1 behind a pawn on b2 —
-        //   a1's only neighbour is b2, so neither the original c1 bishop nor any promoted
-        //   one could ever have arrived.
+        // KONTROL 1b — FROZEN BISHOP OFF ITS HOME RANK ⇒ OUT OF SCOPE.
+        //   To bury a bishop every diagonal neighbour must hold a friendly man — but a
+        //   bishop can only ever have ENTERED such a square through one of those same
+        //   diagonals. Pawns do not retreat, so a pawn sealing the square was already
+        //   there when the bishop would have had to pass. A frozen bishop that HAS moved
+        //   is therefore unreachable, and the position is ruled OUT OF SCOPE rather than
+        //   judged.
         //
-        //   KNOWN EXCEPTION, deliberately not special-cased: a bishop still on its HOME
-        //   square (c1/f1/c8/f8) with both home pawns unmoved is frozen and perfectly
-        //   legal — it is the starting position. Such a position is ruled out of scope
-        //   too. It only ever costs completeness, never soundness, and a wall-based lock
-        //   with both flanking pawns still on rank 2 is not a realistic lock candidate.
+        //   The one legal way to be frozen is never to have moved at all: a bishop still
+        //   on its HOME RANK (rank 1 for White, rank 8 for Black) may simply be sitting
+        //   where it was set up, walled in by its own unmoved pawns. That is the standard
+        //   starting position — and, since Chess960 also places both bishops on the home
+        //   rank, every 960 setup as well. Home-rank bishops are therefore exempt, which
+        //   keeps a1/g8-style locks inside the algorithm's class.
+        //
+        //   Note this is scope hygiene, not soundness: "no irreversible move exists here"
+        //   is a property of the position itself, however it was reached.
         function frozenBishop(b, white) {
-          for (let r = 0; r < 8; r++)
+          const homeRow = white ? 7 : 0; // beyaz 1. yatay, siyah 8. yatay
+          for (let r = 0; r < 8; r++) {
+            if (r === homeRow) continue; // may simply never have moved
             for (let c = 0; c < 8; c++) {
               const p = b[r][c];
               if (p !== "B" && p !== "b") continue;
@@ -2655,6 +2659,7 @@
               if (pieceMoves(b, r, c, null).length === 0)
                 return FILES[c] + (8 - r);
             }
+          }
           return null;
         }
 
@@ -2998,7 +3003,7 @@
            "delete the kings and ask for legal moves" — i.e. pure geometry, king safety
            never consulted:
              knight / rook mobile → a real LOCK-BREAKER (a legal, ordinary position)
-             bishop frozen        → OUT OF SCOPE (cannot arise from standard play)
+             bishop frozen OFF its home rank → OUT OF SCOPE (unreachable)
        1c  pawn bricks — at least 3, splitting the board, on one contact rank, with no
            two adjacent bricks level.
      Returns { why, outOfScope } or null. The two outcomes are kept apart on purpose:
@@ -3040,7 +3045,7 @@
                   nm(w) +
                   " fil (" +
                   sq +
-                  ") hiç hamlesi yok — standart oyundan doğamaz",
+                  ") hiç hamlesi yok, başlangıç yatayında da değil — oyundan doğamaz",
                 outOfScope: true,
               };
           }
@@ -4411,9 +4416,9 @@ if (typeof module !== 'undefined')
               `K1 — ${SIDE_EN[m[1]]} has a mobile ${m[2] === "at" ? "knight" : "rook"}`,
           ],
           [
-            /^K1 — (beyaz|siyah) fil \((.+)\) hiç hamlesi yok — standart oyundan doğamaz$/,
+            /^K1 — (beyaz|siyah) fil \((.+)\) hiç hamlesi yok, başlangıç yatayında da değil — oyundan doğamaz$/,
             (m) =>
-              `K1 — ${SIDE_EN[m[1]]}'s bishop (${m[2]}) has no move at all — unreachable from standard play`,
+              `K1 — ${SIDE_EN[m[1]]}'s bishop (${m[2]}) has no move and is off its home rank — unreachable from real play`,
           ],
 
           [
