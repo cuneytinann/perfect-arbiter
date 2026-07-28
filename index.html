@@ -2298,15 +2298,17 @@
    side to move) is ignored — a relaxation that is safe for soundness.
 
    THREE CHECKS (in order; the first match returns "not locked"):
-   K1: SCOPE — everything decidable from the untouched board, nothing moves:
+   K1: SCOPE — everything decidable from the untouched board, nothing moves. Every
+       side-dependent part runs for the side to move first, then the opponent.
+       Mobility means locked-legality: "delete the kings and ask for legal moves".
          a) arithmetic — 8 ≤ pieces ≤ 30 (a full army minus both queens), no queen,
             exactly 1+1 kings, ≥3 pawns a side, promotion-consistent (surplus R/N/B
             charged against the missing-pawn budget).                → OUT OF SCOPE
-         b) piece mobility under locked-legality ("delete the kings, ask for legal
-            moves"), side to move first:
-              knight / rook mobile → LOCK-BREAKER (an ordinary, legal position)
-              bishop frozen off its home rank → OUT OF SCOPE (unreachable)
-         c) pawn bricks — at least 3, splitting the board, on one contact rank, with
+         b) a mobile knight or rook.                                 → LOCK-BREAKER
+         c) bishops, in this order:
+              frozen off its home rank → OUT OF SCOPE (unreachable from real play)
+              one side holding both square colours → LOCK-BREAKER
+         d) pawn bricks — at least 3, splitting the board, on one contact rank, with
             no two adjacent bricks level (which would open a diagonal capture).
             Fewer than 3 → OUT OF SCOPE; the other failures are real breakers.
    K2: SPREAD — three main nodes (pawn/bishop/king) × two sides, nested; all breakers
@@ -2541,7 +2543,7 @@
             Math.max(0, c.Q - 1);
           return extra <= 8 - c.P;
         }
-        // KONTROL 1c — PAWN BRICKS + geometric pruning.
+        // KONTROL 1d — PAWN BRICKS + geometric pruning.
         //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
         //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
         //   Pruning (only ever toward "not locked" → soundness-safe; avoids costly K3):
@@ -2551,7 +2553,7 @@
         //                     the three contact ranks must be equal too.
         //     • bricks >= 4 → two bricks on adjacent files (|Δc|=1) at equal contact
         //                     (Δr=0) open a diagonal capture → not locked.
-        function kontrol1cPiyonTuglalari(b) {
+        function kontrol1dPiyonTuglalari(b) {
           const bricks = []; // {c, r}  (r = black's row; contact r+0.5)
           for (let c = 0; c < 8; c++)
             for (let r = 0; r < 7; r++)
@@ -2631,7 +2633,7 @@
           return null;
         }
 
-        // KONTROL 1b — FROZEN BISHOP OFF ITS HOME RANK ⇒ OUT OF SCOPE.
+        // KONTROL 1c — FROZEN BISHOP OFF ITS HOME RANK ⇒ OUT OF SCOPE.
         //   To bury a bishop every diagonal neighbour must hold a friendly man — but a
         //   bishop can only ever have ENTERED such a square through one of those same
         //   diagonals. Pawns do not retreat, so a pawn sealing the square was already
@@ -2660,6 +2662,28 @@
                 return FILES[c] + (8 - r);
             }
           }
+          return null;
+        }
+
+        // KONTROL 1c (devamı) — OPPOSITE-COLOURED BISHOP PAIR ⇒ LOCK-BREAKER.
+        //   If ONE side holds bishops on BOTH square colours, no square is permanently
+        //   out of that side's reach: whatever the wall's colour parity, one of the two
+        //   operates on it.
+        //   This runs AFTER the frozen-bishop test on purpose. Anything still standing
+        //   here is either mobile or sitting unmoved on its home rank, so the pair really
+        //   does cover the board — the old objection ("both bishops might be buried") was
+        //   already answered one step earlier.
+        function zitRenkFilCifti(b, white) {
+          const slots = [null, null]; // [açık kare, koyu kare]
+          for (let r = 0; r < 8; r++)
+            for (let c = 0; c < 8; c++) {
+              const p = b[r][c];
+              if (p !== "B" && p !== "b") continue;
+              if (isWhite(p) !== white) continue;
+              const colour = (r + c) & 1; // 0 = açık, 1 = koyu
+              if (!slots[colour]) slots[colour] = FILES[c] + (8 - r);
+              if (slots[0] && slots[1]) return { a: slots[0], b: slots[1] };
+            }
           return null;
         }
 
@@ -3022,43 +3046,45 @@
         }
 
         function kontrol1Kapsam(b, sides) {
+          // Every K1 failure reports outOfScope: true. K1's job is a single question —
+          // "is this position inside the algorithm's class at all?" — so its answers are
+          // uniform. Judging a position ("we evaluated it and found a breaker") starts at
+          // K2, once pieces actually move.
+          const dis = (why) => ({ why: "K1 — " + why, outOfScope: true });
+
           // 1a — arithmetic
           const a = kontrol1aAritmetik(b);
-          if (a) return { why: "K1 — " + a, outOfScope: true };
+          if (a) return dis(a);
 
-          // 1b — knight / rook mobile is a genuine breaker
+          // 1b — a mobile knight or rook
           for (const w of sides) {
             const mob = knightOrRookHasMove(b, w);
-            if (mob)
-              return {
-                why: "K1 — " + nm(w) + " " + mob + " hareketli",
-                outOfScope: false,
-              };
+            if (mob) return dis(nm(w) + " " + mob + " hareketli");
           }
-          // 1b — a frozen bishop means the position never came from a real game
+
+          // 1c — bishops. First: a frozen bishop off its home rank means the position
+          // never came from a real game. Then: a side holding both square colours.
           for (const w of sides) {
             const sq = frozenBishop(b, w);
             if (sq)
-              return {
-                why:
-                  "K1 — " +
-                  nm(w) +
+              return dis(
+                nm(w) +
                   " fil (" +
                   sq +
                   ") hiç hamlesi yok, başlangıç yatayında da değil — oyundan doğamaz",
-                outOfScope: true,
-              };
+              );
+          }
+          for (const w of sides) {
+            const pair = zitRenkFilCifti(b, w);
+            if (pair)
+              return dis(
+                nm(w) + " iki zıt renk fil (" + pair.a + ", " + pair.b + ")",
+              );
           }
 
-          // 1c — pawn bricks
-          const k = kontrol1cPiyonTuglalari(b);
-          if (!k.ok)
-            return {
-              why: "K1 — " + k.why,
-              // fewer than 3 bricks = outside the algorithm's class; the other brick
-              // failures are real breaking structures.
-              outOfScope: k.bricks < 3,
-            };
+          // 1d — pawn bricks
+          const k = kontrol1dPiyonTuglalari(b);
+          if (!k.ok) return dis(k.why);
           return null;
         }
 
@@ -3144,7 +3170,7 @@
           ROOK_D,
           kontrol1Kapsam,
           kontrol1aAritmetik,
-          kontrol1cPiyonTuglalari,
+          kontrol1dPiyonTuglalari,
           kontrol2Yayilim,
           kontrol3SahGarantisi,
           knightOrRookHasMove,
@@ -3989,6 +4015,7 @@ if (typeof module !== 'undefined')
             "lp.minBrick": "Minimum Tuğla",
             "lp.inertBishops": "Etkisiz filler",
             "lp.immobile": "Hareketsiz taşlar",
+            "lp.uncapturablePawn": "Alınamayan piyon",
             "lp.web": "Fil ağı",
             "lp.passer": "Geçer fil",
             "lp.distance": "Mesafe açık",
@@ -4254,6 +4281,7 @@ if (typeof module !== 'undefined')
             "lp.minBrick": "Minimum Brick",
             "lp.inertBishops": "Inert bishops",
             "lp.immobile": "Immobile pieces",
+            "lp.uncapturablePawn": "The pawn that cannot be taken",
             "lp.web": "Bishop web",
             "lp.passer": "Bishop breaks through",
             "lp.distance": "Distance is open",
@@ -4419,6 +4447,11 @@ if (typeof module !== 'undefined')
             /^K1 — (beyaz|siyah) fil \((.+)\) hiç hamlesi yok, başlangıç yatayında da değil — oyundan doğamaz$/,
             (m) =>
               `K1 — ${SIDE_EN[m[1]]}'s bishop (${m[2]}) has no move and is off its home rank — unreachable from real play`,
+          ],
+          [
+            /^K1 — (beyaz|siyah) iki zıt renk fil \((.+), (.+)\)$/,
+            (m) =>
+              `K1 — ${SIDE_EN[m[1]]} holds bishops on both square colours (${m[2]}, ${m[3]})`,
           ],
 
           [
@@ -4866,6 +4899,10 @@ if (typeof module !== 'undefined')
           ],
           ["lp.immobile", "3k1nbr/3p1p1p/1p1PpPpP/1P2P1P1/8/8/8/4K3 w - - 0 1"],
           [
+            "lp.uncapturablePawn",
+            "3k4/1B6/1p1p1p1p/1P1P1P1P/8/7p/7P/4K3 w - - 0 1",
+          ],
+          [
             "lp.web",
             "1BkB1B1B/B1B1B1B1/1B1B1B1B/BpB1BpB1/1B1B1B1B/B1B1B1B1/1B1B1B1B/B1BKB1B1 w - - 0 1",
           ],
@@ -4903,10 +4940,10 @@ if (typeof module !== 'undefined')
 
           // Split the result into three classes:
           //   locked        → ABSOLUTE LOCK
-          //   OUT OF SCOPE  → outside the algorithm's class: K1a arithmetic, a frozen
-          //                   bishop (1b), fewer than 3 bricks (1c), or an invalid FEN.
-          //   NOT LOCKED    → evaluated, and a real lock-breaking structure exists:
-          //                   a mobile knight/rook (1b), brick geometry (1c), K2, K3.
+          //   OUT OF SCOPE  → outside the algorithm's class: ANY K1 failure, or a FEN
+          //                   that will not parse.
+          //   NOT LOCKED    → pieces were actually moved and a real lock-breaking
+          //                   structure turned up: K2 (spread) or K3 (king guarantee).
           // NOTE: classification ALWAYS runs on the core's Turkish reason; the translation
           // is applied only when printing. So the language can never affect the verdict.
           const reason = res.reason;
