@@ -25,7 +25,7 @@ Uygulama tek bir `index.html`; mantık altı `<script>` bloğuna ayrılmıştır
 | `src-engine` | `PA` — 0x88 tahta, Zobrist, hamle üretimi, `legalMoves`, `perft`, forced-mate araması, `material`, FEN g/ç | evet |
 | `src-flag` | `makeFlagClassifier(PA)` — evrensel katman + üç bayrak sınıflandırıcısı | evet |
 | `src-arbiter` | `makeArbiter(PA, CFG, LOCK, describe)` — tek kural uygulama hattı: `flagFall`, `resign`, `adjudicate` | evet |
-| `src-lock` | `makeLockDetector(PA)` — K1–K4 kilit tespiti | yalnız seçiliyse |
+| `src-lock` | `makeLockDetector(PA)` — K1–K3 kilit tespiti | yalnız seçiliyse |
 | *(üretici)* | `buildEngineSource(cfg)` — blokları okuyup `.js` üretir | hayır |
 | `src-i18n` | `I18N` — TR/EN sözlük, `t`, `applyStatic`, `trReason` | hayır (yalnız arayüz) |
 
@@ -85,65 +85,58 @@ USCF'ye yakın ama iki at + piyon durumunda **piyon geometrisi** şartı: iki at
 
 ---
 
-## 4. Dört kontrol
+## 4. Üç kontrol
 
-`isLocked` dört kontrolü sırayla uygular. Herhangi biri bir kilit-kırıcı bulursa hemen "kilit değil" döner. Kontroller ucuzdan pahalıya sıralanmıştır ve her biri önce **sırası olan tarafta**, sonra rakipte aranır.
+`isLocked` üç kontrolü sırayla uygular. Herhangi biri bir kilit-kırıcı bulursa ya da pozisyonu kapsam dışı ilan ederse hemen döner.
 
 | | Ne yapar | Maliyet |
 |---|---|---|
-| **K1** | Aritmetik sınırlar — materyal ön-koşulu | eser |
-| **K2** | Geometrik sınırlar — dokunulmamış tahta üzerinde üç statik test (a: at/kale hareketsizliği, b: fil erken-kırıcısı, c: piyon tuğlaları) | ucuz |
-| **K3** | Yayılım — iç içe simülasyon, her düğümde tüm kırıcılar + düğümlenme | **pahalı** |
-| **K4** | Şah garantisi — duvar dışında her şey silinip erişilebilirlik | ucuz |
+| **K1** | **Kapsam** — dokunulmamış tahtadan okunabilen her şey; hiçbir taş hareket etmez (1a aritmetik, 1b taş hareketliliği, 1c piyon tuğlaları) | ucuz |
+| **K2** | **Yayılım** — iç içe simülasyon, her düğümde tüm kırıcılar + düğümlenme | **pahalı** |
+| **K3** | **Şah garantisi** — duvar dışında her şey silinip erişilebilirlik | ucuz |
 
-K2'nin üç alt testi de aynı, hiç değiştirilmemiş tahta üzerinde çalışan saf geometri sorularıdır; hiçbiri diğerini beslemez, sıraları yalnızca maliyet ve gerekçe metni içindir. Bu yüzden tek bir kontrol altında toplanmışlardır. Asıl kırılım K2 ile K3 arasındadır: K3'e kadar tahtaya dokunulmaz, K3'ten itibaren taşlar gezdirilir.
+Asıl kırılım K1 ile K2 arasındadır: K2'ye kadar tahtaya dokunulmaz, K2'den itibaren taşlar gezdirilir.
+
+`isLocked` sonucunda `locked` yanında **`outOfScope`** bayrağı da döner. Arayüz artık KAPSAM DIŞI ile KİLİT DEĞİL ayrımını yapmak için Türkçe gerekçe metnini regex'lemek zorunda değil; ayrım kaynağında verilir.
 
 ### Taraf sırası
 
-Kontroller taraf bazında değil, **kontrol bazında** dolaşılır: beyaz için K1–K4, sonra siyah için K1–K4 **değil**. K1 tahtanın tamamını sayar, taraftan bağımsızdır. Tarafa bağlı olan her testte sıra şudur: **önce hamle sırası kimdeyse o, sonra rakip.**
+Kontroller taraf bazında değil, **kontrol bazında** dolaşılır: beyaz için K1–K3, sonra siyah için K1–K3 **değil**. Tarafa bağlı olan her testte sıra şudur: **önce hamle sırası kimdeyse o, sonra rakip.**
 
 | | sıralama |
 |---|---|
-| K1 | taraftan bağımsız (tek geçiş) |
-| K2a | sırası olan → rakip |
-| K2b, K2c | tahta geneli (tek geçiş) |
-| K3 | ana düğüm sırası **P → B → Ş** sabit; her birinin içinde sırası olan → rakip |
-| K4 | sırası olan → rakip |
+| K1a, K1c | tahta geneli (tek geçiş) |
+| K1b | sırası olan → rakip |
+| K2 | ana düğüm sırası **P → B → Ş** sabit; her birinin içinde sırası olan → rakip |
+| K3 | sırası olan → rakip |
 
-Hüküm bu sıralamadan **bağımsızdır** — her kontrol aynı, değişmemiş tahta üzerinde saf bir testtir ve yalnızca "kilit değil" diyebilir. Sıralamanın tek etkisi, basılan gerekçenin bir sonraki hamlede kırıcıyı gerçekten oynayabilecek tarafı adlandırmasıdır.
+Hüküm bu sıralamadan **bağımsızdır** — her kontrol aynı, değişmemiş tahta üzerinde saf bir testtir. Sıralamanın tek etkisi, basılan gerekçenin bir sonraki hamlede kırıcıyı gerçekten oynayabilecek tarafı adlandırmasıdır.
 
-### Kontrol 1 — Aritmetik sınırlar
+### Kontrol 1a — Aritmetik sınırlar
 
-Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`kontrol1AritmetikSinirlar`) — tahtanın tamamını sayar, taraftan bağımsızdır:
+Pozisyonun kilit olabilecek materyal sınıfında olup olmadığı (`kontrol1aAritmetik`) — tahtanın tamamını sayar, taraftan bağımsızdır. Başarısızlığı **KAPSAM DIŞI**:
 
 - Taş sayısı **8–30** arası, iki uç **dahil**. Üst sınır vezirsiz tam kadrodur: `2 şah + 16 piyon + (2 kale + 2 at + 2 fil)×2 = 30`.
 - Her tarafta **tam 1 şah**.
-- **Vezir yok** — algoritmanın çekirdek varsayımı (vezir varsa duvar arkasından uzun menzilli kırıcı hep mümkün olur).
-- Her tarafta **en az 3 piyon** (piyon-duvarı için gerekli minimum).
-- **Terfi tutarlılığı** (her iki taraf): başlangıç kadrosunu (2 kale, 2 at, 2 fil) aşan her taş bir terfiden gelmiş olmalıdır ve her terfi bir piyona mal olur. Eksik piyon sayısı `8−P` bütçedir: `extra = max(0,R−2) + max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8−P`. Karma fazlalıklar (örn. 1 fazla kale + 1 fazla at) birikimli olarak tek bütçeye vurur.
+- **Vezir yok** — algoritmanın çekirdek varsayımı.
+- Her tarafta **en az 3 piyon**.
+- **Terfi tutarlılığı** (her iki taraf): `extra = max(0,R−2) + max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8−P`.
 
-**Kale kapsam dışı değildir.** Kale duvar boyunca kayabildiği için eskiden K1'de eleniyordu; artık K2'nin hareketsizlik şartına tabidir — hareket edebilen bir kale zaten kilidi anında kırar, edemiyorsa pozisyon değerlendirilmeye devam eder. Bu, kapsamı daraltmadan genişletir.
+### Kontrol 1b — Taş hareketliliği
 
-Sağlanmıyorsa → **KAPSAM DIŞI** (arayüzde). Bu bir materyal ön-koşuludur; pozisyon değerlendirilemez.
+Ölçüt **locked-legalite**: "şahları sil, legal hamlesi var mı" ile aynı şey — şah güvenliği hiç sorulmaz, geriye saf geometri kalır (`pieceMoves`). Uygulamada dizi üzerinde birkaç işlemdir; motorun tam legal üretecini çağırmaya gerek yoktur, ki düğümlenme testi bunu 200.000 düğüme kadar çalıştırdığı için bu fark önemlidir.
 
-### Kontrol 2a/2b — At/kale hareketsizliği + fil erken-kırıcısı
+**At ve kale (`knightOrRookHasMove`) — hareketliyse kırıcı.** At piyon duvarının üstünden sıçrar, kale duvar boyunca kayar; gerçek bir kilitte ikisi de kendi taşlarına tamamen gömülü olmalıdır. Bu **KİLİT DEĞİL**'dir, kapsam dışı değil: hareketli bir at gayet meşru bir pozisyonda gerçek bir kırıcıdır.
 
-**At ve kale (`knightOrRookHasMove`):** İki taraf için, herhangi bir atın **veya kalenin** locked-legalite'de bir hamlesi (boş kareye gitme veya rakip taş alma) varsa → kilit değil. At piyon duvarının üstünden sıçrar, kale duvar boyunca kayar; gerçek bir kilitte ikisi de kendi taşlarına tamamen gömülü olmalıdır. Ölçüt saf geometridir: hamle edince şahın açıkta kalıp kalmayacağı sorulmaz, yalnızca "gidebileceği bir kare var mı, yoksa hepsi kendi taşlarıyla mı kapalı" sorulur.
+**Fil (`frozenBishop`) — hareketsizse KAPSAM DIŞI.** Tam tersi kural. Bir fili gömmek için her diyagonal komşusunun kendi taşınla dolu olması gerekir; ama fil o kareye ancak aynı diyagonallerden **girmiş** olabilir. Piyonlar geri gitmediğine göre, kareyi mühürleyen piyon filin geçmesi gereken anda zaten oradaydı — pozisyon standart oyundan doğamaz. Örnek: b2'de beyaz piyon varken a1'de beyaz fil. a1'in tek komşusu b2; ne c1'deki orijinal fil ne de bir terfi fili oraya girebilir.
 
-**Fil erken-kırıcısı (`bishopEarlyBreak`):** Fil yalnız kendi renginde gezer/alır ve kendi piyonunu alamaz. Eşik piyonu = **her iki renkten piyon bulunan** her sütundaki en ileri beyaz ve en ileri siyah piyon (birikmede dış piyon). Kural:
+> **Bilinen istisna, bilerek özel-durum yapılmadı:** fil kendi **evinde** (c1/f1/c8/f8) ve iki yanındaki piyonlar kıpırdamamışsa donmuştur ve tamamen meşrudur — başlangıç pozisyonunun kendisi. Böyle bir pozisyon da kapsam dışı sayılır. Yalnız completeness'a mal olur, soundness'a asla; ve iki yan piyonu hâlâ 2. yatayda olan bir duvar kilidi gerçekçi bir aday değildir.
 
-- Bir fil ETKİSİZDİR (kilit olabilir) eğer: filin renginde kendi eşik piyonu varsa (dokunamaz) **veya** rakip eşik piyonları filden farklı renkteyse (erişemez).
-- Kilit KIRILIR eğer: **rakip** eşik piyonu fille **aynı** renk (alabilir) **ve** fil hareketli.
-
-Yani: kendi piyonuyla aynı renk kilidi **korur**; rakip piyonuyla aynı renk kilidi **kırar**.
-
-Not — bu bir yaklaşıklıktır: eşik maskeleri sütun bazında değil tahta genelinde toplanır ve filin hedefe gerçekten *ulaşıp ulaşamadığı* sorulmaz, yalnız "hareketli mi" sorulur. Erken-kırıcı yalnız "kilit değil" diyebildiği için soundness etkilenmez; bedeli olası completeness kaybıdır.
-
-### Kontrol 2c — Piyon tuğlası + geometrik budama
+### Kontrol 1c — Piyon tuğlası + geometrik budama
 
 **Tuğla (yön-duyarlı):** aynı sütunda siyah piyon üstte (satır `r`), hemen altında beyaz piyon (satır `r+1`). İkisi de karşı karşıya kilitli — beyaz yukarı, siyah aşağı ilerleyemez. **Kavuşma satırı** = `r + 0.5`. Bu, tarafa bağlı olmayan tek bir temas çizgisidir; arkada biriken piyonlar onu değiştirmez.
 
-Budamalar (`kontrol2cPiyonTuglalari`, yalnız "kilit değil" yönünde):
+Budamalar (`kontrol1cPiyonTuglalari`, yalnız "kilit değil" yönünde):
 
 - Tuğla sayısı **< 3** → yetersiz (KAPSAM DIŞI).
 - **Tam 3 tuğla** → sütunlar `{a,d,g}`, `{b,d,g}`, `{b,e,g}` veya `{b,e,h}` desenlerinden biri olmalı (yoksa duvar tahtayı bölemez, örn. `a,c,e` → g,h tarafı açık). **Ve** üç kavuşma satırı eşit olmalı.
@@ -151,17 +144,17 @@ Budamalar (`kontrol2cPiyonTuglalari`, yalnız "kilit değil" yönünde):
 
 ### En passant
 
-Motorun ep karesi, K3'ün kök düğümüne geçirilir. Orada piyon çapraz-alım taraması ep alımını (sütun-değiştiren geri-dönülemez hamle) doğal olarak yakalar. Ep hakkı yalnız sırası olan taraftadır ve yalnızca kök düğümde geçerlidir (bir hamle sonrası düşer). Ayrı bir ep bloğuna gerek yoktur — akışın içindedir.
+Motorun ep karesi, K2'nin kök düğümüne geçirilir. Orada piyon çapraz-alım taraması ep alımını (sütun-değiştiren geri-dönülemez hamle) doğal olarak yakalar. Ep hakkı yalnız sırası olan taraftadır ve yalnızca kök düğümde geçerlidir (bir hamle sonrası düşer). Ayrı bir ep bloğuna gerek yoktur — akışın içindedir.
 
 Bunun bir sonucu var: ep hakkı varken pozisyon **kilit sayılamaz**, hak düştüğü anda kilide dönüşebilir. Hakkın düşmesi geri-alınabilir bir hamleyle olduğu için taramayı `halfmove` kuralı tetiklemez; bu yüzden §5'teki `ep` tetikleyicisi vardır.
 
-### Kontrol 3 — Simülasyon: iç içe yayılım
+### Kontrol 2 — Simülasyon: iç içe yayılım
 
 En pahalı ve en güçlü kontrol. İki katmanlı yayılım (`mainSpread` + `subSpreadBreaks`):
 
 **Ana yayılım:** Bir "ana taş" (piyon, fil veya şah), çok-adımlı geri-alınabilir hamlelerle (boş kareye kayma) tahtada gezer. Ana taş 3 kez değişir (P, B, K), her biri iki taraf için → 6 ana yayılım. **Her durakta**, `anyBreakerFull` diğer taş türlerinin bir kırıcı açıp açmadığını kontrol eder.
 
-**Düğümlenme (her düğümde):** Ana taş her durakta, `anyKnightOrRookMobile` iki tarafın atlarını ve kalelerini yeniden yoklar. Taşlar gezerken gömülü bir at veya kale serbest kalıyorsa kilit **anında** kırılır. Bu, K2'nin kök düğümdeki statik testinin dinamik karşılığıdır.
+**Düğümlenme (her düğümde):** Ana taş her durakta, `anyKnightOrRookMobile` iki tarafın atlarını ve kalelerini yeniden yoklar. Taşlar gezerken gömülü bir at veya kale serbest kalıyorsa kilit **anında** kırılır. Bu, K1b'nin kök düğümdeki statik testinin dinamik karşılığıdır.
 
 **Kırıcı = geri-dönülemez hamle**, ama her taş türü için farklı tanımlanır:
 
@@ -174,11 +167,11 @@ Her düğümde tüm türler kontrol edildiği için, bir tarafın taşının har
 
 **Fil-void budaması (`bishopsFullyVoid`):** İki tarafın da tüm filleri kendi renginde hiçbir rakip taşa sahip değilse (hiçbir alım yapamaz) **ve** tüm piyonlar hareketsizse, ana dal 1 (P) ve 2 (B) gereksizdir → atlanır, yalnız ana dal 3 (K) çalışır (şah gezerken bir taş açılabilir → güvenlik). Gereksiz fil taramasını eler; completeness ve soundness korunur.
 
-### Kontrol 4 — Şahın nihai soundness garantisi
+### Kontrol 3 — Şahın nihai soundness garantisi
 
 Tahtadaki tüm piyonlar hariç tüm taşlar (her iki tarafın şahı, fili, atı) silinir; yalnız piyon duvarı kalır. Test edilen şah, karşı piyon tehdidine ve dolu karelere takılarak gezip **karşı şahın orijinal karesine** ulaşabiliyor mu? Ulaşabiliyorsa → kilit değil. Önce sırası olan taraf, sonra rakip.
 
-Şaha maksimum serbestlik verilir (yalnız piyon duvarı engel). En iyi ihtimalde bile karşıya geçemiyorsa gerçek oyunda da geçemez → yalnız ek bir gereklilik koşuludur, yanlış-pozitif üretmez. K3'ün şah dalının kaçırabileceği "figür-tıkalı gizli kapı" durumlarını yakalayan bir güvenlik katmanıdır.
+Şaha maksimum serbestlik verilir (yalnız piyon duvarı engel). En iyi ihtimalde bile karşıya geçemiyorsa gerçek oyunda da geçemez → yalnız ek bir gereklilik koşuludur, yanlış-pozitif üretmez. K2'nin şah dalının kaçırabileceği "figür-tıkalı gizli kapı" durumlarını yakalayan bir güvenlik katmanıdır.
 
 ---
 
@@ -193,7 +186,7 @@ Beraberlik kontrolleri ucuzdan pahalıya sıralanır: `mat/pat → ölü materya
 Kilidin *ne zaman* taranacağına ayrı bir dış katman karar verir: `lockTrigger(fen, prevFen)` → `'halfmove' | 'ep' | null`. Kural hattının içine gömülü bir `if` değil, bağımsız olarak çağrılabilen ve dışa açılan bir işlevdir. Kilit ancak pozisyonun geleceğinin geri-dönülemez biçimde daraldığı bir anda **oluşabilir**; katman bu anları tanır:
 
 - **`halfmove`** — son hamle bir taş alımı veya piyon sürmesiydi (`halfmove` 0'a düştü), yani duvar yapısının kendisi değişti.
-- **`ep`** — bir en passant hakkı **düştü**. Hak varken kendisi bir kilit-kırıcıydı (K3 kök düğümde ep alımını görür), dolayısıyla pozisyon kilit sayılamazdı. Hakkın düşmesine yol açan hamle ise geri-alınabilirdir, yani `halfmove` **0 değildir** — tek başına `halfmove` kuralı böyle bir kilidi sonsuza dek kaçırırdı.
+- **`ep`** — bir en passant hakkı **düştü**. Hak varken kendisi bir kilit-kırıcıydı (K2 kök düğümde ep alımını görür), dolayısıyla pozisyon kilit sayılamazdı. Hakkın düşmesine yol açan hamle ise geri-alınabilirdir, yani `halfmove` **0 değildir** — tek başına `halfmove` kuralı böyle bir kilidi sonsuza dek kaçırırdı.
 
 Bu anların dışında pozisyon, zaten taranmış bir pozisyonun yeniden dizilişidir; tarama atlanır. Bir tetikleyiciyi kaçırmak completeness'a mal olur, **asla soundness'a değil**: taranmamış bir kilit yalnızca "kilit değil" diye raporlanır.
 
@@ -256,8 +249,8 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 
 - **Yardımcılar:** `fenToBoard`, `boardToFen`, `boardToPlacement` (tahta temsil dönüşümleri).
 - **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli; P/N/B/R/K üretir — vezir K1'de elendiği için dalı yoktur). Yön sabitleri: `KNIGHT_D`, `KING_D`, `BISHOP_D`, `ROOK_D`.
-- **Kontroller (dört adlandırılmış giriş noktası):** `kontrol1AritmetikSinirlar`, `kontrol2GeometrikSinirlar`, `kontrol3Yayilim`, `kontrol4SahGarantisi`. Her biri bir **gerekçe dizesi** (kırıcı bulundu / kapsam dışı) ya da **`null`** (bu kontrol sağlandı) döner; dördü de sessiz kalırsa hüküm kilittir.
-- **Alt yardımcılar:** `knightOrRookHasMove` (K2a), `bishopEarlyBreak` (K2b), `kontrol2cPiyonTuglalari` (K2c), `anyKnightOrRookMobile` (düğümlenme), `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull` (K3), `kingReachesOpponent` (K4).
+- **Kontroller (üç adlandırılmış giriş noktası):** `kontrol1Kapsam` (→ `{why, outOfScope}`), `kontrol2Yayilim`, `kontrol3SahGarantisi` (→ gerekçe dizesi). Hepsi sağlandığında (`null`) hüküm kilittir.
+- **Alt yardımcılar:** `kontrol1aAritmetik`, `knightOrRookHasMove` ve `frozenBishop` (K1b), `kontrol1cPiyonTuglalari` (K1c), `anyKnightOrRookMobile` (düğümlenme), `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull` (K2), `kingReachesOpponent` (K3).
 - **Mat doğrulaması:** `bishopCheckIsMate` (fil şah-mat kırıcısı için gerçek motora danışır).
 - **Giriş noktası:** `isLocked(fen)` → `{ locked, reason }`.
 
@@ -268,7 +261,7 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 ## 8. Notlar ve sınırlar
 
 - Kilit tespiti piyon-yapılı (duvar temelli) kilitlere odaklıdır; vezir içeren ve 30 taştan kalabalık pozisyonlar kapsam dışıdır (K1). Kale kapsam içindedir: hareketsizse değerlendirilir, hareketliyse K2'de kilidi kırar.
-- Fil erken-kırıcısı ve fil-void budaması, çok-fil pozisyonlarındaki taramayı hızlandırır ama bazı ağır pozisyonlar (çok sayıda hareketli fil) yine de görece yavaş kalabilir; bu, soundness'tan ödün vermeden yapılan bilinçli bir denge.
+- Fil-void budaması çok-fil pozisyonlarındaki taramayı hızlandırır ama bazı ağır pozisyonlar (çok sayıda hareketli fil) yine de görece yavaş kalabilir; bu, soundness'tan ödün vermeden yapılan bilinçli bir denge.
 - Bayrak düşmesi mat ölçütünün üç sınıflandırıcısı da (FIDE helper, USCF forced, karma forced) tamamdır ve Motor Deneme'de de Motor Üretici'de de seçilebilir.
 - Bayrak sınıflandırıcısı (`makeFlagClassifier`, `src-flag`) ve hüküm hattı (`makeArbiter`, `src-arbiter`) hem arayüz hem üretilen motor tarafından ortak kaynak olarak kullanılır; böylece iki yerde tutarlılık garanti edilir.
 - Terk hükmü `resign()` API'si ve `resignIsFlag` yapılandırmasıyla çalışır; Motor Deneme'deki terk butonları da aynı yolu kullanır.
