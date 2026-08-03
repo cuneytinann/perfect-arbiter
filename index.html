@@ -670,11 +670,11 @@
 
       <div class="tabs" id="tabs">
         <button
-          class="tab active"
+          class="tab"
           data-panel="intro"
           data-i18n="tab.intro"
         ></button>
-        <button class="tab" data-panel="lock" data-i18n="tab.lock"></button>
+        <button class="tab active" data-panel="lock" data-i18n="tab.lock"></button>
         <button class="tab" data-panel="flag" data-i18n="tab.flag"></button>
         <button class="tab" data-panel="play" data-i18n="tab.play"></button>
         <button class="tab" data-panel="build" data-i18n="tab.build"></button>
@@ -2297,22 +2297,27 @@
    and the target holds no friendly piece. King safety (pins, discovered check,
    side to move) is ignored — a relaxation that is safe for soundness.
 
-   THREE CHECKS (in order; the first match returns "not locked"):
+   THREE CHECKS (in order; the first match ends the run):
    K1: SCOPE — everything decidable from the untouched board, nothing moves. Every
        side-dependent part runs for the side to move first, then the opponent.
        Mobility means locked-legality: "delete the kings and ask for legal moves".
+       EVERY K1 failure returns OUT OF SCOPE (outOfScope: true). K1 asks one question
+       only — "is this position inside the algorithm's class at all?" — so its answers
+       are uniform. Judging a position ("evaluated it, found a breaker") starts at K2,
+       once pieces actually move; NOT LOCKED therefore only ever comes from K2 or K3.
          a) arithmetic — 8 ≤ pieces ≤ 30 (a full army minus both queens), no queen,
             exactly 1+1 kings, ≥3 pawns a side, promotion-consistent (surplus R/N/B
-            charged against the missing-pawn budget).                → OUT OF SCOPE
-         b) a mobile knight or rook.                                 → LOCK-BREAKER
+            charged against the missing-pawn budget).
+         b) a mobile knight or rook.
          c) bishops, in this order:
-              frozen off its home rank → OUT OF SCOPE (unreachable from real play)
+              frozen off its home rank (unreachable from real play)
               one side holding both square colours, both mobile → eliminated
          d) pawn bricks — at least 3, splitting the board, on one contact rank, with
             no two adjacent bricks level (which would open a diagonal capture).
-            Fewer than 3 → OUT OF SCOPE; the other failures are real breakers.
    K2: SPREAD — three main nodes (pawn/bishop/king) × two sides, nested; all breakers
-       at every node + ep + mate. Bishop-void pruning skips branches P and B.
+       at every node + ep + mate. All six branches always run: an earlier bishop-void
+       pruning that skipped P and B was removed — it could suppress the ONE branch
+       that notices a bishop stepping out of a pawn's way, a proven false positive.
        KNOTTING: knight/rook mobility is retested at EVERY node, so a shuffle that
        frees a buried knight or rook breaks the lock immediately.
    K3: FINAL KING GUARANTEE — with only the pawn wall left, can one king reach the other?
@@ -2546,7 +2551,8 @@
         // KONTROL 1d — PAWN BRICKS + geometric pruning.
         //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
         //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
-        //   Pruning (only ever toward "not locked" → soundness-safe; avoids costly K3):
+        //   Pruning (only ever toward "not locked" → soundness-safe; avoids the costly
+        //   K2 spread, since a K1 failure returns before K2 and K3 ever run):
         //     • bricks < 3  → insufficient.
         //     • bricks == 3 → the files must match {a,d,g}|{b,d,g}|{b,e,g}|{b,e,h}, else
         //                     the wall cannot split the board (a,c,e leaves g,h open);
@@ -2693,42 +2699,6 @@
               if (slots[0] && slots[1]) return { a: slots[0], b: slots[1] };
             }
           return null;
-        }
-
-        // BISHOP-VOID PRUNING (K4 speed-up).
-        //   Condition: (a) no bishop on either side has ANY enemy piece on its own
-        //   colour → nothing to capture → it can open no capture-breaker, AND
-        //   (b) every pawn on both sides is immobile under locked-legality.
-        //   Then K4 skips main branches 1 (P) and 2 (B); branch 3 (K) still runs.
-        //   This removes redundant work only; completeness and soundness are kept.
-        //   NOTE: with no enemy piece on its colour a bishop can neither capture nor
-        //   mate (it checks only from its own colour). The king branch still probes this.
-        function bishopsFullyVoid(b) {
-          // (a) For each bishop: any enemy piece on its colour? If so, not void.
-          for (let r = 0; r < 8; r++)
-            for (let c = 0; c < 8; c++) {
-              const p = b[r][c];
-              if (p !== "B" && p !== "b") continue;
-              const bishopColor = (r + c) & 1;
-              const bishopWhite = p === "B";
-              // look for any enemy piece (pawns included) on the bishop's colour
-              for (let rr = 0; rr < 8; rr++)
-                for (let cc = 0; cc < 8; cc++) {
-                  if (((rr + cc) & 1) !== bishopColor) continue; // bishop-coloured squares only
-                  const q = b[rr][cc];
-                  if (!q) continue;
-                  const qWhite = q === q.toUpperCase();
-                  if (qWhite !== bishopWhite) return false; // enemy piece on the bishop's colour → not void
-                }
-            }
-          // (b) Is every pawn (both sides) immobile under locked-legality?
-          for (let r = 0; r < 8; r++)
-            for (let c = 0; c < 8; c++) {
-              const p = b[r][c];
-              if (p !== "P" && p !== "p") continue;
-              if (pieceMoves(b, r, c, null).length > 0) return false;
-            }
-          return true;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -2961,7 +2931,7 @@
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // CHECK 4 — FINAL KING GUARANTEE
+        // CHECK 3 — FINAL KING GUARANTEE
         //   Every piece except PAWNS is removed — both sides' kings, bishops, knights
         //   and rooks go; both sides' PAWNS (the wall) stay. The king under test:
         //     • cannot enter squares ATTACKED by enemy pawns (the wall),
@@ -2988,7 +2958,8 @@
             }
 
           // BFS: the king starts at myK and spreads to empty squares not attacked by
-          // either side's pawns. Target: the enemy king's square.
+          // ENEMY pawns. Its OWN pawns' attacks do not stop it — only their SQUARES do,
+          // as occupied. Target: the enemy king's square.
           const seen = new Set();
           let frontier = [[myK.r, myK.c]];
           seen.add(myK.r + "," + myK.c);
@@ -3028,19 +2999,22 @@
         const nm = (w) => (w ? "beyaz" : "siyah");
 
         /* ── KONTROL 1 — KAPSAM ─────────────────────────────────────────────
-     Everything decidable from the untouched board, no piece ever moves. Three parts:
+     Everything decidable from the untouched board, no piece ever moves. FOUR parts,
+     in this order; each side-dependent one runs for the side to move first, then the
+     opponent. Locked-legality means "delete the kings and ask for legal moves" — pure
+     geometry, king safety never consulted:
        1a  arithmetic — 8 ≤ pieces ≤ 30 (a full army minus both queens), no queen,
-           exactly 1 king each, ≥3 pawns each, promotion-consistent.
-       1b  piece mobility, side to move first then the opponent. Locked-legality means
-           "delete the kings and ask for legal moves" — i.e. pure geometry, king safety
-           never consulted:
-             knight / rook mobile → a real LOCK-BREAKER (a legal, ordinary position)
-             bishop frozen OFF its home rank → OUT OF SCOPE (unreachable)
-       1c  pawn bricks — at least 3, splitting the board, on one contact rank, with no
-           two adjacent bricks level.
-     Returns { why, outOfScope } or null. The two outcomes are kept apart on purpose:
-     "we could not evaluate this" is a different statement from "we evaluated it and
-     found a breaker", and the interface prints them differently. */
+           exactly 1 king each, ≥3 pawns each, promotion-consistent. Board-wide, one
+           pass, side-independent.
+       1b  a mobile knight or rook (knightOrRookHasMove).
+       1c  bishops, two rules in this order: first a bishop frozen OFF its home rank
+           (frozenBishop — unreachable from real play), then one side holding both
+           square colours with BOTH of those bishops mobile (zitRenkFilCifti).
+       1d  pawn bricks — at least 3, splitting the board, on one contact rank, with no
+           two adjacent bricks level (kontrol1dPiyonTuglalari). Board-wide.
+     Returns { why, outOfScope } or null. EVERY failure carries outOfScope: true — see
+     the note in the body. The flag travels on the result so the interface never has to
+     pattern-match the Turkish reason text to tell OUT OF SCOPE from NOT LOCKED. */
         function kontrol1aAritmetik(b) {
           const m = countMaterial(b);
           if (m.total < 8 || m.total > 30)
@@ -3100,9 +3074,21 @@
      The first check that MOVES anything. Main-node order is fixed: pawn, then bishop,
      then king; within each, the side to move goes first. At every node of every spread
      all other breakers are rescanned (anyBreakerFull), including the knot test.
-     Ep rights live on the root node only. */
+     Ep rights live on the root node only.
+
+     All six spreads (3 kinds × 2 sides) ALWAYS run. A bishop-void pruning used to skip
+     branches P and B when no bishop had an enemy piece on its own colour and every pawn
+     was immobile. It was removed: branch B is the only place a bishop stepping OUT OF A
+     PAWN'S WAY is noticed, since pawn mobility is never retested inside the bishop
+     sub-spread and "every pawn immobile" is only true of the board as it stands. The
+     counterexample was 8/2k5/8/p1p1p1p1/P1P1P1P1/5B2/5P2/2K5 w - - 0 1, ruled ABSOLUTE
+     LOCK under the pruning: bricks on a/c/e/g keep 1d happy, every black man (the c7
+     king included) sits on the colour Bf3 does not use, and f2 is blocked by its own
+     bishop — yet 1.Be2 followed by f3-f4-f5-f6-f7-f8=Q promotes. A FALSE POSITIVE, so
+     the pruning is gone rather than narrowed. Do not reintroduce it without proving
+     that no bishop move can free a pawn. */
         function kontrol2Yayilim(b, sides, epSq, epWhite) {
-          const nodes = bishopsFullyVoid(b) ? ["K"] : ["P", "B", "K"];
+          const nodes = ["P", "B", "K"];
           for (const kind of nodes)
             for (const w of sides)
               if (mainSpread(b, kind, w, epSq, epWhite))
@@ -3184,7 +3170,6 @@
           kontrol3SahGarantisi,
           knightOrRookHasMove,
           frozenBishop,
-          bishopsFullyVoid,
           anyKnightOrRookMobile,
           pawnAttacksSquare,
           bishopCheckIsMate,
@@ -3512,7 +3497,7 @@
        'halfmove' — the last move was a capture or a pawn push (halfmove reset to 0),
                     so the wall structure itself just changed.
        'ep'       — an en passant right just LAPSED. While it existed it was itself a
-                    lock-breaker (K3 sees the ep capture at its root node), so the
+                    lock-breaker (K2 sees the ep capture at its root node), so the
                     position could not be ruled locked. The move that lets it expire
                     is reversible, so halfmove is NOT 0 — the halfmove rule alone
                     would miss such a lock forever.

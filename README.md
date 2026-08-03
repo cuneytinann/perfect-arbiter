@@ -192,7 +192,19 @@ En pahalı ve en güçlü kontrol. İki katmanlı yayılım (`mainSpread` + `sub
 
 Her düğümde tüm türler kontrol edildiği için, bir tarafın taşının hareketiyle diğer tarafın (ör. filinin) kırıcı yolunun açılması da yakalanır — bu, iki taşlı helper-mate senaryolarını kapsar (bir fil şahı sıkıştırır, diğer fil mat eder).
 
-**Fil-void budaması (`bishopsFullyVoid`):** İki tarafın da tüm filleri kendi renginde hiçbir rakip taşa sahip değilse (hiçbir alım yapamaz) **ve** tüm piyonlar hareketsizse, ana dal 1 (P) ve 2 (B) gereksizdir → atlanır, yalnız ana dal 3 (K) çalışır (şah gezerken bir taş açılabilir → güvenlik). Gereksiz fil taramasını eler; completeness ve soundness korunur.
+**Kaldırılan optimizasyon — fil-void budaması.** Bir dönem `bishopsFullyVoid` adlı bir kısayol vardı: hiçbir filin kendi kare renginde rakip taşı yoksa **ve** tüm piyonlar hareketsizse ana dal 1 (P) ve 2 (B) atlanır, yalnız ana dal 3 (K) çalışırdı. **Kaldırıldı — soundness ihlali üretiyordu.**
+
+Gerekçesi filin *kendi* kırıcısını doğru sayıyordu (kendi renginde rakip taşı olmayan fil ne alım yapabilir ne şah çekebilir), ama ana dalın ikinci işlevini atlıyordu: gezen taşın **başkasının** kırıcısını açması. Fil çekilip bir at/kaleyi serbest bırakırsa bu ayakta kalan K dalının içinden yakalanıyordu (`subSpreadBreaks('B')` her düğümünde `anyKnightOrRookMobile` koşar), ama fil çekilip bir **piyonun** önünü açarsa yakalanmıyordu — piyon hareketliliği fil alt yayılımının düğümlerinde yeniden test edilmez ve "tüm piyonlar hareketsiz" koşulu yalnızca duran tahta için doğrudur.
+
+Karşı örnek:
+
+```
+8/2k5/8/p1p1p1p1/P1P1P1P1/5B2/5P2/2K5 w - - 0 1
+```
+
+Budama altında **MUTLAK KİLİT** hükmü alıyordu. Üç şey aynı anda sağlanıyor: tuğlalar a, c, e, g sütunlarında (aralık 2, yani bitişik-tuğla kuralı tetiklenmiyor, K1d geçiyor); siyahın **her** taşı — a5, c5, e5, g5 piyonları ve **c7'deki şah** — Bf3'ün kullanmadığı karelerde, yani (a) koşulu sağlanıyor; f2 ise **kendi filiyle** kapalı olduğu için (b) koşulu da sağlanıyor. Oysa beyaz **1.Be2** oynar, ardından f3-f4-f5-f6-f7-f8=D ile terfi eder. Budamasız çalıştırıldığında `B/beyaz` ana dalı kırıcıyı doğru biçimde buluyor.
+
+Artık altı yayılımın (3 tür × 2 taraf) hepsi her zaman çalışır. Tarama çok-fil pozisyonlarında daha pahalıdır; bu, soundness lehine bilinçli bir tercihtir. Benzer bir budama, hiçbir fil hamlesinin bir piyonu serbest bırakamayacağı kanıtlanmadan geri getirilmemelidir.
 
 ### Kontrol 3 — Şahın nihai soundness garantisi
 
@@ -277,7 +289,7 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 - **Yardımcılar:** `fenToBoard`, `boardToFen`, `boardToPlacement` (tahta temsil dönüşümleri).
 - **Locked-legalite üreteçleri:** `slideMoves`, `pawnMoves`, `pieceMoves` (ep destekli; P/N/B/R/K üretir — vezir K1'de elendiği için dalı yoktur). Yön sabitleri: `KNIGHT_D`, `KING_D`, `BISHOP_D`, `ROOK_D`.
 - **Kontroller (üç adlandırılmış giriş noktası):** `kontrol1Kapsam` (→ `{why, outOfScope}`), `kontrol2Yayilim`, `kontrol3SahGarantisi` (→ gerekçe dizesi). Hepsi sağlandığında (`null`) hüküm kilittir.
-- **Alt yardımcılar:** `kontrol1aAritmetik` (1a), `knightOrRookHasMove` (1b), `frozenBishop` ve `zitRenkFilCifti` (1c), `kontrol1dPiyonTuglalari` (1d), `anyKnightOrRookMobile` (düğümlenme), `bishopsFullyVoid`, `mainSpread`, `subSpreadBreaks`, `anyBreakerFull` (K2), `kingReachesOpponent` (K3).
+- **Alt yardımcılar:** `kontrol1aAritmetik` (1a), `knightOrRookHasMove` (1b), `frozenBishop` ve `zitRenkFilCifti` (1c), `kontrol1dPiyonTuglalari` (1d), `anyKnightOrRookMobile` (düğümlenme), `mainSpread`, `subSpreadBreaks`, `anyBreakerFull` (K2), `kingReachesOpponent` (K3).
 - **Mat doğrulaması:** `bishopCheckIsMate` (fil şah-mat kırıcısı için gerçek motora danışır).
 - **Giriş noktası:** `isLocked(fen)` → `{ locked, reason }`.
 
@@ -288,7 +300,7 @@ Kod sayfada sergilenmez, yalnızca indirilir. Gömülü çekirdek — `PA` motor
 ## 8. Notlar ve sınırlar
 
 - Kilit tespiti piyon-yapılı (duvar temelli) kilitlere odaklıdır; vezir içeren ve 30 taştan kalabalık pozisyonlar kapsam dışıdır (K1). Kale kapsam içindedir: hareketsizse değerlendirilir, hareketliyse K2'de kilidi kırar.
-- Fil-void budaması çok-fil pozisyonlarındaki taramayı hızlandırır ama bazı ağır pozisyonlar (çok sayıda hareketli fil) yine de görece yavaş kalabilir; bu, soundness'tan ödün vermeden yapılan bilinçli bir denge.
+- Çok-fil pozisyonlarında tarama görece yavaştır; altı ana yayılımın hepsi her zaman koştuğu için kısayol yoktur. Bunu hızlandıran fil-void budaması soundness ihlali ürettiği için kaldırıldı (§4).
 - Bayrak düşmesi mat ölçütünün üç sınıflandırıcısı da (FIDE helper, USCF forced, karma forced) tamamdır ve Motor Deneme'de de Motor Üretici'de de seçilebilir.
 - Bayrak sınıflandırıcısı (`makeFlagClassifier`, `src-flag`) ve hüküm hattı (`makeArbiter`, `src-arbiter`) hem arayüz hem üretilen motor tarafından ortak kaynak olarak kullanılır; böylece iki yerde tutarlılık garanti edilir.
 - Terk hükmü `resign()` API'si ve `resignIsFlag` yapılandırmasıyla çalışır; Motor Deneme'deki terk butonları da aynı yolu kullanır.
