@@ -680,7 +680,7 @@
         <button class="tab" data-panel="build" data-i18n="tab.build"></button>
       </div>
       <!-- ══════════ PANEL: INTRODUCTION ══════════ -->
-      <section class="panel active" id="panel-intro">
+      <section class="panel" id="panel-intro">
         <div class="card">
           <h2 data-i18n="intro.h2"></h2>
           <p class="hint" data-i18n="intro.lead">
@@ -741,7 +741,7 @@
       </section>
 
       <!-- ══════════ PANEL: LOCKED POSITION ══════════ -->
-      <section class="panel" id="panel-lock">
+      <section class="panel active" id="panel-lock">
         <div class="card">
           <h2 data-i18n="lock.h2"></h2>
           <p class="hint" data-i18n="lock.hint">
@@ -2312,6 +2312,10 @@
          c) bishops, in this order:
               frozen off its home rank (unreachable from real play)
               one side holding both square colours, both mobile → eliminated
+              one side holding TWO OR MORE bishops on the SAME square colour →
+                eliminated. PROVISIONAL: not a property of locks, a deliberate
+                completeness sacrifice that walls off a known soundness gap in K2's
+                breaker set. See the note above ayniRenkFilCifti.
          d) pawn bricks — at least 3, splitting the board, on one contact rank, with
             no two adjacent bricks level (which would open a diagonal capture).
    K2: SPREAD — three main nodes (pawn/bishop/king) × two sides, nested; all breakers
@@ -2701,6 +2705,59 @@
           return null;
         }
 
+        // KONTROL 1c (third rule) — TWO OR MORE SAME-COLOURED BISHOPS ON ONE SIDE
+        //   ⇒ OUT OF SCOPE.  *** PROVISIONAL — completeness sacrifice, not a theorem ***
+        //
+        //   Unlike the two rules above, this one is NOT a property of locked positions.
+        //   Two same-coloured bishops are perfectly compatible with a genuine absolute
+        //   lock, and ruling them out of scope throws away real locks. The rule is here
+        //   only because K2's BREAKER SET is incomplete in exactly this material class.
+        //
+        //   THE GAP IT WALLS OFF. A breaker does not have to be played by the side that
+        //   profits from it. In a helpmate the LOSING side walks its own bishop onto a
+        //   square adjacent to its OWN king, sealing the escape, and the opponent's
+        //   opposite-coloured bishop delivers mate. K2's bishop spread does generate that
+        //   quiet move — it is reversible, so it merely becomes a new node — but no
+        //   breaker test ever asks "did this placement hand the OPPONENT a mate?".
+        //   bishopCheckIsMate only examines mates given by the bishop that just moved.
+        //   The error direction is therefore the bad one: a false positive.
+        //
+        //   MEASURED on chasolver's tests/positions.txt (Miguel Ambrona, 3414 labelled
+        //   positions). Adding this rule:
+        //     • closes 32 of the 48 false positives          (soundness)
+        //     • resolves all 27 timeouts instantly           (K1 returns before K2)
+        //     • costs 44 of the 286 correct locks            (completeness)
+        //     • false-positive rate 48/334 = 14.4%  →  16/258 = 6.2%
+        //   The 16 survivors all hold exactly ONE bishop per side on OPPOSITE square
+        //   colours — the same mechanism, outside this rule's reach.
+        //
+        //   Mobility is deliberately NOT consulted here (unlike zitRenkFilCifti, whose
+        //   argument is about reach). A frozen bishop still blocks its own king's escape
+        //   square, so counting it is the conservative choice. Note that any frozen
+        //   bishop reaching this point is on its home rank — frozenBishop already
+        //   eliminated the others — and a home-rank pair sits on opposite colours in both
+        //   the standard setup and Chess960, so neither is touched by this rule.
+        //
+        //   TO BE REPLACED by a proper breaker test: does any reachable placement of the
+        //   DEFENDER's own men create a mate for the opponent? (Equivalently, Ambrona's
+        //   region/mobility analysis: region(defender bishop) ∩ neighbours(own king).)
+        //   Until that exists the trade stands as it is — completeness is the cheaper
+        //   currency, soundness is the claim being made.
+        function ayniRenkFilCifti(b, white) {
+          const first = [null, null]; // [açık kare, koyu kare] — ilk görülen filin karesi
+          for (let r = 0; r < 8; r++)
+            for (let c = 0; c < 8; c++) {
+              const p = b[r][c];
+              if (p !== "B" && p !== "b") continue;
+              if (isWhite(p) !== white) continue;
+              const colour = (r + c) & 1; // 0 = açık, 1 = koyu
+              const sq = FILES[c] + (8 - r);
+              if (!first[colour]) first[colour] = sq;
+              else return { a: first[colour], b: sq };
+            }
+          return null;
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // LOCK-BREAKER TESTS (locked-legality based, on a given board)
         // ─────────────────────────────────────────────────────────────────────
@@ -3007,9 +3064,12 @@
            exactly 1 king each, ≥3 pawns each, promotion-consistent. Board-wide, one
            pass, side-independent.
        1b  a mobile knight or rook (knightOrRookHasMove).
-       1c  bishops, two rules in this order: first a bishop frozen OFF its home rank
+       1c  bishops, three rules in this order: first a bishop frozen OFF its home rank
            (frozenBishop — unreachable from real play), then one side holding both
-           square colours with BOTH of those bishops mobile (zitRenkFilCifti).
+           square colours with BOTH of those bishops mobile (zitRenkFilCifti), then one
+           side holding two or more bishops on the SAME square colour (ayniRenkFilCifti
+           — PROVISIONAL, a completeness sacrifice covering a known K2 gap; mobility is
+           not consulted there, and the reasoning is in the note above that function).
        1d  pawn bricks — at least 3, splitting the board, on one contact rank, with no
            two adjacent bricks level (kontrol1dPiyonTuglalari). Board-wide.
      Returns { why, outOfScope } or null. EVERY failure carries outOfScope: true — see
@@ -3061,6 +3121,20 @@
             if (pair)
               return dis(
                 nm(w) + " iki zıt renk fil (" + pair.a + ", " + pair.b + ")",
+              );
+          }
+          // PROVISIONAL rule — a completeness sacrifice, not a property of locks.
+          // Full reasoning and measurements in the note above ayniRenkFilCifti.
+          for (const w of sides) {
+            const same = ayniRenkFilCifti(b, w);
+            if (same)
+              return dis(
+                nm(w) +
+                  " aynı kare renginde iki fil (" +
+                  same.a +
+                  ", " +
+                  same.b +
+                  ") — geçici kapsam kısıtı",
               );
           }
 
