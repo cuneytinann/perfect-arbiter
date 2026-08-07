@@ -920,13 +920,71 @@
         </p>
         <p>
         Proje ilk olarak <b>FIDE 5.2.2 kilitli ölü pozisyon</b> tespitini
-        çözmek için doğdu. Bu problemin literatürde bir çözümü vardır —
-        Miguel Ambrona'nın <i>A Practical Algorithm for Chess Unwinnability</i>
-        (FUN 2022) makalesi sağlam ve tam bir algoritma tanımlar. Eksik olan
-        algoritma değil, <b>uygulaması</b>: bugün hiçbir büyük dijital
-        platform bu tespiti yapmaz. Süreç içinde FIDE ile USCF arasındaki
-        kural farkları incelemeye alındı ve USCF'nin yine tam uygulanmayan
-        <b>zorunlu mat</b> kuralı da kapsama dahil edildi.
+        çözmek için doğdu. Bu konuda bir girişim bulunmadığı düşüncesiyle
+        algoritma sıfırdan ve bağımsız yazıldı. Süreç içinde FIDE ile USCF
+        arasındaki kural farkları da incelemeye alındı ve USCF'nin dijital
+        platformlarda yine tam uygulanmayan <b>zorunlu mat</b> kuralı kapsama
+        dahil edildi.
+        </p>
+        <p>
+        Algoritma çalışır hâle geldiğinde onu sınayacak bir veri arayışı başladı
+        — ve yol orada <b>chasolver</b> ile kesişti. Miguel Ambrona'nın
+        <i>A Practical Algorithm for Chess Unwinnability</i> (FUN 2022)
+        makalesine dayanan bu araç, aynı problemi sağlam ve tam biçimde
+        çözüyordu. Sınama, kendi algoritmamda bir <b>soundness açığı</b>
+        gösterdi: bazı pozisyonlara kilit diyordu ama mat mümkündü.
+        </p>
+        <p>
+        Açığın kaynağı belliydi. Zaten bir "fil mat edebilir mi" kontrolü vardı,
+        ama yetersizdi — kaybeden tarafın kendi taşlarıyla kendi şahını
+        mühürlemesini göremiyordu. Makaleyi okuyarak o kontrolü genişlettim ve
+        dallandırdım; bugünkü <b>Kontrol 2</b> oradan çıktı.
+        </p>
+        <p>
+        Kolay yol o dalı tümden atmaktı. Soundness'a zarar vermezdi — atılan bir
+        dal yalnız daha az kilit bulur — ama tamlık kaybıydı. Kaybı göze
+        almadım, çünkü hedef pratikte karşılaşılan her ölü pozisyonu
+        yakalayabilmekti.
+        </p>
+        <p>
+        Öte yandan chasolver'ın yolunu, yani <b>%100 tamlığı</b>, izlemeyi de
+        tercih etmedim. Onun için gereken helpmate araması algoritmayı
+        fazlasıyla karmaşıklaştırıyor ve yavaşlatıyordu. Başlangıçta %100 tamlık
+        iddiasıyla yola çıkmıştım; havuzun ne kadar geniş ve iddianın ne kadar
+        büyük olduğunu görünce konumu değiştirdim: <b>pratik problemi çözmek
+        yeterlidir, ve soundness tamlıktan önemlidir.</b> Bu tercihin gerekçesi
+        Bölüm 2'de ayrıntılı olarak açıklanmaktadır.
+        </p>
+        <h5>Bir teslim</h5>
+        <p>
+        Bunları söyledikten sonra şunu da açıkça yazmak gerekir:
+        <b>chasolver, bir hakem uygulaması olarak bu projeden çok daha kapsamlı
+        ve çok daha başarılıdır.</b> Ölçütü "pozisyon ölü mü" değil, "bu oyuncu
+        artık herhangi bir yolla mat edilebilir mi" sorusudur; bu yüzden ölü
+        pozisyonların dışında kalan durumları da yakalar — zorunlu pata çıkan
+        varyantlar, materyalin kaçınılmaz olarak mat edemeyecek düzeye
+        ineceği konumlar gibi. Bunlar FIDE ve USCF'nin
+        üzerine pek eğilmediği, bence daha çok tartışılmayı ve daha ince
+        elenip sık dokunmayı hak eden durumlar. Kendi yorumum, chasolver'ın bu
+        noktalarda federasyonlardan bile daha doğru karar verdiği yönünde. Yine
+        de bu bir yorum ve tartışmaya açık: oynanmamış hamlelerle tükenmiş süre
+        birlikte tartıldığında sınırın tam olarak nereye çizileceği kendi
+        başına bir soru. chasolver, Lichess Açık
+        Veritabanı'nın tamamını tarayarak yaklaşık iki yüz bin yanlış
+        hükmedilmiş oyun tespit etti; oyun başına bakıldığında son derece
+        seyrek, ama gerçek ve ölçülmüş bir sayı.
+        </p>
+        <p>
+        Bu projenin kapsamı ise tasarım gereği daha dar: yalnızca FIDE ve
+        USCF'nin tanımlarını birebir karşılamayı hedefler, ötesine geçmez.
+        </p>
+        <p>
+        Ve dürüst olmak gerekirse, bu uygulamayı yazarken araştırmayı eksik
+        yapmış olmalıyım — hiçbir algoritma bulamamıştım. chasolver'ı ve
+        Miguel Ambrona'nın makalesini baştan bulsaydım böyle bir şeye hiç
+        girişmezdim. Buna rağmen proje ayakta duruyor, çünkü çözdüğü şey artık
+        problemin kendisi değil: <b>sade, hızlı ve doğrulanabilir olduğu için
+        platformlara taşınabilir</b> bir hakem katmanı. Gerekçesi 2.1'de.
         </p>
         <p>
         Projenin temel iddiası: satranç kurallarını kitapçığa uygun, adil ve
@@ -1158,6 +1216,31 @@
         tereddütsüz tamlıktan verilir. Konum tek cümleyle:
         <b>soundness iddiadır, tamlık ölçümdür.</b>
         </p>
+        <p>
+        Bu yalnızca bir kabullenme değil, bilinçli bir tercih. Standart
+        pozisyonlar için bile %100 tamlığı hedeflemek yanlış olurdu, çünkü
+        tamlığı zorlayan pozisyonlar ancak <b>kurgulanırsa</b> ortaya çıkar.
+        Pratikte kimse iki piyonunu, zaten aynı renk karede bir fili varken,
+        yine aynı renge terfi ettirip üç aynı renk fil elde etmez. Böyle
+        tahtalar gerçek oyunda görülmez; yalnız algoritmayı sınamak için
+        kurulur.
+        </p>
+        <p>
+        O tahtaları da kapsamak için algoritmayı karmaşıklaştırmak ve
+        yavaşlatmak, kazandırdığından çoğunu geri alır. Bu sınır kabul
+        edildiğinde ise dört şey birden elde edilir: <b>soundness bozulmadan
+        korunur</b>, pratik oyunlarda karşılaşılan hemen her ölü pozisyon
+        yakalandığı için <b>tamlık sahada %100'e yaklaşır</b>, algoritma
+        <b>hızlı ve sade kalır</b>, ve bu sayede <b>kanıtlanabilir, sınanabilir
+        ve taşınabilir</b> olur.
+        </p>
+        <p>
+        Sonuncusu asıl amaçtır. Büyük platformların bu tespiti bugüne dek
+        uygulamamasının sebebi problemin çözümsüz olması değil, çözümün pahalı
+        ve doğrulaması zor görünmesidir. Sade, hızlı ve sınanabilir bir hakem
+        katmanını kendi dillerinde yeniden yazıp entegre etmekte
+        çekinmeyeceklerdir.
+        </p>
 
         <h5>E. Kapsam neden dar</h5>
         <p>
@@ -1385,8 +1468,10 @@
 
         <h5>A. Zor durum</h5>
         <p>
-        Sorunun neden ayrı ve özel bir katman gerektirdiğini görmek için mat
-        kurgusunun en sinsi biçimine bakmak gerekir. Kilidi kıran hamleyi
+        Bu katman sıfırdan doğmadı. Başlangıçtan beri bir "fil mat edebilir mi"
+        kontrolü vardı; yetersiz olduğu anlaşılınca genişletilip dallandırıldı
+        ve bugünkü hâlini aldı. Neyi kaçırdığını görmek için mat kurgusunun en
+        sinsi biçimine bakmak gerekir. Kilidi kıran hamleyi
         <b>her zaman o hamleden kâr eden taraf oynamaz.</b> Kaybeden taraf
         kendi filini — ya da kendi piyonunu — kendi şahının yanındaki kareye
         getirir, kaçışı mühürler, ve rakip mat eder. Kırıcı hamleyi oynayan,
@@ -1602,8 +1687,9 @@
 
         <h4>2.7. Doğrulama</h4>
         <p>
-        İddialar ölçülmüştür. Referans veri, Miguel Ambrona'nın chasolver
-        deposundaki <code>tests/positions.txt</code> dosyasıdır: topluluğun
+        İddialar ölçülmüştür. Kullanılan referans veri, 1.1'de anlatılan
+        sınamanın da kaynağı: Miguel Ambrona'nın chasolver
+        deposundaki <code>tests/positions.txt</code> dosyası. Topluluğun
         2021'den beri chasolver.org'a gönderdiği <b>3.414 pozisyon</b>, her
         biri kazanılabilirlik açısından etiketli. Bizim için kritik etiket
         <code>--</code>, yani hiçbir tarafın mat edemediği ölü pozisyonlar.
@@ -2294,7 +2380,16 @@
           <div class="docbody">
             <h4>1.1. How the project started</h4>
             <p>Over the board, grey areas like locked positions or material sufficiency on a flag fall are settled by an arbiter's experience and human judgement. On digital platforms, settling the same situations with a clear algorithm instead of leaving them open to interpretation has been a long-standing problem in chess programming.</p>
-            <p>The project began with <b>FIDE 5.2.2 dead position</b> detection. That problem does have a solution in the literature — Miguel Ambrona's <i>A Practical Algorithm for Chess Unwinnability</i> (FUN 2022) defines a sound and complete algorithm. What is missing is not the algorithm but its <b>deployment</b>: no major digital platform performs this test today. Along the way the differences between FIDE and USCF were studied, and USCF's <b>forced mate</b> rule — also unimplemented on digital platforms — was brought into scope.</p>
+            <p>The project began with <b>FIDE 5.2.2 dead position</b> detection. Believing no one had attempted it, I wrote the algorithm from scratch and independently. Along the way the differences between FIDE and USCF were studied, and USCF's <b>forced mate</b> rule — also unimplemented on digital platforms — was brought into scope.</p>
+            <p>Once the algorithm worked, I went looking for data to test it against — and that is where the path crossed <b>chasolver</b>. Built on Miguel Ambrona's <i>A Practical Algorithm for Chess Unwinnability</i> (FUN 2022), it solves the same problem soundly and completely. The test exposed a <b>soundness gap</b> in my own algorithm: it was calling some positions locked when mate was in fact possible.</p>
+            <p>The source of the gap was clear. There had always been a "can the bishop mate" check, but it was too narrow — it could not see the losing side sealing its own king with its own men. Reading the paper, I widened that check and branched it out; today's <b>Check 2</b> grew from there.</p>
+            <p>The easy path was to drop the branch altogether. It would not have hurt soundness — a dropped branch only finds fewer locks — but it was a loss of completeness. I did not accept the loss, because the goal was to catch every dead position that actually occurs in play.</p>
+            <p>Nor did I follow chasolver's route to <b>100% completeness</b>. The helpmate search it requires made the algorithm considerably more complex and slower. I had set out with a claim of 100% completeness; seeing how wide the pool was and how large the claim, I moved my position: <b>solving the practical problem is enough, and soundness matters more than completeness.</b> Section 2 sets out the reasoning behind that choice.</p>
+
+            <h5>An admission</h5>
+            <p>Having said all that, one thing should be written plainly: <b>as an arbiter, chasolver is far broader and far more successful than this project.</b> Its criterion is not "is the position dead" but "can this player still be checkmated by any means at all" — so it also catches cases outside the dead-position class: lines that are forced into stalemate, positions where the material must inevitably fall below mating strength. These are situations FIDE and USCF have not dwelt on, and to my mind they deserve more discussion and finer distinctions than they have had. My own reading is that on these points chasolver decides more correctly than the federations themselves. It stays a reading, though, and an arguable one: quite where the line should fall, once moves never played are weighed against a clock that has already run out, is a question in its own right. Scanning the entire Lichess Open Database, chasolver identified roughly two hundred thousand wrongly decided games; vanishingly rare per game, but a real and measured number.</p>
+            <p>This project's scope is narrower by design: it aims to meet the FIDE and USCF definitions literally, and goes no further.</p>
+            <p>And in honesty, my research must have been incomplete while I was building this — I found no algorithm at all. Had I found chasolver and Miguel Ambrona's paper at the outset, I would never have attempted it. It stands anyway, because what it solves is no longer the problem itself: it is an arbiter layer <b>simple, fast and verifiable enough to be carried into a platform</b>. The reasoning is in 2.1.</p>
             <p>The core claim: turn the rules of chess into an algorithm that follows the rulebook fairly and accurately, help platforms understand the FIDE/USCF split, and offer rule implementers a <b>reference implementation</b>. All source, all logical assumptions and all algorithms are open to the chess and software communities for discussion and testing.</p>
 
             <h4>1.2. Why a browser</h4>
@@ -2363,6 +2458,9 @@
 
             <h5>D. Completeness — what is not claimed</h5>
             <p>There is <b>no claim of 100% completeness.</b> Locks are missed even inside the scope; the count is measured and published. Completeness here is not a goal but <b>the currency spent on soundness</b>. Whenever the two conflict, completeness gives way without hesitation. In one line: <b>soundness is the claim, completeness is the measurement.</b></p>
+            <p>This is a deliberate choice, not merely something conceded. Targeting 100% completeness would be wrong even for standard positions, because the boards that strain completeness only appear when they are <b>constructed</b>. In practice nobody promotes two pawns to a third bishop of a square colour they already occupy. Such boards do not arise in real play; they are built to test an algorithm.</p>
+            <p>Complicating and slowing the algorithm to cover them would give back most of what it gains. Accepting the limit instead buys four things at once: <b>soundness is preserved intact</b>, <b>completeness approaches 100% in the field</b> because nearly every dead position seen in real play is caught, the algorithm <b>stays fast and simple</b>, and it therefore becomes <b>provable, testable and portable</b>.</p>
+            <p>The last is the actual aim. Major platforms have not implemented this test not because the problem is unsolvable, but because the solution looks expensive and hard to verify. A simple, fast, testable arbiter layer is one they will not hesitate to rewrite in their own language and integrate.</p>
 
             <h5>E. Why the scope is narrow</h5>
             <p>Writing a universal algorithm that catches every lock across the whole space of chess — in constructed problems, exotic FEN strings, variants — is very hard in both theory and practice. The funnel is therefore narrowed deliberately to <b>real game positions arising from the standard setup or Chess960</b>. The scope limits are not arbitrary; each follows directly from board geometry or the laws of chess, and each is justified individually in 2.4. Thanks to them the algorithm stays out of risky positions and eliminates non-locked standard-game positions at great speed.</p>
@@ -2421,7 +2519,7 @@
             <p>This is the first real question put to a position that clears the scope test: in <b>any</b> arrangement reachable from this board, can either side deliver mate?</p>
 
             <h5>A. The hard case</h5>
-            <p>To see why this needs its own layer, look at the most insidious form a mate can take. The move that breaks a lock is <b>not always played by the side that profits from it.</b> The losing side walks its own bishop — or pushes its own pawn — onto a square beside its own king, sealing the escape, and the opponent mates. The breaker is played by the side it harms.</p>
+            <p>This layer did not appear from nothing. A "can the bishop mate" check had been there from the start; once it proved too narrow it was widened, branched out and grew into what it is now. To see what it was missing, look at the most insidious form a mate can take. The move that breaks a lock is <b>not always played by the side that profits from it.</b> The losing side walks its own bishop — or pushes its own pawn — onto a square beside its own king, sealing the escape, and the opponent mates. The breaker is played by the side it harms.</p>
             <pre>1.Bf5 Kb7  2.Be6 Ka8  3.Bd7 Bb8  4.Be8 Ba7  5.Bc6#</pre>
             <p>In the final position the black king is on a8 with its own bishops on a7 and b8. Two of the king's three escape squares are blocked by <b>its own bishops</b>, the third covered by White's. Mate.</p>
             <p>No move simulation can find that arrangement. The spread layer moves one piece type of one colour at a time; this mate needs the king, the loser's bishops and the winner's bishop all to be somewhere new <b>at the same time</b>. No number of extra branches closes that product — the product is the problem.</p>
@@ -2470,7 +2568,7 @@
             <p>The budget was set by measurement: the heaviest board that actually reached a verdict spent 182,768 nodes, the heaviest lock 161,434. 200,000 covers every real ruling with headroom and cuts the pathological boards off within seconds.</p>
 
             <h4>2.7. Verification</h4>
-            <p>The claims have been measured. The reference data is <code>tests/positions.txt</code> from Miguel Ambrona's chasolver repository: <b>3,414 positions</b> submitted by the community to chasolver.org since 2021, each labelled for winnability. The label that matters here is <code>--</code>, meaning neither side can mate.</p>
+            <p>The claims have been measured. The reference data is the same one the test in 1.1 was run against: <code>tests/positions.txt</code> from Miguel Ambrona's chasolver repository — <b>3,414 positions</b> submitted by the community to chasolver.org since 2021, each labelled for winnability. The label that matters here is <code>--</code>, meaning neither side can mate.</p>
             <p class="note"><b>Attribution and difference in scope.</b> chasolver is an open-source (MIT) solver by Miguel Ambrona — <code>github.com/miguel-ambrona/chasolver</code>. It carries the whole algorithm from the paper: the semi-static analysis <b>plus</b> the helpmate search. That is why it is both sound and complete. <code>tests/positions.txt</code> is the file its author offers explicitly so that other solvers can be evaluated, and it is used here for exactly that purpose.</p>
             <p class="note">The two systems are <b>not equivalent</b>, and this measurement is not a race. chasolver rules on every position in the set; Perfect Arbiter rules on 277 of the 3,414. They also ask different questions: chasolver asks "can this side win", Perfect Arbiter asks "is the position absolutely locked" — can any irreversible move or any mate be opened at all. The measurement exists solely to test whether Perfect Arbiter is ever wrong on the positions it does rule on, against an independent reference.</p>
             <p>It should be said that this set does not represent real games: the positions were submitted to <b>stress</b> the reference tool. The distribution of actual play is far easier.</p>
