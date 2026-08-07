@@ -119,6 +119,152 @@
         color: var(--ink);
         border-bottom-color: var(--accent);
       }
+      /* ── tanıtım akordeonu ── */
+      .docwrap {
+        margin-top: 1.4rem;
+      }
+      html[lang="tr"] .only-en,
+      html[lang="en"] .only-tr {
+        display: none;
+      }
+      .doc {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--card);
+        margin-bottom: 0.7rem;
+        overflow: hidden;
+      }
+      .doc > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.95rem 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        user-select: none;
+      }
+      .doc > summary::-webkit-details-marker {
+        display: none;
+      }
+      .doc > summary:hover {
+        background: #262a30;
+      }
+      .doc > summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
+      .doc[open] > summary {
+        border-bottom: 1px solid var(--line);
+      }
+      .doc[open] > summary .ttl {
+        color: var(--accent);
+      }
+      .doc .num {
+        font-variant-numeric: tabular-nums;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 0.15rem 0.4rem;
+        flex: none;
+      }
+      .doc .ttl {
+        font-weight: 600;
+        font-size: 1rem;
+        flex: 1;
+      }
+      .doc .sub {
+        display: block;
+        font-weight: 400;
+        font-size: 0.83rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+      }
+      .doc .chev {
+        flex: none;
+        color: var(--muted);
+        transition: transform 0.18s ease;
+        transform: rotate(180deg);
+      }
+      .doc[open] > summary .chev {
+        transform: rotate(0deg);
+      }
+      .docbody {
+        padding: 0.3rem 1.35rem 1.4rem;
+      }
+      .docbody h4 {
+        font-size: 0.95rem;
+        margin: 1.5rem 0 0.5rem;
+      }
+      .docbody h5 {
+        font-size: 0.87rem;
+        margin: 1.1rem 0 0.35rem;
+        color: var(--accent2);
+        font-weight: 600;
+      }
+      .docbody p {
+        margin: 0.55rem 0;
+      }
+      .docbody ul {
+        margin: 0.5rem 0;
+        padding-left: 1.15rem;
+      }
+      .docbody li {
+        margin: 0.35rem 0;
+      }
+      .docbody pre {
+        background: #14161a;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0.8rem 1rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+      }
+      .docbody blockquote {
+        margin: 0.9rem 0;
+        padding: 0.65rem 1rem;
+        border-left: 3px solid var(--accent);
+        background: #1e2126;
+        border-radius: 0 6px 6px 0;
+      }
+      .docbody blockquote p {
+        margin: 0;
+      }
+      .docbody table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.9rem 0;
+        font-size: 0.88rem;
+      }
+      .docbody th,
+      .docbody td {
+        border: 1px solid var(--line);
+        padding: 0.45rem 0.6rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      .docbody th {
+        background: #1e2126;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .docbody td.n {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .docbody .note {
+        font-size: 0.88rem;
+        color: var(--muted);
+        border-left: 2px solid var(--line);
+        padding-left: 0.8rem;
+        margin: 0.9rem 0;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .doc .chev {
+          transition: none;
+        }
+      }
       .panel {
         display: none;
       }
@@ -737,6 +883,1835 @@
             ayrım noktası <code>K+R vs K+N</code>’dir — FIDE’de süresi biten K+R
             tarafı kaybeder (Friedel vakası), USCF’de aynı pozisyon beraberedir.
           </p>
+        </div>
+
+        <div class="docwrap only-tr">
+        <!-- ══════════ 1 ══════════ -->
+        <details class="doc" open>
+        <summary>
+        <span class="num">01</span>
+        <span class="ttl"
+        >Amaç, felsefe ve kural mimarisi
+        <span class="sub"
+        >Proje neden var, neden tarayıcıda, ve neden bot değil</span
+        ></span
+        >
+        <svg
+        class="chev"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        aria-hidden="true"
+        >
+        <path d="M6 15l6-6 6 6" />
+        </svg>
+        </summary>
+        <div class="docbody">
+        <h4>1.1. Projenin doğuşu ve temel amacı</h4>
+        <p>
+        Masabaşı turnuvalarda kilitli pozisyonlar ya da bayrak düşmesindeki
+        materyal yeterliliği gibi gri alanlar, hakemin tecrübesi ve insani
+        yorumuyla karara bağlanır. Dijital platformlarda ise aynı durumları
+        yoruma açık bırakmadan net bir algoritmayla çözmek, satranç
+        programlamasının uzun süredir tartışılan sorunlarından biridir.
+        </p>
+        <p>
+        Proje ilk olarak <b>FIDE 5.2.2 kilitli ölü pozisyon</b> tespitini
+        çözmek için doğdu. Bu problemin literatürde bir çözümü vardır —
+        Miguel Ambrona'nın <i>A Practical Algorithm for Chess Unwinnability</i>
+        (FUN 2022) makalesi sağlam ve tam bir algoritma tanımlar. Eksik olan
+        algoritma değil, <b>uygulaması</b>: bugün hiçbir büyük dijital
+        platform bu tespiti yapmaz. Süreç içinde FIDE ile USCF arasındaki
+        kural farkları incelemeye alındı ve USCF'nin yine tam uygulanmayan
+        <b>zorunlu mat</b> kuralı da kapsama dahil edildi.
+        </p>
+        <p>
+        Projenin temel iddiası: satranç kurallarını kitapçığa uygun, adil ve
+        doğru biçimde algoritmalaştırmak, platformların FIDE/USCF ayrımını
+        daha iyi kavramasını sağlamak ve kural uygulayıcıları için
+        <b>tam bir kılavuz</b> (reference implementation) sunmak. Tüm kaynak
+        kodlar, mantıksal kabuller ve algoritmalar satranç ve yazılım
+        topluluğunun tartışmasına ve testine açıktır.
+        </p>
+
+        <h4>1.2. Neden tarayıcı ortamı</h4>
+        <h5>Görselleştirme ve sezgisel deneyim</h5>
+        <p>
+        Projenin tek dosyalık HTML/JS (<code>index.html</code>) formatında
+        geliştirilmesinin amacı nihai bir üretim betiği sunmak değil;
+        algoritmanın çalışma adımlarını, kilit tespit mantığını ve
+        federasyonlar arasındaki kural farklarını tarayıcıda
+        <b>görselleştirmek, sezgisel hale getirmek ve kolayca test
+        ettirmektir</b>. Bu ortam, kuralların bir kara kutu olarak değil, her
+        adımda gözlemlenebilir bir süreç olarak kanıtlanması için laboratuvar
+        görevi görür.
+        </p>
+        <h5>Hız ve teknik entegrasyon</h5>
+        <p>
+        Hakem algoritması yalnızca kural doğrulaması için kullanılacaksa,
+        JavaScript'in çalışma zamanı hızı modern tarayıcılar için fazlasıyla
+        yeterlidir. Ancak <b>Stockfish gibi yüksek performanslı motorlarla
+        entegre</b> çalışacak ve kural denetimlerini hamle arama döngüsü
+        içinde anlık yapacak bir yapıda JavaScript'in kısıtları belirginleşir.
+        Azami hız potansiyeli ve modern analiz motorlarıyla kusursuz uyum
+        için mantığın <b>C++, Rust veya Java</b> gibi sistem dillerine port
+        edilmesi; özellikle tahta temsilinde <b>Bitboard</b> yapısına
+        geçilmesi çok daha verimlidir.
+        </p>
+
+        <h4>1.3. Hakem, bot değildir</h4>
+        <p>
+        Bu proje Stockfish ya da Leela Chess Zero gibi pozisyon değerlendiren,
+        en iyi hamleyi arayan bir oyun motoru <b>değildir</b>. Amaç oynamak
+        değil; kurallar, kilitli ölü pozisyon durumları ve süre bitimi
+        hükümleri çerçevesinde kesin ve sarsılmaz kararlar vermektir.
+        </p>
+        <ul>
+        <li>
+        <b>İnsan–insan maçları için ideal hız.</b> Gerçek zamanlı oynanan
+        maçlarda hamle doğrulaması yapmak, kural ihlallerini saptamak ve
+        anlık durum hükmü vermek için son derece hızlı, hafif ve etkilidir.
+        </li>
+        <li>
+        <b>Arama derinliği kısıtı.</b> Bünyedeki zorunlu mat arayıcısı d5–d10
+        gibi makul derinliklerde hızlı çalışır. 50–60 derinliğe inebilen
+        modern analiz motorlarının yanında bu kapasite doğal olarak
+        sınırlıdır. Bu nedenle sistem bir oyun ya da analiz motoru olarak
+        değil, <b>yalnızca kuralları doğrulayan ve hüküm veren bağımsız bir
+        hakem algoritması</b> olarak kullanılmalıdır.
+        </li>
+        </ul>
+
+        <h4>1.4. Esnek kural mimarisi</h4>
+        <p>
+        FIDE ve USCF standartları arasında terk (resign), bayrak düşmesinde
+        materyal değerlendirmesi, 75 hamle / 5 tekrar otomatik beraberliği
+        gibi kritik konularda ciddi uygulama farkları vardır. Her iki
+        federasyonun da daha mantıklı ve adil davrandığı farklı noktalar
+        bulunur. Bu yüzden algoritma platformları tek bir kural kümesine
+        zorlamak yerine modüler bir mimari sunar:
+        </p>
+        <ul>
+        <li>
+        <b>FIDE ve USCF standartları.</b> Her iki federasyonun resmi
+        kitapçıklarındaki mantık birebir uygulanabilir.
+        </li>
+        <li>
+        <b>Karma sistem (önerilen model).</b> İki federasyonun en adil
+        görünen kurallarını harmanlayan üçüncü bir yaklaşım — Bölüm 5.
+        </li>
+        <li>
+        <b>Özel motor üretimi.</b> Çekirdek kural motorunun üzerine,
+        tartışmalı noktalarda kullanıcının kendi tercihini seçebilmesine
+        imkân tanınır; istenen parametrelerle kişiselleştirilmiş bağımsız
+        bir hakem motoru çıktısı üretilebilir.
+        </li>
+        </ul>
+        </div>
+        </details>
+
+        <!-- ══════════ 2 — VARSAYILAN AÇIK ══════════ -->
+        <details class="doc" open>
+        <summary>
+        <span class="num">02</span>
+        <span class="ttl"
+        >Kilitli ölü pozisyon tespiti — FIDE 5.2.2 / USCF 14D4
+        <span class="sub"
+        ><code>src-lock</code> — üç kontrol, ölçülmüş doğrulama</span
+        ></span
+        >
+        <svg
+        class="chev"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        aria-hidden="true"
+        >
+        <path d="M6 15l6-6 6 6" />
+        </svg>
+        </summary>
+        <div class="docbody">
+        <p>
+        FIDE Kural Kitapçığı Madde 5.2.2: iki taraf işbirliği yapsa dahi
+        (<i>helpmate</i>) hiçbir kurallı hamle dizisiyle mat pozisyonuna
+        ulaşılamıyorsa pozisyon <b>ölü pozisyondur</b> ve oyun derhal
+        berabere biter. USCF de aynı ilkeyi uygular.
+        </p>
+
+        <h4>2.1. Ölü pozisyon ayrımı, kapsam, soundness ve completeness</h4>
+
+        <h5>A. İki ayrı zorluk sınıfı</h5>
+        <p>
+        <b>Basit ölü pozisyonlar — yetersiz materyal.</b> Çıplak şahlar
+        (K–K), tek at (K+N–K), tek fil (K+B–K), ya da iki tarafın tüm
+        fillerinin aynı renk karelerde olması (K+B–K+B). Tahtada mat edecek
+        materyal yoktur. Tespiti taş sayımı ve kare rengi denetiminden
+        ibarettir; işlem yükü ihmal edilebilir.
+        </p>
+        <p>
+        <b>Karmaşık kilitli pozisyonlar.</b> Mat için fazlasıyla yeterli
+        materyal vardır — piyonlar, filler, hatta kaleler — ama piyon
+        duvarları ve blokajlar yüzünden mat geometrik olarak imkânsızdır.
+        Bunları görmek taş saymanın çok ötesindedir. Bu bölümün konusu
+        bunlardır.
+        </p>
+
+        <h5>B. Dayanılan teorem</h5>
+        <blockquote>
+        <p>
+        İki taraf işbirliği yapsa bile hiçbir <b>geri-dönülemez hamle</b>
+        (taş alımı, piyon sürme, terfi) ve hiçbir <b>mat</b>
+        açılamıyorsa, pozisyon kesin beraberedir.
+        </p>
+        </blockquote>
+        <p>
+        Gerekçe: geri-dönülebilir hamleler yalnızca mekik dokur, pozisyon
+        uzayı sonludur, dolayısıyla 75 hamle / 5 tekrar tavanı devreye girer.
+        Bu yüzden algoritmanın aradığı şey "kim kazanır" değil,
+        <b>kilit kırıcı</b>: geri-dönülemezlik ya da mat.
+        </p>
+
+        <h5>C. Soundness — iddia ve dayanağı</h5>
+        <p>
+        Bir hakem algoritmasının iki hata yönü vardır ve
+        <b>eşit ağırlıkta değildirler</b>:
+        </p>
+        <ul>
+        <li>
+        <b>Yanlış pozitif</b> — kilit olmayana "kilit" demek. Oyunu haksız
+        yere berabere ilan eder. FIDE ihlalidir.
+        </li>
+        <li>
+        <b>Yanlış negatif</b> — gerçek bir kilidi görememek. Oyun sürer, 75
+        hamle ya da 5 tekrar tavanında zaten berabere biter. Sonuç geç
+        gelir ama yanlış gelmez.
+        </li>
+        </ul>
+        <p>
+        Tasarımın tamamı bu asimetri üzerine kuruludur.
+        <b>Yanlış pozitif kabul edilemez; yanlış negatif ödenebilir bir
+        bedeldir.</b>
+        </p>
+        <p>
+        Buradaki asıl mühendislik kararı şudur: algoritma esnetmelerle
+        doludur — şah güvenliği yok sayılır, sıra kimde olduğuna bakılmaz,
+        şah ana düğümünde rakip şah tahtadan silinir. Ama
+        <b>her esnetme aynı yöne hata verir.</b> Her biri taraflara gerçekte
+        olduğundan fazla imkân tanır; fazla imkân daha çok kırıcı bulmak,
+        daha çok kırıcı da "kilit değil" demektir. Belirsizliğin çıktığı her
+        noktada sonuç güvenli tarafa düşer.
+        </p>
+        <table>
+        <thead>
+        <tr>
+        <th>Esnetme</th>
+        <th>Hata yönü</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Şah güvenliği, bağlanma ve sıra yok sayılır</td>
+        <td>fazla hamle → fazla kırıcı → kilit değil</td>
+        </tr>
+        <tr>
+        <td>Şah ana düğümünde rakip şah silinir</td>
+        <td>fazla alan → fazla kırıcı</td>
+        </tr>
+        <tr>
+        <td>Şah, fil ve şah tehdidini yok sayarak ilerler</td>
+        <td>fazla alan</td>
+        </tr>
+        <tr>
+        <td>Düğüm bütçesi dolar</td>
+        <td>hüküm verilmez, kapsam dışı</td>
+        </tr>
+        <tr>
+        <td>Motor pozisyonu ayrıştıramaz</td>
+        <td>kırıcı sayılır</td>
+        </tr>
+        <tr>
+        <td>K1'in geometrik budamaları</td>
+        <td>yalnız kilit değile</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>
+        Bu, iddianın <b>yapısal</b> dayanağıdır. Ampirik dayanağı 2.7'dedir.
+        Bunun bir <i>ispat</i> olmadığını da söylemek gerekir: yapısal
+        argüman esnetmelerin yönünü kanıtlar, uygulamada kodlama hatası
+        olmadığını kanıtlamaz. Bu yüzden ölçüm yayımlanmıştır ve
+        tekrarlanabilirdir.
+        </p>
+
+        <h5>D. Completeness — iddia edilmeyen şey</h5>
+        <p>
+        Algoritmanın <b>%100 tamlık iddiası yoktur.</b> Kapsam içinde bile
+        kaçırdığı kilitler vardır; sayıları ölçülmüş ve yayımlanmıştır.
+        Tamlık burada bir hedef değil, <b>soundness uğruna sürekli feda
+        edilen para birimidir</b>. İkisi arasında seçim gerektiğinde
+        tereddütsüz tamlıktan verilir. Konum tek cümleyle:
+        <b>soundness iddiadır, tamlık ölçümdür.</b>
+        </p>
+
+        <h5>E. Kapsam neden dar</h5>
+        <p>
+        Satrancın tüm olasılık uzayında — özel kurgulanmış problemlerde,
+        egzotik FEN dizilimlerinde, varyantlarda — her kilidi yakalayan
+        evrensel bir algoritma yazmak teorik olarak da pratik olarak da çok
+        zordur. Bu yüzden arama hunisi bilinçli olarak
+        <b>standart dizilimden ya da Chess960'tan doğan gerçek maç
+        pozisyonlarına</b> daraltılmıştır. Kapsam sınırları keyfi değildir;
+        her biri tahta geometrisinin ya da satranç yasalarının doğrudan
+        sonucudur ve 2.4'te tek tek gerekçelendirilmiştir. Bu sınırlar
+        sayesinde algoritma riskli pozisyonlarda devreye girmez ve standart
+        maçlardaki kilit olmayan pozisyonları büyük hızla eler.
+        </p>
+
+        <h4>2.2. Tetikleyici — tarama ne zaman koşar (<code>lockTrigger</code>)</h4>
+        <p>
+        Kilit taraması, doğası gereği tahtadaki taş kombinasyonlarını simüle
+        eden maliyetli bir arama sürecidir. Her hamlede körü körüne
+        koşturmak kaynak israfıdır. Bu yüzden mantık bağımsız bir dış
+        katmana bağlanmıştır: <code>lockTrigger(fen, prevFen)</code>.
+        </p>
+        <p>
+        Kilitli ölü pozisyonlar ancak pozisyonun geleceğinin
+        <b>geri-dönülemez biçimde daraldığı</b> anlarda doğabilir.
+        Tetikleyici yalnız o anları tanır:
+        </p>
+        <ul>
+        <li>
+        <b><code>halfmove</code> sıfırlanması.</b> Taş alındığında ya da
+        piyon sürüldüğünde 50/75 hamle sayacı sıfırlanır. Alım materyal
+        dengesini, piyon sürüşü duvarın geometrisini kalıcı olarak
+        değiştirir; kilit potansiyeli oradan doğar.
+        </li>
+        <li>
+        <b>Geçerken alma hakkının düşmesi.</b> Bir piyon iki kare
+        sürüldüğünde rakibe geçerken alma hakkı doğar. Bu hak varken
+        pozisyon <b>asla kilitli sayılamaz</b> — o alım sütun değiştiren,
+        piyon zincirini kıran geri-dönülemez bir hamledir.
+        </li>
+        </ul>
+        <p>
+        <b>Kritik kaçırma riski ve çözümü.</b> Oyuncu bir sonraki hamlede
+        geçerken almayı yapmazsa hak kendiliğinden düşer ve kilidi engelleyen
+        o ihtimal ortadan kalkar; pozisyon o anda kilide dönüşebilir. Ama
+        hakkın düşmesine yol açan hamle geri-alınabilir bir hamle olabileceği
+        için (örneğin sıradan bir şah hamlesi) <code>halfmove</code>
+        sıfırlanmaz, artmaya devam eder. Yalnız <code>halfmove == 0</code>
+        şartına dayanan klasik bir kontrol, bu anda doğan kilitleri
+        <b>sonsuza kadar kaçırırdı.</b> Tetikleyici, önceki FEN ile mevcut
+        FEN'i karşılaştırarak düşen hakkı yakalar ve sayaç sıfırlanmasa da
+        taramayı başlatır.
+        </p>
+        <p>
+        Bu iki durum dışındaki her hamle, zaten taranmış ve kilit olmadığı
+        görülmüş bir yapının yeniden dizilimidir; tarama atlanır. Bu katman,
+        gereksiz taramaların büyük çoğunluğunu ayıklar.
+        </p>
+        <p>
+        Somut örnek: <code>4k3/4p3/3p4/1p1P3p/1P2P2P/8/8/1K6 b - - 0 1</code>
+        pozisyonunda siyah <code>e7–e5</code> oynar; <code>e6</code> geçerken
+        alma karesi açılır ve <code>dxe6 e.p.</code> kilidi kırdığı için hüküm
+        "devam"dır. Beyaz <code>Şb1–a1</code> gibi geri-alınabilir bir hamle
+        yapınca hak düşer ve pozisyon mutlak kilide dönüşür.
+        <code>halfmove</code> bu noktada 1 olduğundan yalnız sayaca bakan bir
+        kapı bunu hiç taramaz; geçerken alma tetikleyicisi yakalar.
+        </p>
+        <p>
+        Bir tetikleyiciyi kaçırmak <b>tamlığa</b> mal olur, asla soundness'a
+        değil: taranmamış bir kilit yalnızca "kilit değil" diye raporlanır.
+        <code>prevFen</code> verilmezse yalnız <code>halfmove</code> kuralı
+        çalışabilir.
+        </p>
+        <p class="note">
+        İsteğe bağlı olarak belirli bir hamleden sonra aktifleşecek biçimde
+        de entegre edilebilir — "belirli bir hamleden önce kilit oluşamaz"
+        varsayımıyla arkaplan yükü büsbütün kaldırılabilir. Ancak FEN
+        girilmiş pozisyonlarda doğru pozitif kaçırılacağı (completeness
+        kaybı) için tavsiye edilmez. K1'deki kapsam kontrolü zaten oyunun
+        doğal 40–60 hamlesini yük bindirmeden eler.
+        </p>
+
+        <h4>2.3. Kontrol sırası ve taraf yönetimi</h4>
+        <p>
+        Algoritma "önce beyazın tüm kontrollerini yap, sonra siyaha geç"
+        gibi taraf bazlı katı bir mantıkla çalışmaz. Kontroller aşama bazlı
+        yürür: <b>K1 → K2 → K3.</b> İlk konuşan kontrol koşuyu bitirir.
+        </p>
+        <p>
+        K1'in aritmetik denetimleri ve piyon tuğlası analizi tahta
+        genelidir; at/kale hareketliliği ile fil denetimi taraf döngüsünde
+        koşar. Tarafa bağlı her denetimde <b>aktif taraf önceliği</b>
+        geçerlidir: sırası olan tarafın taşları önce, rakibinki sonra
+        incelenir. K2 ve K3'te de aynı öncelik uygulanır.
+        </p>
+        <p>
+        Hüküm bu sıralamadan <b>tamamen bağımsızdır</b> — her kontrol aynı
+        değişmez tahta üzerinde saf bir testtir. Sıralamanın tek amacı, bir
+        kırıcı bulunduğunda basılan gerekçe metninde
+        <b>o kırıcıyı ilk oynayabilecek tarafa</b> doğru atıfta bulunmaktır.
+        </p>
+
+        <h4>2.4. Kontrol 1 — Kapsam</h4>
+        <p>
+        K1'de hiçbir taş kıpırdamaz; her şey dokunulmamış tahtadan okunur.
+        <b>Her K1 başarısızlığı "kapsam dışı" döndürür</b>, "kilit değil"
+        değil. K1 tek bir soru sorar: <i>bu pozisyon algoritmanın sınıfının
+        içinde mi?</i> Hüküm vermek — "değerlendirdim, kırıcı buldum" —
+        K2'de başlar.
+        </p>
+
+        <h5>1a. Aritmetik</h5>
+        <ul>
+        <li>
+        <b>Taş sayısı 8 ≤ n ≤ 30.</b> Üst sınır, en azından iki vezirin
+        tahtadan düştüğü varsayımıdır (32 − 2).
+        </li>
+        <li>
+        <b>Vezir yasağı.</b> Vezir, çapraz ve dik hatlardaki hareket
+        kabiliyeti nedeniyle kalan 15 kendi taşı tarafından dahi hiçbir
+        şekilde hapsedilemez ve gömülemez. Vezirin bulunduğu bir tahtada
+        piyon duvarı dinamik olarak zorlanmaya ve kırılmaya mahkûmdur.
+        Keyfi bir kısıt değil, taşın geometrisinin doğal sonucudur.
+        </li>
+        <li>
+        <b>Zorunlu taşlar.</b> Her tarafta tam bir şah ve en az üç piyon.
+        Piyon sayısı üçün altına indiğinde duvar blokajı geometrik olarak
+        kurulamaz; taşlar serbestçe manevra yapar.
+        </li>
+        <li>
+        <b>Terfi tutarlılığı.</b> Başlangıç kadrosunu aşan her taş bir
+        terfiden gelmiş olmalı, her terfi bir piyona mal olmalıdır. Her iki
+        taraf için ayrı ayrı:
+        <code>max(0,R−2) + max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8 − P</code>
+        </li>
+        </ul>
+
+        <h5>1b. At ve kale hareketsizliği</h5>
+        <p>
+        Vezir hapsedilemezken atlar ve kaleler piyon duvarları ve kendi
+        taşları tarafından hapsedilebilir. Ancak at duvarın üstünden atlar,
+        kale açık hatlarda kayar. Bu yüzden gerçek bir kilitte ikisi de
+        <b>kendi taşlarının içine tamamen gömülü</b> olmak zorundadır.
+        Denetim saf geometridir: legaliteden farklı olarak şahın açıkta kalıp
+        kalmadığına bakılmaz. At ya da kale boş bir kareye veya rakip taşın
+        bulunduğu tek bir kareye bile gidebiliyorsa kilit
+        <i>kesin olarak</i> kırılır ve arayış anında sonlanır.
+        </p>
+
+        <h5>1c. Donmuş fil geometrik çelişkisi</h5>
+        <p>
+        At ve kalelerin aksine donmuş bir filin konumu çok özel bir geometrik
+        mantık gerektirir. Bir fili gömmek için çaprazındaki tüm komşu
+        karelerin dost taşlarla mühürlenmiş olması gerekir. Ama satrançta
+        piyonlar geriye hareket edemez ve fil o kareye ancak aynı çapraz
+        hatlar açıkken <b>girmiş</b> olabilir. Hatlar fil girdikten sonra
+        mühürlendiyse, piyonların geri gidemeyeceğinden, hareket etmiş bir
+        filin sonradan gömülü kalması geometrik bir çelişkidir — gireceği
+        diyagonal zaten mühürlüydü.
+        </p>
+        <p>
+        Bu imkânsızlıktan ötürü, bir filin donmuş sayılabileceği tek meşru
+        senaryo <b>hiç hareket etmemiş olmasıdır</b>. Beyazda birinci,
+        siyahta sekizinci yatayda duran filler, tahta dizildiğinde kendi
+        kıpırdamamış piyonlarının arkasında kapalı doğarlar. Bu hem standart
+        dizilim hem de fillerin başlangıç yatayına dizildiği tüm
+        <b>Chess960</b> kurguları için geçerlidir. Dolayısıyla
+        <b>başlangıç yatayı dışında donmuş bir fil tespit edilirse pozisyon
+        kapsam dışı ilan edilir.</b>
+        </p>
+        <p>
+        Bu, kapsam hijyenidir; soundness meselesi değildir. "Burada
+        geri-dönülemez hamle yok" ifadesi pozisyonun kendi özelliğidir,
+        oraya nasıl gelindiğinden bağımsızdır.
+        </p>
+
+        <h5>1d. Piyon tuğlası ve kavuşma satırı</h5>
+        <p>
+        Piyonlar duvarın ana taşıyıcısıdır, ama iki piyonun karşı karşıya
+        durması her zaman blokaj üretmez. <b>Tuğla</b>, aynı sütunda siyah
+        piyonun üstte (r), beyaz piyonun hemen altında (r+1) karşı karşıya
+        gelerek birbirinin dikey hareket alanını tamamen tıkamasıdır.
+        </p>
+        <ul>
+        <li>
+        <b>Yön duyarlılığı.</b> Siyah piyon a4, beyaz piyon a5'te ise
+        (beyaz 5→6, siyah 4→3 ilerleyeceğinden) piyonlar birbirinin önünü
+        tıkamaz. Tuğla olabilmesi için beyazın a4'te, siyahın a5'te olması
+        şarttır.
+        </li>
+        <li>
+        <b>Kavuşma satırı (r + 0,5).</b> İki kilitli piyonun temas noktası.
+        Beyazın altında ikinci bir beyaz piyon (duble) ya da siyahın
+        üstünde ikinci bir siyah piyon olsa dahi kavuşma satırının
+        geometrik konumu değişmez.
+        </li>
+        </ul>
+        <p>Tuğla sayısı duvarın tahtayı bölüp bölemeyeceğini belirler:</p>
+        <ul>
+        <li>
+        <b>n &lt; 3.</b> Sekiz sütunlu bir tahtayı ikiye bölüp geçişleri
+        kapatmak için en az üç tuğla zorunludur. Altında taşlar duvarın
+        etrafından dolanır; kilit imkânsızdır.
+        </li>
+        <li>
+        <b>n = 3.</b> Sütun dizilimi rastgele olamaz: simetrik boşluk
+        sağlayan {a,d,g}, {b,d,g}, {b,e,g} veya {b,e,h} desenlerinden
+        birine birebir uymalı, ayrıca üç tuğlanın kavuşma satırı
+        <b>tamamen eşit</b> olmalıdır.
+        </li>
+        <li>
+        <b>n ≥ 4.</b> Bitişik sütunlardaki (|Δc| = 1) iki tuğla
+        <b>asla aynı kavuşma satırında olamaz</b>. Aynı hizada duran
+        bitişik iki tuğla (örneğin a4–a5 ve b4–b5) piyonlara çapraz alım
+        imkânı tanır; o imkân doğduğu an zincir kırılabilir.
+        </li>
+        </ul>
+
+        <h4>2.5. Kontrol 2 — Mat imkânı</h4>
+        <p>
+        Kapsam denetimini geçen bir pozisyona sorulan ilk gerçek soru budur:
+        bu tahtadan doğabilecek <b>herhangi bir</b> dizilimde taraflardan
+        biri mat edebilir mi?
+        </p>
+
+        <h5>A. Zor durum</h5>
+        <p>
+        Sorunun neden ayrı ve özel bir katman gerektirdiğini görmek için mat
+        kurgusunun en sinsi biçimine bakmak gerekir. Kilidi kıran hamleyi
+        <b>her zaman o hamleden kâr eden taraf oynamaz.</b> Kaybeden taraf
+        kendi filini — ya da kendi piyonunu — kendi şahının yanındaki kareye
+        getirir, kaçışı mühürler, ve rakip mat eder. Kırıcı hamleyi oynayan,
+        ondan zarar gören taraftır.
+        </p>
+        <pre>1.Bf5 Şb7  2.Be6 Şa8  3.Bd7 Fb8  4.Be8 Fa7  5.Bc6#</pre>
+        <p>
+        Son pozisyonda siyah şah a8'de, kendi filleri a7 ve b8'de. Şahın üç
+        kaçış karesinden ikisi <b>kendi filleriyle</b>, biri beyazın filiyle
+        kapalı. Mat.
+        </p>
+        <p>
+        Bu tür bir kurgu hamle simülasyonuyla bulunamaz. Yayılım katmanı her
+        seferinde tek bir taş türünü tek bir renkte oynatır; oysa buradaki
+        mat, şahın, kaybedenin fillerinin ve kazananın filinin
+        <b>aynı anda</b> yeni yerlerde olmasını gerektirir. Ne kadar dal
+        eklenirse eklensin bu çarpım kapanmaz — sorun çarpımın kendisidir.
+        </p>
+
+        <h5>B. Aramak yerine bölge hesabı</h5>
+        <p>
+        Bu yüzden K2 konfigürasyon yürümez. Her taş için
+        <b>ulaşabileceği karelerin kümesini</b> hesaplar ve mat kurgusunun o
+        kümelerin içine sığıp sığmadığını sorar. Kullanılan yöntem Miguel
+        Ambrona'nın <i>A Practical Algorithm for Chess Unwinnability</i>
+        (FUN 2022) makalesinde tarif edilen yarı-statik analizdir; bu
+        projedeki uygulaması makalenin sözde-kodundan bağımsız olarak
+        yazılmıştır.
+        </p>
+        <p>
+        <b>Birinci aşama — mobilite.</b> Üç değişken ailesi kurulur: bir
+        taşın bir gün hangi karede durabileceği, bir taşın karesinden
+        temizlenip temizlenemeyeceği, bir kareye o renkten şah-dışı bir taşın
+        gelip gelemeyeceği. Başlangıçta yalnız her taşın kendi karesi
+        açıktır. Sonra hiçbir yeni değişken açılmayana kadar kurallar tekrar
+        tekrar uygulanır: bir taş bir kareye ancak öncülüne ulaşabiliyorsa
+        gidebilir; piyon ya iterek — hedefteki düşman temizlenebiliyorsa — ya
+        çaprazdan alarak — o kareye düşman bir taş gelebiliyorsa — ya da
+        terfi ederek ilerler; şah, doğrudan saldıran düşman temizlenmedikçe o
+        kareye basamaz.
+        </p>
+        <p>
+        Kilitli piyon duvarı burada kendi kendini kapatır: piyon ilerleyemez
+        çünkü önündeki düşman piyon asla temizlenemez, çaprazdan alamaz çünkü
+        o karelere hiçbir düşman taş gelemez. Zincirleme, değişkenlerin çoğu
+        hiç açılmaz.
+        </p>
+        <p>
+        <b>İkinci aşama — mat kurgusu sığıyor mu.</b> Mobiliteden bölgeler
+        çıkar. Kaybedecek şahın bölgesine girebilen kazanan taşlarına
+        <i>sızıcı</i> denir. Fil olmayan tek bir sızıcı varsa mat kurulabilir
+        demektir. Farklı kare renginde iki fil de aynı kapıyı açar. İkisi de
+        yoksa, kaybedecek şahın ulaşabildiği her kare için üç şey birden
+        sorulur:
+        </p>
+        <ul>
+        <li>Şah oraya gidebiliyor mu?</li>
+        <li>Kazanan oraya saldırabiliyor mu?</li>
+        <li>
+        O karenin dik komşularının <b>hepsi aynı anda</b> kapatılabiliyor
+        mu?
+        </li>
+        </ul>
+        <p>
+        Üçüncü soru meselenin kalbidir. Kapatma iki yoldan olur: kaybedenin
+        <b>kendi taşları</b> o komşulara gelerek — iki kendi fili, ya da bir
+        piyon ve bir kendi fili — veya kazanan onlara saldırarak. Üçünü
+        birden sağlayan bir kare varsa mat kurgusu sığıyor demektir. Hiçbiri
+        sağlamıyorsa mat imkânsızdır.
+        </p>
+        <p>
+        Yalnız dik komşuların sayılması bir tercih değil, zorunluluktur: dik
+        komşular mat karesinin zıt renginde olduğundan, tek sızıcı sınıfı
+        olan aynı renk filler onlara hiçbir zaman dokunamaz — böylece her
+        kapatıcı en fazla bir komşuya karşılık gelir ve sayım geçerli kalır.
+        </p>
+
+        <h5>C. Hata yönü</h5>
+        <p>
+        Mobilite kasten <b>fazla-yaklaşıklama</b> üretir: bir taşın gerçekte
+        gidebileceğinden fazlasına gidebileceğini sanmak zararsızdır, çünkü
+        bu yalnızca sızıcı ve yardımcı sayısını artırır, yani "mat mümkün
+        olabilir" tarafına iter. Hüküm fonksiyonu da bu yaklaşıklamada
+        monotondur. İkisi birlikte şunu garanti eder: K2
+        <b>mat imkânsız derken yanılmaz</b>; ayırt edemediği her durumda
+        pozisyon kilit sayılmaz. Rok hakkı ya da canlı bir geçerken alma
+        karesi varken mobilite kuralları geçerliliğini yitirir; K2 o durumda
+        hüküm vermeyi reddeder.
+        </p>
+
+        <h5>D. Kapsamın sınırı</h5>
+        <p>
+        Bu yöntemin literatürdeki tam biçimi iki parçalıdır: yarı-statik
+        analiz <b>artı</b> yinelemeli derinleştirmeli helpmate araması.
+        Tamlık o aramadan gelir. Bu projeye yalnız yarı-statik yarısı
+        alınmıştır — arama, bir hakem motorunun taşımak istemediği bir
+        maliyettir. Sonuç sağlam ama eksiktir, ve istenen takas tam olarak
+        budur.
+        </p>
+
+        <h4>2.6. Kontrol 3 — Yayılım</h4>
+        <p>
+        K1'i ve K2'yi geçen "kilit adayı" pozisyonlar simülasyona alınır.
+        K1'de tahtaya hiç dokunulmazken, buradan itibaren taşlar tahta
+        üzerinde gezdirilir. Amaç, çok adımlı geri-alınabilir hamleler simüle
+        edilirken taraflardan birinin geri-dönülemez bir hamle
+        (<b>kilit kırıcı</b>) yapıp yapamayacağını kanıtlamaktır. Bu
+        katmandan itibaren tespit edilen başarısızlıklar, pozisyonun
+        değerlendirildiğini ve bir çıkış yolu bulunduğunu gösterdiği için
+        <b>KİLİT DEĞİL</b> sonucunu üretir.
+        </p>
+
+        <h5>A. İki katmanlı yayılım</h5>
+        <p>
+        Bir <b>ana taş</b> — piyon, fil veya şah — tahtadaki kareler boyunca
+        kayarak gezer. Ana taşın ulaştığı <b>her durakta</b> bütün kırıcı
+        testleri yeniden koşar. Ana düğüm sırası sabittir: piyon → fil → şah,
+        her birinde önce sırası olan taraf. Toplam altı ana yayılım hattı.
+        </p>
+        <p>
+        Her durakta koşan <b>yan dal</b> kümesi altı taramadır: at/kale
+        hareketliliği, iki tarafın piyon alt yayılımı, iki tarafın fil alt
+        yayılımı, iki tarafın şah alt yayılımı. Yan dallar
+        <b>ana taşın kendi türünü de içerir</b> — aynı türden ikinci bir taş,
+        birincisi yeni bir yerdeyken oynayabilir.
+        </p>
+        <p>
+        Şah yan dalının ayrı bir varlık sebebi vardır: şah ana düğümü zaten
+        şahı gezdirir, ama diğer her taş kök karesindeyken. "Fil oynamışken
+        şah da gezsin" kombinasyonu ancak yan dal olarak açılır.
+        </p>
+
+        <h5>B. Dinamik düğümlenme kontrolü</h5>
+        <p>
+        Atlar ve kaleler hareketli olduklarında kilidi anında kırdıkları için
+        ana düğüm taşı olamazlar; K1b'de gömülü oldukları zaten
+        doğrulanmıştır. Ancak piyon, fil ya da şah gezerken tahtanın
+        geometrik dengesi değişir. Bu yüzden <b>her durakta</b> iki tarafın
+        gömülü at ve kalelerinin serbest kalıp kalmadığı yeniden sorgulanır.
+        Tek bir hareket alanı bile açılırsa kilit <b>anında kırılır</b>.
+        K1b'nin simülasyon içindeki dinamik karşılığıdır.
+        </p>
+
+        <h5>C. Taş türlerine göre kilit kırıcılar</h5>
+        <p>
+        Kilit kırıcı; pozisyonun geri-dönülemez biçimde değişmesine, piyon
+        zincirinin bozulmasına veya sonucun mat lehine açılmasına yol açan
+        durumdur.
+        </p>
+        <p>
+        <b>Piyon.</b> Düz ilerleme kırıcılık üretmez, yalnız yeni bir
+        simülasyon düğümü açar. Kırıcı olanlar: sütun değiştiren çapraz taş
+        alımı; geçerken alma imkânının doğması; son satıra ulaşıp terfi
+        edebilmesi; ve piyon sürüşüyle at ya da kalenin önünün açılması.
+        </p>
+        <p>
+        <b>Fil.</b> Boş karelerde kayması kırıcı değildir. Kırıcı olanlar:
+        karşı şah hariç herhangi bir rakip taşı alabilmesi; şah çekmesi — ama
+        tek başına değil, çünkü şah kaçabilir ya da hat kapatılabilir,
+        motorda doğrulanıp <b>kesin mat</b> çıkarsa kırar; ve filin kaymasıyla
+        at ya da kalenin önünün açılması.
+        </p>
+        <p>
+        <b>Şah.</b> Gezinmeye başlamadan önce karşı tarafın şahı tahtadan
+        geçici olarak silinir; amaç iki şahın birbirine yaklaşamama kuralının
+        geometrik gezinme yollarını tıkamasını önlemektir. Şah yalnız rakip
+        piyonların tehdit ettiği karelere basamaz. Şahın bir kareden
+        çekilmesiyle at ya da kalenin önünün açılması kilidi anında kırar.
+        </p>
+        <p>
+        <b>Şahın taş alması — kritik algoritmik fark.</b> Piyon ya da fil bir
+        taş aldığında kilit anında kırılırken, şah için bu geçerli değildir;
+        <b>şahın taş alması kilit kırıcı sayılmaz</b>. Sebebi, bu katmanın
+        şah güvenliğini yok saymasıdır: şah, gerçek bir oyunda asla
+        alamayacağı korunan taşları da alabilir görünür. Onun yerine şah bir
+        taşı yediğinde o ana kadar hafızaya aldığı
+        <b>ziyaret edilen kareler geçmişi sıfırlanır</b>; yeni konum yeni bir
+        başlangıç noktası kabul edilip tarama oradan yeniden başlar ve
+        erişebileceği her yeri taramaya devam eder. Her durakta piyon ve fil
+        kırıcı kontrolleri kesintisiz koştuğu için, şahın açtığı yeni yolda
+        bir kırıcı doğarsa anında yakalanır.
+        </p>
+
+        <h5>D. Düğüm bütçesi — hüküm değil, hükümsüzlük</h5>
+        <p>
+        Her yayılım kendiliğinden sonlanır: tahtalar yerleşim dizgisiyle
+        tekilleştirilir ve yalnız görülmemişler yığına atılır; geçmişi
+        sıfırlayan tek şey olan alım ise taş sayısını kesin azalttığı için en
+        fazla otuz kez olabilir. Yani sonluluk garantidir — ama hızlılık
+        değil. Tarafında üç dört fil taşıyan birkaç yapay tahtada fil
+        yayılımı kombinatoryal patlar.
+        </p>
+        <p>
+        Bu duruma karşı bir <b>düğüm bütçesi</b> vardır: 200.000 düğüm. Bütçe
+        dolduğunda tarama durur ve pozisyon <b>kapsam dışı</b> ilan edilir —
+        hüküm verilmediği açıkça söylenir.
+        </p>
+        <p>
+        Bu ayrım özenle korunur. Bütçe dolduğunda "kırıcı bulundu" deyip
+        pozisyonu kilit değil ilan etmek de sound olurdu, ama yanıltıcı
+        olurdu: gerçekten kilitli bir pozisyon
+        <b>sırf yavaş olduğu için</b> kilit değil damgası yer, ve hüküm
+        tahtaya değil makinenin hızına bağlı hâle gelirdi. Kapsam dışı hükmü
+        bunu önler; sayım deterministik olduğu için aynı tahta her makinede
+        aynı cevabı alır.
+        </p>
+        <p>
+        Bütçenin değeri ölçümle belirlenmiştir: hüküm veren en ağır tahta
+        182.768 düğüm harcamıştır, en ağır kilit 161.434. 200.000 her gerçek
+        hükmü paylı olarak kapsar ve patolojik tahtaları saniyeler
+        mertebesinde keser.
+        </p>
+
+        <h4>2.7. Doğrulama</h4>
+        <p>
+        İddialar ölçülmüştür. Referans veri, Miguel Ambrona'nın chasolver
+        deposundaki <code>tests/positions.txt</code> dosyasıdır: topluluğun
+        2021'den beri chasolver.org'a gönderdiği <b>3.414 pozisyon</b>, her
+        biri kazanılabilirlik açısından etiketli. Bizim için kritik etiket
+        <code>--</code>, yani hiçbir tarafın mat edemediği ölü pozisyonlar.
+        </p>
+        <p class="note">
+        <b>Atıf ve kapsam farkı.</b> chasolver, Miguel Ambrona'nın geliştirdiği
+        açık kaynaklı (MIT) bir çözücüdür —
+        <code>github.com/miguel-ambrona/chasolver</code>. Makalesindeki
+        algoritmanın tamamını taşır: yarı-statik analiz <b>artı</b> helpmate
+        araması. Bu yüzden hem sağlam hem tamdır.
+        <code>tests/positions.txt</code> ise yazarın, başka çözücülerin
+        sınanabilmesi için açıkça sunduğu dosyadır ve burada tam o amaçla
+        kullanılmıştır.
+        </p>
+        <p class="note">
+        İki sistem <b>eşdeğer değildir</b> ve buradaki ölçüm bir yarış değildir.
+        chasolver bu setteki her pozisyona hüküm verir; Perfect Arbiter
+        3.414'ün 277'sine. Sordukları soru da farklıdır: chasolver "bu taraf
+        kazanabilir mi" diye sorar, Perfect Arbiter "pozisyon mutlak kilitli mi",
+        yani hiçbir geri-dönülemez hamle ve hiçbir mat açılabilir mi diye.
+        Ölçümün tek amacı, Perfect Arbiter'ın hüküm verdiği pozisyonlarda
+        yanılıp yanılmadığını bağımsız bir referansa karşı sınamaktır.
+        </p>
+        <p>
+        Bu setin gerçek maçları temsil etmediğini belirtmek gerekir:
+        pozisyonlar referans aracı <b>zorlamak için</b> gönderilmiştir.
+        Gerçek oyun dağılımı çok daha kolaydır.
+        </p>
+        <table>
+        <tbody>
+        <tr>
+        <td>Doğru kilit — KİLİT dedi, etiket <code>--</code></td>
+        <td class="n"><b>277</b></td>
+        </tr>
+        <tr>
+        <td><b>Yanlış pozitif — soundness ihlali</b></td>
+        <td class="n"><b>0</b></td>
+        </tr>
+        <tr>
+        <td>Kaçırılan ölü pozisyon</td>
+        <td class="n">880</td>
+        </tr>
+        <tr>
+        <td>— kapsam dışı bırakılan</td>
+        <td class="n">710</td>
+        </tr>
+        <tr>
+        <td>— kırıcı bulunduğu sanılan</td>
+        <td class="n">170</td>
+        </tr>
+        <tr>
+        <td>Sonuçlanmayan</td>
+        <td class="n">0</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>
+        Hüküm verilen 277 pozisyonun tamamı doğrudur. Kaçırılan 880 pozisyon
+        tek yönlü ve güvenli bir açıktır: 710'u K1 kapsam sınırlarının
+        dışında kalır, kalan 170'inde K2 ya da K3 bir kırıcı bulduğunu
+        sanmıştır. İkinci grup, algoritmanın geliştirilebileceği asıl yerdir
+        ve karşı örnek havuzu bu amaçla tutulmaktadır.
+        </p>
+        <p>
+        Sıfır yanlış pozitif bir ispat değil, bir ölçümdür. Yapısal argüman
+        esnetmelerin yönünü kanıtlar; uygulamada kodlama hatası olmadığını
+        kanıtlamaz. Bu yüzden hem kaynak kod hem ölçüm yöntemi açıktır:
+        kapsam içinde, başlangıç diziliminden kurallı hamlelerle ulaşılan bir
+        pozisyonda algoritma "KİLİT" derken yanılıyorsa, o bir
+        <b>karşı örnektir</b> ve bildirilmesi doğrudan algoritmayı
+        iyileştirir. Amaç kırılmaz bir yanılmazlık iddiası savurmak değil,
+        olası gözden kaçırmaları açık yüreklilikle tespit edip sistemi
+        geliştirmektir.
+        </p>
+        </div>
+        </details>
+        <details class="doc" open>
+        <summary>
+        <span class="num">03</span>
+        <span class="ttl"
+        >Canlı platformlarda test ve geliştirme yolları
+        <span class="sub"
+        >Bitiş etiketi, stres testi, karşı örnek havuzu, itiraz
+        butonu</span
+        ></span
+        >
+        <svg
+        class="chev"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        aria-hidden="true"
+        >
+        <path d="M6 15l6-6 6 6" />
+        </svg>
+        </summary>
+        <div class="docbody">
+        <p>
+        Bölüm 2.7'deki ölçüm laboratuvar koşullarında yapılmıştır. Algoritmayı
+        canlı sistemlerde sınamak, kaçırılan kilitleri tespit etmek ve
+        sistemi sürekli iyileştirmek için ayrıca şu mekanizmalar önerilir.
+        </p>
+
+        <h4>3.1. Soundness doğrulaması</h4>
+        <h5>A. Özel bitiş etiketi</h5>
+        <ul>
+        <li>
+        <b>Mevcut durum.</b> Dijital platformlarda berabere biten maçlar
+        genellikle genel bir "yetersiz materyal ile berabere" mesajıyla
+        kapatılır.
+        </li>
+        <li>
+        <b>Önerilen yöntem.</b> Kilit tespitiyle biten maçlarda veritabanına
+        ve PGN kaydına ayırt edici bir etiket eklenir — örneğin
+        <code>DRAW_DEAD_POSITION_LOCKED_522</code>.
+        </li>
+        <li>
+        <b>Amacı.</b> Bu etiket sayesinde algoritmanın kilit tespiti yaparak
+        bitirdiği tüm maçlar sistemde ayrıştırılabilir ve geriye dönük
+        denetime açılır.
+        </li>
+        </ul>
+        <h5>B. Milyonlarca bot maçı ile stres testi</h5>
+        <ul>
+        <li>
+        Algoritmanın entegre edildiği iki satranç botuna milyonlarca maç
+        yaptırılır.
+        </li>
+        <li>
+        Etiketi alan tüm pozisyonlar otomatik olarak bir test havuzuna
+        toplanır.
+        </li>
+        <li>
+        Toplanan pozisyonlar bağımsız analiz araçlarıyla incelenir. Kilit
+        etiketi almış tek bir pozisyonda dahi kırıcı bir hamle zinciri veya
+        mat imkânı bulunursa bu bir <b>soundness ihlalidir</b> ve kontrol
+        katmanları derhal sıkılaştırılır.
+        </li>
+        </ul>
+
+        <h4>3.2. Completeness tespiti ve karşı örnek havuzu</h4>
+        <h5>A. 50 hamle ve 3 tekrar maçlarının filtrelenmesi</h5>
+        <ul>
+        <li>
+        <b>Veri kümesi.</b> Maç veritabanından ya da bot simülasyonlarından
+        50 hamle kuralı (<code>halfmove ≥ 100</code>) veya 3 tekrar ile
+        berabere biten tüm maçlar çekilir.
+        </li>
+        <li>
+        <b>K1 ön-koşul süzgeci.</b> Bunlar arasından kapsam şartlarını
+        sağlayanlar ayıklanır: 8 ≤ taş ≤ 30, vezir yok, taraf başına tam bir
+        şah ve en az üç piyon.
+        </li>
+        <li>
+        <b>Geriye dönük kilit analizi.</b> Bu pozisyonların maçın daha erken
+        hamlelerinde — örneğin 20 hamle önce — aslında kilitlenip
+        kilitlenmediği taranır.
+        </li>
+        </ul>
+        <h5>B. Geliştirme döngüsü</h5>
+        <p>
+        Bir pozisyon 40. hamlede tamamen kilitlendiği hâlde algoritma "KİLİT
+        DEĞİL" demiş ve maç ancak 60. hamlede 50 hamle kuralıyla bitmişse, bu
+        bir <b>kaçırmadır</b>. Bu tür pozisyonlar özel bir feedback veri
+        havuzunda toplanır; kaçırmanın nedeni — örneğin K3 simülasyonundaki
+        özel bir şah yolu ya da fil paritesi durumu — analiz edilerek ilgili
+        kontrol kuralı güncellenir.
+        </p>
+        <h5>C. Topluluk ve açık kaynak incelemesi</h5>
+        <p>
+        Projenin tüm matematiksel ve geometrik kuralları açık koda
+        dönüştürülerek satranç ve yazılım topluluğunun testine açılmıştır.
+        Dünya çapındaki kullanıcıların bildireceği uç kilit pozisyonlarıyla
+        algoritmanın kapsamı sürekli canlı tutulacaktır.
+        </p>
+        <h5>D. Geriye dönük itiraz ve puan iadesi</h5>
+        <p>
+        Otomatik kilit tespitinin bulunmadığı ya da algoritmanın henüz
+        yakalayamadığı platformlarda oyuncular, aslında kilitli ölü
+        pozisyonda veya 50 hamle / 3 tekrar eşiğinde olmalarına rağmen
+        iddiada bulunamadıkları için <b>süreden kaybedebilmektedir</b>.
+        Mantıken berabere bitmesi gereken bir maç haksız bir mağlubiyetle
+        sonuçlanır. Çözüm olarak geriye dönük bir
+        <b>"kilitli pozisyon / berabere itirazı"</b> butonu önerilir:
+        </p>
+        <ul>
+        <li>
+        <b>Haksız mağlubiyetlerin düzeltilmesi.</b> Oyuncu maç geçmişinden
+        tek tıkla hakem algoritmasını göreve çağırır. Algoritma maçı geriye
+        dönük tarayıp bayrak düşmeden önceki bir hamlede tahtanın FIDE
+        5.2.2 kilitli ölü pozisyona dönüştüğünü kanıtlarsa, sonuç geriye
+        dönük <b>berabere</b> ile değiştirilir ve haksız yere düşen
+        derecelendirme puanı iade edilir.
+        </li>
+        <li>
+        <b>Topluluk destekli completeness denetimi.</b> Yüz binlerce
+        oyuncunun bu butonu kullanması, algoritmanın dikkatini doğrudan
+        şüpheli sınır pozisyonlara çeker. İtiraz edilip "KİLİT DEĞİL"
+        denen maçlar feedback havuzuna düşer.
+        </li>
+        <li>
+        <b>Geliştirmeye katkısı.</b> Gerçek oyuncuların sezgisel olarak
+        "burası kilitliydi" dediği pozisyonların incelenmesi, teorik olarak
+        gözden kaçan uç senaryoları bulmayı son derece kolaylaştırır.
+        </li>
+        </ul>
+        <p>
+        Böylece hem oyuncu adaletini sağlayan bir puan iadesi sistemi hem de
+        tamlık oranını topluluk gücüyle artıracak bir geri dönüt mekanizması
+        kurulmuş olur.
+        </p>
+        </div>
+        </details>
+        <details class="doc" open>
+        <summary>
+        <span class="num">04</span>
+        <span class="ttl"
+        >FIDE ve USCF kural farklılıkları
+        <span class="sub"
+        >Helper mate vs forced mate, terk, otomatik tavan</span
+        ></span
+        >
+        <svg
+        class="chev"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        aria-hidden="true"
+        >
+        <path d="M6 15l6-6 6 6" />
+        </svg>
+        </summary>
+        <div class="docbody">
+        <p>
+        Hamle kuralları, taşların hareket biçimleri, şah-mat ve pat tanımları
+        FIDE ve USCF standartlarında <b>tamamen aynıdır</b>. Tüm ayrışmalar
+        satranç dışı etmenlerden — insan, saat ve hakem etkileşiminden —
+        kaynaklanır: zaman kontrolünün bitmesi, terk, berabere iddiaları ve
+        hakem müdahaleleri. İki sistem aynı oyunu yürütür, insani faktörlerin
+        etkisini farklı felsefelerle yorumlar.
+        </p>
+
+        <h4>4.1. Prosedürel ve idari farklar</h4>
+        <h5>A. 50 hamle ve 3 tekrar iddiası</h5>
+        <p>
+        <b>Ortak yaklaşım.</b> Her iki kural setinde de 50 hamle boyunca taş
+        alınmamış ve piyon sürülmemişse, ya da aynı pozisyon 3 kez
+        tekrarlanmışsa oyun kendiliğinden bitmez. Beraberlik için
+        oyunculardan birinin <b>açıkça iddiada bulunması</b> zorunludur.
+        </p>
+        <h5>B. 75 hamle ve 5 tekrar otomatik tavanı</h5>
+        <ul>
+        <li>
+        <b>FIDE.</b> Oyuncuların iddiasına gerek kalmaksızın zorunlu bir
+        üst sınır koyar. Sayaç 75 hamleye ulaştığında veya aynı pozisyon 5
+        kez tekrarlandığında oyun <b>otomatik berabere</b> biter.
+        </li>
+        <li>
+        <b>USCF.</b> Otomatik bitme tavanı <b>yoktur</b>. Oyuncular iddiada
+        bulunmazsa maç devam eder; örneğin K+R–K+Q gibi uzun oyun
+        sonlarında kazanan taraf matı bulana kadar maç uzayabilir.
+        </li>
+        </ul>
+        <h5>C. Terk kararının yorumlanması</h5>
+        <ul>
+        <li>
+        <b>USCF.</b> Terk doğrudan kayıptır. Rakibin materyaline
+        bakılmaksızın terk eden taraf mağlup sayılır.
+        </li>
+        <li>
+        <b>FIDE (Madde 5.1.2).</b> Terk, bayrak düşmesi prosedürüyle aynı
+        kabul edilir. Oyuncu terk etse dahi rakibin mevcut materyalle
+        teorik olarak — helpmate dahi olsa — mat etme imkânı yoksa, oyun
+        terke rağmen <b>berabere</b> ilan edilir.
+        </li>
+        </ul>
+
+        <h4>4.2. En büyük ayrım: helper mate vs forced mate</h4>
+        <p>
+        Bayrak düşmeden oyunu anında sonlandıran <b>ölü pozisyon</b> kuralı
+        evrenseldir; iki mevzuatta da birebir aynıdır. Kurallara uygun hiçbir
+        hamle dizilimiyle mat elde edilemiyorsa — ister K–K, K–K+N, K–K+B ya
+        da tüm fillerin aynı renk karelerde hapsolduğu K+xB–K+yB gibi
+        yetersiz materyal senaryolarında, isterse Bölüm 2'deki geometrik
+        imkânsızlıklarda — oyun süreden bağımsız olarak derhal berabere
+        tescil edilir.
+        </p>
+        <p>
+        Bayrak düşmesinde ise, süresi bitenin rakibinde en az Q / R / P / N+B
+        / B+B (farklı renkte iki fil) varsa süresi biten kaybeder. Bu önerme
+        de evrenseldir.
+        </p>
+        <p>
+        Rakipte yalnız çıplak şah, tek at ya da tek renk fil varsa, mutlak
+        berabere olan pozisyonlar üç formülle ifade edilebilir:
+        </p>
+        <pre>I    K + …        vs  K
+        II   K + xQ       vs  K + N
+        III  K + xQ + yR + zB  vs  K + tB   (tüm filler aynı renk)</pre>
+        <p>
+        II ve III'ü ele alalım. Süresi bitende vezir türü taş var — bir veya
+        daha fazla. Karşı tarafta tek at var; tek at geometrik olarak asla
+        vezirli tarafı mat edemez. Ama süresi bitende piyon, kale, fil ya da
+        at bulunsaydı mat resmi çizmek mümkün olurdu. Aynı şekilde tek renk
+        fil kaleyi ve/veya veziri asla sıkıştıramaz — zıt renk fil, piyon ya
+        da at gerekir.
+        </p>
+        <p>
+        <b>Federasyon ayrımı tam burada başlar.</b> Tek atlı veya tek renk
+        filli karşılaştırmada FIDE, yardımlı mat resmi bu koşullar içinde
+        mümkünse doğrudan kazanç verir. USCF ise zorlama mat yoksa hafif
+        taşlar için berabere verir — at, tek renk fil, hatta <b>iki at</b>
+        için de.
+        </p>
+        <table>
+        <thead>
+        <tr>
+        <th>Kural parametresi</th>
+        <th>FIDE</th>
+        <th>USCF</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><b>Mat ölçütü</b></td>
+        <td>Helper mate (işbirliğiyle mat)</td>
+        <td>Forced mate (zorunlu mat)</td>
+        </tr>
+        <tr>
+        <td><b>Arama algoritması</b></td>
+        <td>Yok (saf geometri)</td>
+        <td>Var (hafif taşlarda d5–d10)</td>
+        </tr>
+        <tr>
+        <td><b>Mat imkânı anlayışı</b></td>
+        <td>Kaybeden en kötü hamleleri yapsa dahi mat mümkün mü?</td>
+        <td>Kazanan matı zorlayarak kabul ettirebilir mi?</td>
+        </tr>
+        <tr>
+        <td>K+R vs K+N <span class="sub">(zamanı biten K+R)</span></td>
+        <td>Kazanç (K+N kazandırılır — Friedel vakası)</td>
+        <td>Arama var; belirli derinlikte zorunlu mat yoksa berabere</td>
+        </tr>
+        <tr>
+        <td>K+B vs K+B <span class="sub">(zıt renk filler)</span></td>
+        <td>Kazanç</td>
+        <td>Arama yapılır; zorunlu mat yoksa berabere — burada d1 bile yeter</td>
+        </tr>
+        <tr>
+        <td>K+2N vs K+P <span class="sub">(zamanı biten K+P)</span></td>
+        <td>Kazanç (helpmate ile mat yapılabilir)</td>
+        <td>Arama yok; kazanç (Troitzky teorisiyle piyon pata engel olur)</td>
+        </tr>
+        <tr>
+        <td>K+2N vs K <span class="sub">(zamanı biten K)</span></td>
+        <td>Kazanç (helpmate mümkündür)</td>
+        <td>Arama yapılır; zorunlu mat yoksa berabere</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>
+        Özetle: bayrak düşmesi ve materyal konusunda
+        <b>USCF, FIDE'nin berabere dediği her şeye berabere der.</b> Ancak
+        FIDE'nin kazanç dediği çoğu pozisyona kazanç demez; taşların
+        kombinasyonuna göre forced-mate araması gerekir — atlarda biraz daha
+        derin, fillerde genelde daha sığ derinlikte.
+        </p>
+
+        <h4>4.3. Uygulama katmanı — üç yaklaşımda ortak</h4>
+        <p>
+        Üç kural setinin üçü de aynı <b>evrensel katman</b>la başlar. Bu katman
+        önce kesin olanları ayıklar, ancak karara bağlayamadığı sınıfları
+        seçilen yaklaşıma devreder:
+        </p>
+        <ul>
+          <li><b>Rakip çıplak şah</b> → berabere; süresi bitenin taşına
+          bakılmaz.</li>
+          <li><b>Hızlı kazanç hunisi</b> — rakipte vezir, kale, piyon,
+          at+fil ya da zıt renk fil çifti varsa süresi biten kaybeder.</li>
+          <li><b>Geometrik kesin berabereler</b> — rakipte yalnız tek renk fil
+          ve süresi bitende yalnız vezir/kale varsa berabere; rakipte yalnız
+          tek at ve süresi bitende yalnız vezir varsa berabere.</li>
+          <li><b>Fil rengi kuralı</b> — sahadaki bütün filler, iki taraf
+          birlikte, tek renk karedeyse mat imkânı değişmez; ölü pozisyon
+          mantığının aynısı. Zıt renk bir fil belirdiği anda açılır.</li>
+        </ul>
+        <p>
+        Geriye kalan <b>belirsiz sınıflar</b> — tek at, tek renk fil, iki at —
+        burada askıda bırakılır ve kararı seçilen yaklaşım verir. FIDE hepsine
+        helpmate ölçütüyle kazanç der. USCF ve karma ise arama koşar; tek
+        istisna iki at karşısında piyon bulunmasıdır, çünkü piyon patı
+        engelleyerek Troitzky matını mümkün kılar. Karma sistem bu istisnayı
+        piyonların tek sütunda dizilmesi şartına bağlar.
+        </p>
+        <p>
+        Arama derinliği yalnız forced mate kullanan yaklaşımlar için
+        anlamlıdır; FIDE aramasızdır. Derinlik <b>kilit tespitinden tamamen
+        bağımsızdır</b> — bayrak düşmesi arayıcısının modu da derinliği de kilit
+        sonucuna dokunmaz. Kilit tespitinin içindeki tek mat kontrolü motorun
+        sabit ilkellerini kullanır; o bir arama değil, matın tanımıdır.
+        </p>
+        </div>
+        </details>
+        <details class="doc" open>
+        <summary>
+        <span class="num">05</span>
+        <span class="ttl"
+        >Önerilen karma sistem
+        <span class="sub"
+        >Dijital platformlar için üçüncü bir kural seti</span
+        ></span
+        >
+        <svg
+        class="chev"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        aria-hidden="true"
+        >
+        <path d="M6 15l6-6 6 6" />
+        </svg>
+        </summary>
+        <div class="docbody">
+        <p>
+        Dijital platformlarda ne yalnızca FIDE ne de yalnızca USCF kurallarını
+        olduğu gibi uygulamak her zaman ideal sonuç vermez. FIDE'nin her
+        durumda helpmate'i kazanç sayması zaman zaman adil olmayan sonuçlar
+        doğururken, USCF'nin 75 hamle / 5 tekrar tavanına sahip olmaması
+        dijital oyunların sonsuz döngüye girmesine yol açabilir. Bu yüzden
+        iki federasyonun en adil görünen kurallarını harmanlayan bir
+        <b>karma sistem</b> önerilir.
+        </p>
+
+        <h4>5.1. Karma sistemin kuralları</h4>
+        <h5>A. 50 hamle / 3 tekrar iddiası — KAPALI</h5>
+        <p>
+        Oyuncuların 50 hamle ya da 3 tekrar durumunda iddiada bulunarak oyunu
+        bitirmelerine izin verilmez. <b>Gerekçe:</b> özellikle K+R–K+Q gibi
+        teknik oyun sonlarında üstün tarafın matı zorlama hakkı korunur;
+        iddia mekanizmasının dijital platformlarda suistimal edilmesinin
+        önüne geçilir.
+        </p>
+        <h5>B. 75 hamle / 5 tekrar otomatik tavanı — AÇIK</h5>
+        <p>
+        Sayaç 75 hamleye ulaştığında veya aynı pozisyon 5 kez
+        tekrarlandığında sistem oyunu otomatik berabere bitirir.
+        <b>Gerekçe:</b> FIDE'nin zorunlu tavanı benimsenerek oyunların sonsuz
+        döngüye girmesi engellenir ve platform kaynakları korunur.
+        </p>
+        <h5>C. Terk = bayrak düşmesi</h5>
+        <p>
+        Bir oyuncu maçı terk ettiğinde rakibin mat imkânı kontrol edilir.
+        Rakibin mevcut materyalle teorik olarak mat etmesi imkânsızsa, terke
+        rağmen oyun <b>berabere</b> sayılır. <b>Gerekçe:</b> FIDE 5.1.2'deki
+        sporcu etiğine ve materyal gerçekliğine uygun yaklaşım esas alınır.
+        </p>
+        <h5>D. Bayrak düşmesi — forced mate + tek sütun piyon kuralı</h5>
+        <ul>
+        <li>
+        <b>Forced mate araması.</b> USCF'de olduğu gibi helpmate reddedilir;
+        hafif taşlarda ayarlanabilir derinlikte (d5–d10) zorunlu mat arama
+        algoritması çalıştırılır.
+        </li>
+        <li>
+        <b>Özgün piyon geometrisi şartı (K+2N vs K+P).</b> USCF'nin her
+        piyonu doğrudan kazanç sayan kuralı derinleştirilmiştir. Süresi
+        biten tarafta yalnızca piyon(lar) varsa ve bu piyonlar
+        <b>tek bir sütunda</b> dizilmişse, Troitzky pat engelleme
+        geometrisi gereği doğrudan <b>kazanç</b> ilan edilir; arama
+        yapılmaz. Piyonlar farklı sütunlara dağılmışsa, piyonsuz bir tahta
+        varsa ya da başka taşlar mevcutsa sistem otomatik olarak zorunlu
+        mat aramasını devreye sokar.
+        </li>
+        </ul>
+
+        <h4>5.2. Karşılaştırmalı hakemlik matrisi</h4>
+        <table>
+        <thead>
+        <tr>
+        <th>Parametre</th>
+        <th>FIDE</th>
+        <th>USCF</th>
+        <th>Karma</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>50 hamle / 3 tekrar iddiası</td>
+        <td>Açık</td>
+        <td>Açık</td>
+        <td><b>Kapalı</b></td>
+        </tr>
+        <tr>
+        <td>75 hamle / 5 tekrar tavanı</td>
+        <td>Açık</td>
+        <td>Kapalı</td>
+        <td><b>Açık</b></td>
+        </tr>
+        <tr>
+        <td>Terk mantığı</td>
+        <td>Bayrak düşmesi gibi</td>
+        <td>Doğrudan kayıp</td>
+        <td><b>Bayrak düşmesi gibi</b></td>
+        </tr>
+        <tr>
+        <td>Mat analiz ilkesi</td>
+        <td>Helper mate</td>
+        <td>Forced mate</td>
+        <td><b>Forced mate, daha titiz</b></td>
+        </tr>
+        <tr>
+        <td>K+2N vs K+P</td>
+        <td>Doğrudan kazanç</td>
+        <td>Doğrudan kazanç</td>
+        <td><b>Tek sütun ise kazanç, aksi hâlde arama</b></td>
+        </tr>
+        <tr>
+        <td>Kilitli pozisyon tespiti</td>
+        <td>Var</td>
+        <td>Var</td>
+        <td><b>Var</b></td>
+        </tr>
+        </tbody>
+        </table>
+        <p class="note">
+        USCF forced-mate aramasında, süre bitmemiş olsa bile arkaplanda her
+        hafif taşlı durumda o pozisyonda bitme ihtimaline karşı arama
+        yapılır; böylece sonuç ilan edildiğinde oyuncular için akış kaybı
+        olmaz ve aynı doğru sonuç kesintisiz verilir.
+        </p>
+        </div>
+        </details>
+
+        <details class="doc" open>
+        <summary>
+        <span class="num">06</span>
+        <span class="ttl">Uygulama mimarisi ve motor üretici
+        <span class="sub">Kaynak blokları, tek hüküm hattı, indirilebilir motor</span></span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+        </summary>
+        <div class="docbody">
+
+        <h4>6.1. Beş bölüm</h4>
+        <ul>
+          <li><b>Tanıtım</b> — okumakta olduğunuz belge.</li>
+          <li><b>Kilitli Pozisyon</b> — bir pozisyonun mutlak berabere olup
+          olmadığını kanıtlar. Üç sonuç: MUTLAK KİLİT, KİLİT DEĞİL
+          (değerlendirildi, kırıcı bulundu), KAPSAM DIŞI (K1 ön-koşulları
+          sağlanmıyor). Fark yaratan kareler vurgulanır.</li>
+          <li><b>Bayrak Düşmesi</b> — süresi bitenin rakibinde mat edecek
+          materyal var mı. FIDE ve USCF yan yana seçilebilir; hüküm anında
+          çıkar, geçen süre <code>ms</code> olarak gösterilir.</li>
+          <li><b>Motor Deneme</b> — motorun tüm kurallarıyla iki kişilik oyun.
+          Mat, pat, ölü materyal, 50/75 hamle, 3/5 tekrar ve kilit sırayla
+          denetlenir. Kural seti hazır preset'lerden seçilir ya da elle kurulur;
+          bayrak düşürme ve terk butonlarıyla o hükümler doğrudan denenir.</li>
+          <li><b>Motor Üretici</b> — hakem motorunu yapılandırıp tek dosya
+          olarak indirme.</li>
+        </ul>
+
+        <h4>6.2. Kaynak blokları ve tek hüküm hattı</h4>
+        <p>
+        Uygulama tek bir <code>index.html</code>; mantık ayrı
+        <code>&lt;script&gt;</code> bloklarına bölünmüştür. İlk dördü
+        <b>paylaşılan çekirdektir</b> ve üretilen motora birebir kopyalanır.
+        </p>
+        <table>
+          <thead><tr><th>Blok</th><th>İçerik</th><th>Motora girer mi</th></tr></thead>
+          <tbody>
+            <tr><td><code>src-engine</code></td><td><code>PA</code> — 0x88 tahta, Zobrist, hamle üretimi, <code>legalMoves</code>, <code>perft</code>, forced-mate araması, materyal, FEN giriş/çıkış</td><td>evet</td></tr>
+            <tr><td><code>src-flag</code></td><td><code>makeFlagClassifier(PA)</code> — evrensel katman ve üç bayrak sınıflandırıcısı</td><td>evet</td></tr>
+            <tr><td><code>src-arbiter</code></td><td><code>makeArbiter(PA, CFG, LOCK, describe)</code> — tek kural uygulama hattı</td><td>evet</td></tr>
+            <tr><td><code>src-lock</code></td><td><code>makeLockDetector(PA)</code> — K1–K3 kilit tespiti</td><td>yalnız seçiliyse</td></tr>
+            <tr><td><i>üretici</i></td><td><code>buildEngineSource(cfg)</code> — blokları okuyup <code>.js</code> üretir</td><td>hayır</td></tr>
+            <tr><td><code>src-i18n</code></td><td>TR/EN sözlük ve arayüz çevirisi</td><td>hayır</td></tr>
+          </tbody>
+        </table>
+        <p>
+        <b>Hüküm hattı tek yerdedir.</b> Sayfa ve indirilen motor aynı
+        <code>makeArbiter</code>'ı çalıştırır; aralarındaki tek fark
+        yapılandırma ve metnin nasıl basıldığıdır. Hükümler prozayla değil
+        <b>kod ve veri</b> olarak döner; sayfa bunları sözlükle, indirilen motor
+        gömülü İngilizce tablosuyla yazıya çevirir. Bir hükmün sayfada ve
+        indirilen motorda farklı çıkması bu yüzden yapısal olarak imkânsızdır.
+        </p>
+        <p>
+        Dil katmanı yalnız <b>görüntüleme anında</b> devreye girer. Çekirdek
+        gerekçelerini kendi dilinde döndürür, sınıflandırma o metin üzerinden
+        yapılır, çeviri en son uygulanır. Dolayısıyla dil değiştirmek bir hükmü
+        <b>yeniden hesaplamaz</b>, yalnızca yeniden çizer — kilit taraması
+        pahalı olduğu için bu önemlidir.
+        </p>
+
+        <h4>6.3. Kilit taramasının hakem akışındaki yeri</h4>
+        <p>
+        Beraberlik denetimleri ucuzdan pahalıya sıralanır:
+        <b>mat / pat → ölü materyal → 75 ve 50 hamle → 5 ve 3 tekrar → kilit</b>.
+        Kilit yalnız diğer hiçbir beraberlik tetiklenmediğinde hesaplanır, ve o
+        anda bile taramayı 2.2'deki tetikleyici karara bağlar.
+        </p>
+
+        <h4>6.4. Motor üretici</h4>
+        <p>Seçenekler elle karıştırılabilir ya da üç hazır preset tek tıkla uygulanabilir:</p>
+        <ul>
+          <li><b>İddia alt sınırı (50 hamle / 3 tekrar)</b> — açıksa oyuncu iddia
+          ederse berabere; kapalıysa iddiayla bitmez.</li>
+          <li><b>Otomatik bitme üst sınırı (75 hamle / 5 tekrar)</b> — FIDE'nin
+          zorunlu tavanı, iddiaya gerek kalmadan berabere.</li>
+          <li><b>Terk bayrak düşmesi sayılır mı</b> — açıksa rakip mat
+          kuramıyorsa berabere, kapalıysa terk doğrudan kayıp.</li>
+          <li><b>Bayrak düşmesi mat ölçütü</b> — FIDE, USCF ya da karma. FIDE
+          aramasızdır; diğer ikisinde <b>derinlik</b> (1–10) girilir.</li>
+          <li><b>Kilitli pozisyon taraması</b> — var ya da yok.</li>
+        </ul>
+        <p>
+        <b>Kısıt:</b> iddia ve otomatik bitmeden en az biri seçili olmalıdır,
+        aksi hâlde indirme kilitlenir.
+        </p>
+        <table>
+          <thead><tr><th></th><th>İddia 50/3</th><th>Otomatik 75/5</th><th>Terk = bayrak</th><th>Bayrak ölçütü</th><th>Kilit</th></tr></thead>
+          <tbody>
+            <tr><td><b>FIDE</b></td><td>açık</td><td><b>açık</b></td><td>evet</td><td>helper mate, aramasız</td><td>var</td></tr>
+            <tr><td><b>USCF</b></td><td>açık</td><td><b>kapalı</b></td><td>hayır</td><td>forced mate</td><td>var</td></tr>
+            <tr><td><b>Karma</b></td><td><b>kapalı</b></td><td>açık</td><td>evet</td><td>forced mate + tek sütun piyon kuralı</td><td>var</td></tr>
+          </tbody>
+        </table>
+        <p>
+        Bu tablo kodda <b>tek bir yerde</b> yaşar ve hem üretici preset'lerini
+        hem Motor Deneme'nin federasyonlarını hem de üretilen her motoru besler;
+        üç yerde ayrıklaşması mümkün değildir. Preset'lerden bağımsız özel
+        yapılandırmalar da üretilebilir — Motor Deneme'nin "özel" seçeneği aynı
+        seçenek kümesini sunar, dolayısıyla orada kurulan her kural seti birebir
+        indirilebilir bir motora karşılık gelir.
+        </p>
+
+        <h4>6.5. Üretilen motorun API'si</h4>
+        <ul>
+          <li><code>adjudicate(fen, repCount)</code> — tam pozisyon hükmü.</li>
+          <li><code>adjudicate(fen, { repCount, prevFen })</code> — aynısı, ama
+          <code>prevFen</code> verildiğinde geçerken alma tetikleyicisi de
+          çalışır.</li>
+          <li><code>lockTrigger(fen, prevFen)</code> — kilit taraması gerekli mi.</li>
+          <li><code>flagFall(fen, whiteLostOnTime)</code> — bayrak düşmesi hükmü.</li>
+          <li><code>resign(fen, whiteResigns)</code> — terk hükmü.</li>
+          <li><code>isLocked(fen)</code> — kilit seçiliyse.</li>
+        </ul>
+        <p>
+        Kod sayfada sergilenmez, yalnızca indirilir. Üretilen tek şey
+        yapılandırma ve ince bir sarmalayıcıdır; kural hattı üretilmez, yalnızca
+        yapılandırmaya bağlanır.
+        </p>
+
+        <h4>6.6. Notlar ve sınırlar</h4>
+        <ul>
+          <li>Kilit tespiti piyon duvarına dayalı kilitlere odaklıdır. Vezir
+          içeren ve otuz taştan kalabalık pozisyonlar kapsam dışıdır. Kale
+          kapsam içindedir: hareketsizse değerlendirilir, hareketliyse kilidi
+          kırar.</li>
+          <li>Çok fil taşıyan pozisyonlarda tarama görece yavaştır; altı ana
+          yayılımın hepsi her zaman koştuğu için kısayol yoktur.</li>
+          <li>Üç bayrak sınıflandırıcısı da tamdır ve hem Motor Deneme'de hem
+          Motor Üretici'de seçilebilir.</li>
+          <li><code>src-lock</code> sistem dillerine taşınmaya uygundur; tahta
+          temsili bitboard'a çevrildiğinde — dizgi anahtarları yerine sayısal
+          anahtarlar — önemli hız kazancı elde edilir.</li>
+        </ul>
+        </div>
+        </details>
+        </div>
+
+        <div class="docwrap only-en">
+        <details class="doc" open>
+          <summary>
+            <span class="num">01</span>
+            <span class="ttl">Purpose, philosophy and rule architecture
+              <span class="sub">Why the project exists, why it runs in a browser, and why it is not a bot</span></span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+          </summary>
+          <div class="docbody">
+            <h4>1.1. How the project started</h4>
+            <p>Over the board, grey areas like locked positions or material sufficiency on a flag fall are settled by an arbiter's experience and human judgement. On digital platforms, settling the same situations with a clear algorithm instead of leaving them open to interpretation has been a long-standing problem in chess programming.</p>
+            <p>The project began with <b>FIDE 5.2.2 dead position</b> detection. That problem does have a solution in the literature — Miguel Ambrona's <i>A Practical Algorithm for Chess Unwinnability</i> (FUN 2022) defines a sound and complete algorithm. What is missing is not the algorithm but its <b>deployment</b>: no major digital platform performs this test today. Along the way the differences between FIDE and USCF were studied, and USCF's <b>forced mate</b> rule — also unimplemented on digital platforms — was brought into scope.</p>
+            <p>The core claim: turn the rules of chess into an algorithm that follows the rulebook fairly and accurately, help platforms understand the FIDE/USCF split, and offer rule implementers a <b>reference implementation</b>. All source, all logical assumptions and all algorithms are open to the chess and software communities for discussion and testing.</p>
+
+            <h4>1.2. Why a browser</h4>
+            <h5>Visibility and intuition</h5>
+            <p>The point of building this as a single-file HTML/JS page (<code>index.html</code>) is not to ship a production script. It is to <b>make the algorithm's steps, the lock logic and the federation differences visible, intuitive and easy to test</b> in a browser. The environment serves as a laboratory where the rules are demonstrated as an observable process rather than a black box.</p>
+            <h5>Speed and integration</h5>
+            <p>If the arbiter is used purely for rule checking, JavaScript's runtime speed is more than sufficient for modern browsers. But in a setup that runs <b>alongside a high-performance engine such as Stockfish</b>, checking rules inside a move-search loop in real time, JavaScript's limits become visible. For maximum speed and clean integration with modern analysis engines, the logic should be ported to a systems language — <b>C++, Rust or Java</b> — and the board representation moved to <b>bitboards</b>.</p>
+
+            <h4>1.3. An arbiter, not a bot</h4>
+            <p>This is <b>not</b> an engine like Stockfish or Leela Chess Zero that evaluates positions and searches for the best move. The goal is not to play but to deliver firm, final rulings on rules, dead positions and time-forfeit outcomes.</p>
+            <ul>
+              <li><b>Fast enough for human-vs-human play.</b> For validating moves, catching rule violations and issuing rulings in real time, it is fast, light and effective.</li>
+              <li><b>Search depth is limited.</b> The built-in forced-mate searcher is quick at reasonable depths (d5–d10). Next to modern analysis engines reaching depth 50–60, that capacity is naturally limited. The system should therefore be used only as an <b>independent arbiter that verifies rules and issues rulings</b>, never as a playing or analysis engine.</li>
+            </ul>
+
+            <h4>1.4. A flexible rule architecture</h4>
+            <p>FIDE and USCF differ substantially on resignation, material evaluation on a flag fall, and the 75-move / 5-fold automatic draw. Each federation is the more reasonable one on some of these points. Rather than forcing platforms into a single rule set, the algorithm offers a modular architecture:</p>
+            <ul>
+              <li><b>FIDE and USCF standards.</b> The logic of either rulebook can be applied exactly.</li>
+              <li><b>Hybrid ruleset (recommended).</b> A third approach blending the fairest-looking rules from both — Section 5.</li>
+              <li><b>Custom engine.</b> On the contested points, the user can pick their own reading on top of the core rule engine, producing a personalised standalone arbiter with the chosen parameters.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="doc" open>
+          <summary>
+            <span class="num">02</span>
+            <span class="ttl">Locked dead position detection — FIDE 5.2.2 / USCF 14D4
+              <span class="sub"><code>src-lock</code> — three checks, measured verification</span></span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+          </summary>
+          <div class="docbody">
+            <p>FIDE Laws of Chess, Article 5.2.2: if no series of legal moves can reach a checkmate even with both sides cooperating (<i>helpmate</i>), the position is <b>dead</b> and the game is immediately drawn. USCF applies the same principle.</p>
+
+            <h4>2.1. Two kinds of dead position, scope, soundness and completeness</h4>
+
+            <h5>A. Two difficulty classes</h5>
+            <p><b>Simple dead positions — insufficient material.</b> Bare kings (K–K), a lone knight (K+N–K), a lone bishop (K+B–K), or all bishops on both sides confined to one square colour (K+B–K+B). There is no mating material on the board. Detection is a matter of counting pieces and checking square colours; the cost is negligible.</p>
+            <p><b>Complex locked positions.</b> There is far more than enough material to mate — pawns, bishops, even rooks — yet pawn walls and blockades make mate geometrically impossible. Seeing these is well beyond counting pieces. They are the subject of this section.</p>
+
+            <h5>B. The theorem this rests on</h5>
+            <blockquote><p>If no <b>irreversible move</b> (a capture, a pawn push, a promotion) and no <b>mate</b> can be opened even with both sides cooperating, the position is a certain draw.</p></blockquote>
+            <p>The reasoning: reversible moves only shuffle, the position space is finite, and so the 75-move / 5-fold ceiling takes over. What the algorithm looks for is therefore not "who wins" but a <b>lock breaker</b>: irreversibility, or mate.</p>
+
+            <h5>C. Soundness — the claim and what backs it</h5>
+            <p>An arbiter algorithm has two error directions, and they <b>do not carry equal weight</b>:</p>
+            <ul>
+              <li><b>False positive</b> — calling a position locked when it is not. It declares a draw the game had not earned. That is a breach of the Laws.</li>
+              <li><b>False negative</b> — failing to see a real lock. Play continues and the game is drawn anyway at the 75-move or 5-fold ceiling. The result arrives late, not wrong.</li>
+            </ul>
+            <p>The whole design rests on that asymmetry. <b>A false positive is unacceptable; a false negative is a price worth paying.</b></p>
+            <p>The real engineering decision follows. The algorithm is full of relaxations — king safety is ignored, whose turn it is does not matter, the enemy king is deleted at the king main node. But <b>every relaxation errs the same way.</b> Each grants both sides more freedom than they really have; more freedom means more breakers found, and more breakers means "not locked". Wherever ambiguity appears, the answer falls to the safe side.</p>
+            <table>
+              <thead><tr><th>Relaxation</th><th>Error direction</th></tr></thead>
+              <tbody>
+                <tr><td>King safety, pins and move order ignored</td><td>more moves → more breakers → not locked</td></tr>
+                <tr><td>Enemy king deleted at the king main node</td><td>more room → more breakers</td></tr>
+                <tr><td>King walks past bishop and king threats</td><td>more room</td></tr>
+                <tr><td>Node budget exhausted</td><td>no ruling given, out of scope</td></tr>
+                <tr><td>Engine cannot parse a position</td><td>counted as a breaker</td></tr>
+                <tr><td>K1's geometric pruning</td><td>only toward not locked</td></tr>
+              </tbody>
+            </table>
+            <p>That is the <b>structural</b> basis of the claim. The empirical basis is in 2.7. It should also be said plainly that this is not a <i>proof</i>: the structural argument establishes the direction of the relaxations, not the absence of a coding mistake. That is why the measurement is published and repeatable.</p>
+
+            <h5>D. Completeness — what is not claimed</h5>
+            <p>There is <b>no claim of 100% completeness.</b> Locks are missed even inside the scope; the count is measured and published. Completeness here is not a goal but <b>the currency spent on soundness</b>. Whenever the two conflict, completeness gives way without hesitation. In one line: <b>soundness is the claim, completeness is the measurement.</b></p>
+
+            <h5>E. Why the scope is narrow</h5>
+            <p>Writing a universal algorithm that catches every lock across the whole space of chess — in constructed problems, exotic FEN strings, variants — is very hard in both theory and practice. The funnel is therefore narrowed deliberately to <b>real game positions arising from the standard setup or Chess960</b>. The scope limits are not arbitrary; each follows directly from board geometry or the laws of chess, and each is justified individually in 2.4. Thanks to them the algorithm stays out of risky positions and eliminates non-locked standard-game positions at great speed.</p>
+
+            <h4>2.2. The trigger — when the scan runs (<code>lockTrigger</code>)</h4>
+            <p>By its nature the lock scan is a costly search that simulates piece combinations across the board. Running it blindly on every move wastes resources. The logic is therefore attached to an independent outer layer: <code>lockTrigger(fen, prevFen)</code>.</p>
+            <p>Locked dead positions can only arise at the moments when the position's future <b>narrows irreversibly</b>. The trigger recognises only those moments:</p>
+            <ul>
+              <li><b><code>halfmove</code> reset.</b> The 50/75-move counter resets when a piece is captured or a pawn moves. A capture permanently changes the material balance and a pawn push the geometry of the wall; that is where lock potential is born.</li>
+              <li><b>En passant rights lapsing.</b> A double pawn push creates an en passant right for the opponent. While that right exists the position can <b>never</b> be locked — that capture changes file and breaks the pawn chain, and it is irreversible.</li>
+            </ul>
+            <p><b>The critical miss, and the fix.</b> If the player does not take en passant on the following move, the right lapses on its own and the possibility that was preventing the lock disappears; the position can turn into a lock at that instant. But the move that caused the right to lapse may itself be reversible (an ordinary king move, say), so <code>halfmove</code> is not reset — it keeps climbing. A conventional check that watches only for <code>halfmove == 0</code> would <b>miss those locks forever</b>. The trigger compares the previous FEN with the current one, catches the lapsed right and starts the scan even though the counter never reset.</p>
+            <p>Every move outside these two cases is a rearrangement of a structure already scanned and already shown not to be locked; the scan is skipped. This layer filters out the large majority of unnecessary scans.</p>
+            <p>A concrete example: in <code>4k3/4p3/3p4/1p1P3p/1P2P2P/8/8/1K6 b - - 0 1</code> Black plays <code>e7–e5</code>; the en passant square <code>e6</code> opens and, because <code>dxe6 e.p.</code> breaks the lock, the ruling is "play on". When White then makes a reversible move such as <code>Kb1–a1</code>, the right lapses and the position turns into an absolute lock. <code>halfmove</code> is 1 at that point, so a gate watching only the counter would never scan it; the en passant trigger catches it.</p>
+            <p>Missing a trigger costs <b>completeness</b>, never soundness: an unscanned lock is simply reported as not locked. If <code>prevFen</code> is not supplied, only the <code>halfmove</code> rule can fire.</p>
+            <p class="note">It can optionally be integrated to activate only after a given move number — on the assumption that no lock can form before it, the background load disappears entirely. This is not recommended, because positions entered by FEN would then lose true positives (a completeness loss). The scope check in K1 already eliminates the natural first 40–60 moves of a game at no cost.</p>
+
+            <h4>2.3. Check order and side handling</h4>
+            <p>The algorithm does not work side-by-side — "run all of White's checks, then move to Black". Checks run by stage: <b>K1 → K2 → K3.</b> The first check to speak ends the run.</p>
+            <p>K1's arithmetic tests and pawn-brick analysis are board-wide; the knight/rook mobility and bishop tests run per side. Wherever a check is side-dependent, <b>the active side goes first</b>: the pieces of the side to move are examined before the opponent's. K2 and K3 follow the same priority.</p>
+            <p>The ruling is <b>completely independent</b> of this ordering — each check is a pure test on the same immutable board. The only purpose of the ordering is to attribute a breaker, in the printed reason, to <b>the side that could play it first</b>.</p>
+
+            <h4>2.4. Check 1 — Scope</h4>
+            <p>Nothing moves in K1; everything is read off the untouched board. <b>Every K1 failure returns "out of scope"</b>, not "not locked". K1 asks a single question: <i>is this position inside the algorithm's class at all?</i> Issuing a ruling — "I evaluated it and found a breaker" — begins at K2.</p>
+
+            <h5>1a. Arithmetic</h5>
+            <ul>
+              <li><b>Piece count 8 ≤ n ≤ 30.</b> The upper bound assumes at least both queens have left the board (32 − 2).</li>
+              <li><b>No queens.</b> Because of its reach along diagonals and files, a queen cannot be entombed even by all fifteen of its own remaining pieces. On a board with a queen, a pawn wall is bound to be forced and broken dynamically. Not an arbitrary restriction but a consequence of the piece's geometry.</li>
+              <li><b>Required pieces.</b> Exactly one king and at least three pawns per side. Below three pawns a wall blockade cannot form geometrically; pieces manoeuvre freely.</li>
+              <li><b>Promotion consistency.</b> Every piece beyond the starting complement must have come from a promotion, and every promotion must have cost a pawn. Checked separately for each side: <code>max(0,R−2) + max(0,N−2) + max(0,B−2) + max(0,Q−1) ≤ 8 − P</code></li>
+            </ul>
+
+            <h5>1b. Knight and rook immobility</h5>
+            <p>Where a queen cannot be entombed, knights and rooks can be — by pawn walls and by their own pieces. But a knight jumps the wall and a rook slides down open lines. In a genuine lock both must therefore be <b>completely buried in their own men</b>. The test is pure geometry: unlike legality, it does not care whether the king is left exposed. If a knight or rook can reach even one empty square, or one square holding an enemy piece, the lock is <i>definitively</i> broken and the search ends immediately.</p>
+
+            <h5>1c. The frozen bishop contradiction</h5>
+            <p>Unlike knights and rooks, a frozen bishop demands a very particular geometric argument. To entomb a bishop, every diagonal neighbour must be sealed by a friendly man. But pawns never move backwards, and the bishop could only have <b>entered</b> that square along those same diagonals. If the lines were sealed after it arrived, then — since pawns cannot retreat — a bishop that has moved and is now buried is a geometric contradiction: the diagonal it would have used was already sealed.</p>
+            <p>Because of that impossibility, the only legitimate way for a bishop to be frozen is to <b>never have moved</b>. Bishops on White's first rank and Black's eighth are born closed behind their own untouched pawns. This holds both for the standard setup and for every Chess960 arrangement, since the bishops start on the back rank there too. Hence: <b>a frozen bishop found off its home rank puts the position out of scope.</b></p>
+            <p>This is scope hygiene, not a soundness matter. "There is no irreversible move here" is a property of the position itself, independent of how it was reached.</p>
+
+            <h5>1d. Pawn bricks and the contact rank</h5>
+            <p>Pawns carry the wall, but two pawns facing each other do not always produce a blockade. A <b>brick</b> is a black pawn on rank r with a white pawn directly below it on r+1, each completely blocking the other's forward movement.</p>
+            <ul>
+              <li><b>Direction matters.</b> With a black pawn on a4 and a white pawn on a5 (White advancing 5→6, Black 4→3) the pawns do not block each other. For a brick, White must be on a4 and Black on a5.</li>
+              <li><b>Contact rank (r + 0.5).</b> The line where the two locked pawns meet. A second white pawn below, or a second black pawn above (doubled pawns), does not move the contact rank.</li>
+            </ul>
+            <p>The number of bricks determines whether the wall can divide the board:</p>
+            <ul>
+              <li><b>n &lt; 3.</b> At least three locked bricks are required to cut an eight-file board in two and close the crossings. Below that, pieces walk around the wall; a lock is impossible.</li>
+              <li><b>n = 3.</b> The file pattern cannot be arbitrary: it must match one of {a,d,g}, {b,d,g}, {b,e,g} or {b,e,h}, which are the patterns that leave symmetric gaps — and all three contact ranks must be <b>identical</b>.</li>
+              <li><b>n ≥ 4.</b> Two bricks on adjacent files (|Δc| = 1) can <b>never share a contact rank</b>. Two bricks level with each other on adjacent files (a4–a5 and b4–b5, say) give the pawns a diagonal capture; the moment that becomes available the chain can break.</li>
+            </ul>
+
+            <h4>2.5. Check 2 — Mate possibility</h4>
+            <p>This is the first real question put to a position that clears the scope test: in <b>any</b> arrangement reachable from this board, can either side deliver mate?</p>
+
+            <h5>A. The hard case</h5>
+            <p>To see why this needs its own layer, look at the most insidious form a mate can take. The move that breaks a lock is <b>not always played by the side that profits from it.</b> The losing side walks its own bishop — or pushes its own pawn — onto a square beside its own king, sealing the escape, and the opponent mates. The breaker is played by the side it harms.</p>
+            <pre>1.Bf5 Kb7  2.Be6 Ka8  3.Bd7 Bb8  4.Be8 Ba7  5.Bc6#</pre>
+            <p>In the final position the black king is on a8 with its own bishops on a7 and b8. Two of the king's three escape squares are blocked by <b>its own bishops</b>, the third covered by White's. Mate.</p>
+            <p>No move simulation can find that arrangement. The spread layer moves one piece type of one colour at a time; this mate needs the king, the loser's bishops and the winner's bishop all to be somewhere new <b>at the same time</b>. No number of extra branches closes that product — the product is the problem.</p>
+
+            <h5>B. Regions instead of search</h5>
+            <p>So K2 does not walk configurations. It computes, for every piece, <b>the set of squares it could ever reach</b>, and asks whether a mate picture fits inside those sets at all. The method is the semi-static analysis described in Miguel Ambrona's <i>A Practical Algorithm for Chess Unwinnability</i> (FUN 2022); the implementation here was written independently from the paper's pseudocode.</p>
+            <p><b>Stage one — mobility.</b> Three families of variables are set up: which square a piece could one day stand on, whether a piece can be cleared from its square, and whether a non-king man of a given colour can ever occupy a square. Initially only each piece's own square is open. The rules are then applied repeatedly until no new variable opens: a piece can reach a square only if it can reach a predecessor of it; a pawn advances either by pushing — if an enemy on the target can be cleared — or by capturing diagonally — if an enemy man can ever reach that square — or by promoting; and a king cannot step onto a square while an enemy attacking it directly remains uncleared.</p>
+            <p>A locked pawn wall shuts itself down here: the pawn cannot advance because the enemy pawn in front of it is never clearable, and cannot capture because no enemy man ever reaches its capture squares. By propagation, most variables never open at all.</p>
+            <p><b>Stage two — does a mate picture fit.</b> Mobility gives regions. The winner's pieces that can set foot inside the losing king's region are called <i>intruders</i>. A single intruder that is not a bishop means a mate can be built. Two bishops on different square colours open the same door. If neither is present, then for every square the losing king can reach, three things are asked together:</p>
+            <ul>
+              <li>Can the king get there?</li>
+              <li>Can the winner attack it?</li>
+              <li>Can <b>all</b> of that square's orthogonal neighbours be sealed at the same time?</li>
+            </ul>
+            <p>The third question is the heart of it. Sealing happens two ways: the loser's <b>own men</b> arriving on those neighbours — two of its own bishops, or a pawn and one of its own bishops — or the winner attacking them. If one square satisfies all three, a mate picture fits. If none does, mate is impossible.</p>
+            <p>Counting only the orthogonal neighbours is a necessity rather than a preference: those squares are the opposite colour to the mating square, so the same-coloured bishops that are the only intruder class can never touch them — which means each sealer is worth at most one neighbour and the count stays valid.</p>
+
+            <h5>C. Error direction</h5>
+            <p>Mobility deliberately <b>over-approximates</b>: believing a piece can travel further than it really can is harmless, because it only adds intruders and helpers, pushing toward "a mate might be possible". The verdict function is monotone in that approximation. Together the two guarantee that K2 <b>is never wrong when it says mate is impossible</b>; in every case it cannot settle, the position is not counted as locked. Castling rights or a live en passant square invalidate the mobility rules, and K2 declines to rule in that case.</p>
+
+            <h5>D. Where the method stops</h5>
+            <p>The full form of this method in the literature has two parts: the semi-static analysis <b>plus</b> an iterative-deepening helpmate search. Completeness comes from that search. Only the semi-static half was taken into this project — search is a cost an arbiter engine does not want to carry. The result is sound but incomplete, and that is exactly the intended trade.</p>
+
+            <h4>2.6. Check 3 — Spread</h4>
+            <p>Positions that clear K1 and K2 go into simulation. K1 never touches the board; from here on pieces are walked across it. The aim is to establish whether, while multi-step reversible moves are simulated, either side can open an irreversible one (a <b>lock breaker</b>). From this layer on, a failure means the position was evaluated and a way out was found, so the result is <b>NOT LOCKED</b>.</p>
+
+            <h5>A. Two-layer spread</h5>
+            <p>A <b>main piece</b> — pawn, bishop or king — travels the board. At <b>every stop</b> it reaches, all breaker tests run again. The main node order is fixed: pawn → bishop → king, and within each, the side to move first. Six main spread lines in total.</p>
+            <p>The <b>sub-branch</b> set running at every stop is six scans: knight/rook mobility, both sides' pawn sub-spread, both sides' bishop sub-spread, both sides' king sub-spread. Sub-branches <b>include the main piece's own type</b> — a second piece of that type may move while the first sits somewhere new.</p>
+            <p>The king sub-branch exists for its own reason: the king main node already walks the king, but with every other piece on its root square. The combination "a bishop has moved and the king now walks" is only reachable as a sub-branch.</p>
+
+            <h5>B. Dynamic knotting check</h5>
+            <p>Knights and rooks cannot be main pieces, because a mobile one breaks the lock instantly; K1b already confirmed they are buried. But the board's geometric balance shifts as a pawn, bishop or king travels. So at <b>every stop</b> both sides' buried knights and rooks are re-examined for freedom. If even one square of movement opens, the lock is <b>broken immediately</b>. This is the dynamic counterpart of the static K1b test.</p>
+
+            <h5>C. Breakers by piece type</h5>
+            <p>A breaker is anything that changes the position irreversibly, disturbs the pawn chain, or opens the game toward mate.</p>
+            <p><b>Pawn.</b> A straight advance is not a breaker; it only opens a new simulation node. Breakers: a diagonal capture that changes file; an en passant capture becoming available; reaching the last rank to promote; and a pawn push freeing a knight or rook.</p>
+            <p><b>Bishop.</b> Sliding across empty squares is not a breaker. Breakers: capturing any enemy piece other than the king; giving check — but not on its own, since the king may escape or the line may be blocked, so it breaks only if the engine confirms a <b>definite mate</b>; and a bishop slide freeing a knight or rook.</p>
+            <p><b>King.</b> Before it starts walking, the enemy king is temporarily deleted from the board, so that the two-kings rule does not block geometric paths. The king may not step onto squares attacked by enemy pawns. A king stepping off a square and freeing a knight or rook breaks the lock immediately.</p>
+            <p><b>A king capture is not a breaker — the critical difference.</b> Where a pawn or bishop capture breaks the lock at once, this does not hold for the king. The reason is that this layer ignores king safety: the king appears able to take defended men it could never take in a real game. Instead, when the king captures, the <b>history of visited squares is cleared</b>; the new square is treated as a fresh origin and the scan continues from there across everything it can reach. Since the pawn and bishop breaker tests run without interruption at every stop, any breaker appearing on the path the king has opened is caught at once.</p>
+
+            <h5>D. Node budget — not a verdict, the absence of one</h5>
+            <p>Every spread terminates on its own: boards are deduplicated by placement string and only unseen ones are pushed; the only thing that clears the history is a capture, and a capture strictly reduces the piece count, so it can happen at most thirty times. Termination is guaranteed — promptness is not. On a handful of artificial boards carrying three or four bishops a side, the bishop spread explodes combinatorially.</p>
+            <p>Against this there is a <b>node budget</b>: 200,000 nodes. When it runs out the scan stops and the position is declared <b>out of scope</b> — stating plainly that no ruling was reached.</p>
+            <p>That distinction is kept carefully. Reporting a breaker on overflow and calling the position not locked would also be sound, but it would mislead: a genuinely locked position would be stamped not locked <b>purely for being slow</b>, and the ruling would depend on the machine's speed rather than the board. The out-of-scope verdict avoids that, and because the count is deterministic the same board gets the same answer on every machine.</p>
+            <p>The budget was set by measurement: the heaviest board that actually reached a verdict spent 182,768 nodes, the heaviest lock 161,434. 200,000 covers every real ruling with headroom and cuts the pathological boards off within seconds.</p>
+
+            <h4>2.7. Verification</h4>
+            <p>The claims have been measured. The reference data is <code>tests/positions.txt</code> from Miguel Ambrona's chasolver repository: <b>3,414 positions</b> submitted by the community to chasolver.org since 2021, each labelled for winnability. The label that matters here is <code>--</code>, meaning neither side can mate.</p>
+            <p class="note"><b>Attribution and difference in scope.</b> chasolver is an open-source (MIT) solver by Miguel Ambrona — <code>github.com/miguel-ambrona/chasolver</code>. It carries the whole algorithm from the paper: the semi-static analysis <b>plus</b> the helpmate search. That is why it is both sound and complete. <code>tests/positions.txt</code> is the file its author offers explicitly so that other solvers can be evaluated, and it is used here for exactly that purpose.</p>
+            <p class="note">The two systems are <b>not equivalent</b>, and this measurement is not a race. chasolver rules on every position in the set; Perfect Arbiter rules on 277 of the 3,414. They also ask different questions: chasolver asks "can this side win", Perfect Arbiter asks "is the position absolutely locked" — can any irreversible move or any mate be opened at all. The measurement exists solely to test whether Perfect Arbiter is ever wrong on the positions it does rule on, against an independent reference.</p>
+            <p>It should be said that this set does not represent real games: the positions were submitted to <b>stress</b> the reference tool. The distribution of actual play is far easier.</p>
+            <table>
+              <tbody>
+                <tr><td>Correct locks — ruled LOCKED, labelled <code>--</code></td><td class="n"><b>277</b></td></tr>
+                <tr><td><b>False positives — soundness breaches</b></td><td class="n"><b>0</b></td></tr>
+                <tr><td>Dead positions missed</td><td class="n">880</td></tr>
+                <tr><td>— left out of scope</td><td class="n">710</td></tr>
+                <tr><td>— a breaker wrongly believed found</td><td class="n">170</td></tr>
+                <tr><td>Unresolved</td><td class="n">0</td></tr>
+              </tbody>
+            </table>
+            <p>All 277 rulings are correct. The 880 misses are a one-directional, safe gap: 710 fall outside K1's scope limits, and in the remaining 170 either K2 or K3 believed it had found a breaker. That second group is where the algorithm can actually be improved, and the counter-example pool is kept for exactly that purpose.</p>
+            <p>Zero false positives is a measurement, not a proof. The structural argument establishes the direction of the relaxations; it does not establish the absence of a coding mistake. Both the source and the measurement method are therefore open: if, inside the scope, a position reached from the starting array by legal moves is called LOCKED and the call is wrong, that is a <b>counter-example</b>, and reporting it improves the algorithm directly. The aim is not to advance an unbreakable claim of infallibility but to find the oversights honestly and fix them.</p>
+          </div>
+        </details>
+
+        <details class="doc" open>
+          <summary>
+            <span class="num">03</span>
+            <span class="ttl">Testing and improvement on live platforms
+              <span class="sub">Termination marker, stress testing, counter-example pool, appeals</span></span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+          </summary>
+          <div class="docbody">
+            <p>The measurement in 2.7 was made under laboratory conditions. To test the algorithm on live systems, find the locks it misses and keep improving it, the following mechanisms are proposed.</p>
+
+            <h4>3.1. Verifying soundness</h4>
+            <h5>A. A dedicated termination marker</h5>
+            <ul>
+              <li><b>Today.</b> Drawn games on digital platforms are usually closed with a generic "drawn by insufficient material" message.</li>
+              <li><b>Proposed.</b> Games ending through lock detection carry a distinct identifier into the database and the PGN — for example <code>DRAW_DEAD_POSITION_LOCKED_522</code>.</li>
+              <li><b>Why.</b> The marker lets every game the algorithm ended by lock detection be separated out and audited retrospectively.</li>
+            </ul>
+            <h5>B. Stress testing with millions of bot games</h5>
+            <ul>
+              <li>Two chess bots with the algorithm integrated play millions of games.</li>
+              <li>Every position carrying the marker is collected automatically into a test pool.</li>
+              <li>The collected positions are examined with independent analysis tools. If even one marked position turns out to have a breaking move sequence or a mate, that is a <b>soundness breach</b> and the check layers are tightened at once.</li>
+            </ul>
+
+            <h4>3.2. Measuring completeness and the counter-example pool</h4>
+            <h5>A. Filtering 50-move and 3-fold games</h5>
+            <ul>
+              <li><b>Building the set.</b> From a game database or bot simulations, pull every game drawn by the 50-move rule (<code>halfmove ≥ 100</code>) or by threefold repetition.</li>
+              <li><b>K1 precondition filter.</b> Keep the ones meeting the scope conditions: 8 ≤ pieces ≤ 30, no queens, exactly one king and at least three pawns per side.</li>
+              <li><b>Retrospective lock analysis.</b> Scan whether those positions were in fact already locked at an earlier point in the game — twenty moves earlier, say.</li>
+            </ul>
+            <h5>B. The improvement loop</h5>
+            <p>If a position was fully locked at move 40 but the algorithm answered NOT LOCKED, and the game only ended at move 60 by the 50-move rule, that is a <b>miss</b>. Such positions are collected in a feedback pool; the cause — a particular king path in the K3 simulation, or a bishop parity case — is analysed and the relevant check rule updated.</p>
+            <h5>C. Community and open-source review</h5>
+            <p>All of the project's mathematical and geometric rules have been turned into open code and opened to the chess and software communities for testing. Edge-case locks reported by users worldwide will keep the algorithm's coverage alive.</p>
+            <h5>D. Retrospective appeals and rating restoration</h5>
+            <p>On platforms without automatic lock detection — or where the algorithm has not yet caught a case — players can <b>lose on time</b> despite being in a dead position or at the 50-move / 3-fold threshold, simply because they could not claim or trigger the system. A game that logically should have been drawn ends in an unfair loss. A retrospective <b>"locked position / draw appeal"</b> button is proposed:</p>
+            <ul>
+              <li><b>Correcting unfair losses.</b> The player calls the arbiter from their game history with one click. If a retrospective scan proves the board had turned into a FIDE 5.2.2 dead position before the flag fell, the result is changed to <b>draw</b> and the rating unfairly lost is restored.</li>
+              <li><b>Crowdsourced completeness audit.</b> Hundreds of thousands of players using the button draws the algorithm's attention straight to suspicious borderline positions. Appealed games ruled NOT LOCKED land in the feedback pool.</li>
+              <li><b>Contribution to development.</b> Examining positions where real players intuitively say "this was locked" makes it far easier to find the edge cases missed in theory.</li>
+            </ul>
+            <p>The result is both a rating-restoration system that keeps play fair and a feedback mechanism that raises completeness with the community's help.</p>
+          </div>
+        </details>
+
+        <details class="doc" open>
+          <summary>
+            <span class="num">04</span>
+            <span class="ttl">FIDE and USCF rule differences
+              <span class="sub">Helper mate vs forced mate, resignation, automatic ceiling</span></span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+          </summary>
+          <div class="docbody">
+            <p>Move rules, how the pieces travel, and the definitions of checkmate and stalemate are <b>identical</b> under FIDE and USCF. Every divergence comes from outside the game itself — from the interaction of player, clock and arbiter: time running out, resignation, draw claims and arbiter intervention. Both systems run the same game and read the influence of human factors through different philosophies.</p>
+
+            <h4>4.1. Procedural and administrative differences</h4>
+            <h5>A. The 50-move and 3-fold claim</h5>
+            <p><b>Shared.</b> Under both rule sets, a game does not end by itself when fifty moves pass without a capture or pawn move, or when the same position occurs three times. A draw requires one of the players to <b>make an explicit claim</b>.</p>
+            <h5>B. The 75-move and 5-fold automatic ceiling</h5>
+            <ul>
+              <li><b>FIDE.</b> Imposes a mandatory ceiling without any claim. When the counter reaches 75 moves or the same position occurs five times, the game is ended <b>automatically as a draw</b>.</li>
+              <li><b>USCF.</b> There is <b>no</b> automatic ceiling. If the players do not claim, play continues; in a long endgame such as K+R vs K+Q the game can run on until the stronger side finds the mate.</li>
+            </ul>
+            <h5>C. Reading a resignation</h5>
+            <ul>
+              <li><b>USCF.</b> A resignation is a straight loss. The resigning player loses regardless of the opponent's material.</li>
+              <li><b>FIDE (Article 5.1.2).</b> Resignation is treated the same as a flag fall. Even if a player resigns, if the opponent has no theoretical way to mate with the material on the board — even by helpmate — the game is declared a <b>draw</b> despite the resignation.</li>
+            </ul>
+
+            <h4>4.2. The main divide: helper mate vs forced mate</h4>
+            <p>The <b>dead position</b> rule, which ends the game instantly without any flag falling, is universal and identical in both rulebooks. Wherever no legal sequence of moves can produce mate — whether in insufficient-material cases such as K–K, K–K+N, K–K+B or K+xB–K+yB with every bishop confined to one square colour, or in the geometric impossibilities of Section 2 — the game is recorded as a draw at once, independent of the clock.</p>
+            <p>On a flag fall, if the opponent of the player who ran out of time holds at least Q / R / P / N+B / B+B (two bishops of opposite colours), the player who ran out loses. That proposition is universal too.</p>
+            <p>If the opponent holds only a bare king, a lone knight or bishops of a single colour, the positions that are absolute draws can be expressed with three formulas:</p>
+            <pre>I    K + …             vs  K
+II   K + xQ            vs  K + N
+III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
+            <p>Take II and III. The side that ran out of time has queen-type material — one or more. The opponent has a lone knight, and a lone knight can never geometrically mate a side that holds a queen. Had the side out of time held a pawn, rook, bishop or knight instead, a mating picture would have been possible. Likewise a single-colour bishop can never trap a rook or a queen — an opposite-coloured bishop, a pawn or a knight is required.</p>
+            <p><b>The federation split begins exactly here.</b> In the lone-knight and single-colour-bishop comparisons, FIDE awards the win outright if a helpmate picture is possible under those conditions. USCF instead awards a draw for minor pieces when no forced mate exists — for a knight, for a single-colour bishop, and even for <b>two knights</b>.</p>
+            <table>
+              <thead><tr><th>Rule parameter</th><th>FIDE</th><th>USCF</th></tr></thead>
+              <tbody>
+                <tr><td><b>Mate criterion</b></td><td>Helper mate</td><td>Forced mate</td></tr>
+                <tr><td><b>Search algorithm</b></td><td>None (pure geometry)</td><td>Yes (d5–d10 on minor pieces)</td></tr>
+                <tr><td><b>Meaning of "mate possible"</b></td><td>Is mate possible even if the loser plays the worst moves?</td><td>Can the winner force mate on an unwilling opponent?</td></tr>
+                <tr><td>K+R vs K+N <span class="sub">(K+R out of time)</span></td><td>Win (awarded to K+N — the Friedel case)</td><td>Search runs; no forced mate at depth means a draw</td></tr>
+                <tr><td>K+B vs K+B <span class="sub">(opposite-coloured bishops)</span></td><td>Win</td><td>Search runs; no forced mate means a draw — here even d1 suffices</td></tr>
+                <tr><td>K+2N vs K+P <span class="sub">(K+P out of time)</span></td><td>Win (a helpmate exists)</td><td>No search; win (Troitzky theory means the pawn prevents stalemate)</td></tr>
+                <tr><td>K+2N vs K <span class="sub">(K out of time)</span></td><td>Win (a helpmate is possible)</td><td>Search runs; no forced mate means a draw</td></tr>
+              </tbody>
+            </table>
+            <p>In short, on flag falls and material: <b>USCF calls a draw everything FIDE calls a draw.</b> But it does not award the win on most of what FIDE calls a win; depending on the piece combination a forced-mate search is required — a little deeper for knights, usually shallower for bishops.</p>
+
+            <h4>4.3. The implementation layer — shared by all three</h4>
+            <p>All three rule sets begin with the same <b>universal layer</b>. It settles the certain cases first and hands the rest to the chosen approach:</p>
+            <ul>
+              <li><b>Opponent has a bare king</b> → draw, whatever the side out of time holds.</li>
+              <li><b>Fast win funnel</b> — if the opponent holds a queen, a rook, a pawn, knight+bishop or a pair of opposite-coloured bishops, the side out of time loses.</li>
+              <li><b>Geometric certain draws</b> — a draw if the opponent has only single-colour bishops and the side out of time only queens or rooks; a draw if the opponent has only a lone knight and the side out of time only queens.</li>
+              <li><b>The bishop-colour rule</b> — if every bishop on the board, both sides taken together, sits on one square colour, the mating prospects do not change; this is the same reasoning as a dead position. It opens the moment an opposite-coloured bishop appears.</li>
+            </ul>
+            <p>The remaining <b>undecided classes</b> — a lone knight, single-colour bishops, two knights — are left open here and settled by the chosen approach. FIDE awards the win on all of them under the helpmate criterion. USCF and the hybrid run a search instead, with one exception: a pawn facing two knights, since the pawn prevents stalemate and makes the Troitzky mate possible. The hybrid ties that exception to the pawns standing on a single file.</p>
+            <p>Search depth is meaningful only for the approaches that use forced mate; FIDE runs no search. Depth is <b>completely independent of lock detection</b> — neither the mode nor the depth of the flag-fall searcher touches a lock verdict. The one mate check inside lock detection uses the engine's fixed primitives; that is not a search but the definition of mate.</p>
+          </div>
+        </details>
+
+        <details class="doc" open>
+          <summary>
+            <span class="num">05</span>
+            <span class="ttl">The proposed hybrid ruleset
+              <span class="sub">A third rule set built for digital platforms</span></span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+          </summary>
+          <div class="docbody">
+            <p>On digital platforms, applying either FIDE or USCF rules as they stand does not always give the best outcome. FIDE counting a helpmate as a win in every case can produce unfair results, while USCF's lack of a 75-move / 5-fold ceiling can send digital games into an endless loop. Hence a <b>hybrid ruleset</b> blending the fairest-looking rules of both.</p>
+
+            <h4>5.1. The rules of the hybrid</h4>
+            <h5>A. 50-move / 3-fold claim — OFF</h5>
+            <p>Players may not end the game by claiming a draw at 50 moves or threefold repetition. <b>Why:</b> in technical endgames such as K+R vs K+Q the stronger side keeps its right to force the mate, and the claim mechanism cannot be abused on digital platforms.</p>
+            <h5>B. 75-move / 5-fold automatic ceiling — ON</h5>
+            <p>When the counter reaches 75 moves or the same position occurs five times, the system draws the game automatically. <b>Why:</b> adopting FIDE's mandatory ceiling stops games from looping forever and protects platform resources.</p>
+            <h5>C. Resignation = flag fall</h5>
+            <p>When a player resigns, the opponent's ability to mate is checked. If mate is theoretically impossible with the material on the board, the game is a <b>draw</b> despite the resignation. <b>Why:</b> this follows the sporting ethics and material realism of FIDE 5.1.2.</p>
+            <h5>D. Flag fall — forced mate plus the single-file pawn rule</h5>
+            <ul>
+              <li><b>Forced-mate search.</b> As in USCF, helpmate is rejected; a forced-mate search runs at an adjustable depth (d5–d10) on minor pieces.</li>
+              <li><b>The pawn geometry condition (K+2N vs K+P).</b> USCF's rule of counting every pawn as a win is refined. If the side out of time holds only pawns and those pawns stand on <b>a single file</b>, the Troitzky stalemate-prevention geometry gives a <b>win</b> outright, with no search. If the pawns are spread across different files, if the board has no pawns, or if other pieces are present, the system switches to the forced-mate search automatically.</li>
+            </ul>
+
+            <h4>5.2. Comparative arbitration matrix</h4>
+            <table>
+              <thead><tr><th>Parameter</th><th>FIDE</th><th>USCF</th><th>Hybrid</th></tr></thead>
+              <tbody>
+                <tr><td>50-move / 3-fold claim</td><td>On</td><td>On</td><td><b>Off</b></td></tr>
+                <tr><td>75-move / 5-fold ceiling</td><td>On</td><td>Off</td><td><b>On</b></td></tr>
+                <tr><td>Resignation</td><td>Treated as a flag fall</td><td>Straight loss</td><td><b>Treated as a flag fall</b></td></tr>
+                <tr><td>Mate analysis</td><td>Helper mate</td><td>Forced mate</td><td><b>Forced mate, stricter</b></td></tr>
+                <tr><td>K+2N vs K+P</td><td>Outright win</td><td>Outright win</td><td><b>Win if pawns share a file, otherwise search</b></td></tr>
+                <tr><td>Locked position detection</td><td>Yes</td><td>Yes</td><td><b>Yes</b></td></tr>
+              </tbody>
+            </table>
+            <p class="note">In the USCF forced-mate search, the analysis runs in the background on every minor-piece situation even before the clock runs out, in case the game ends there. The result is then announced without any break in flow, and the same correct answer is delivered seamlessly.</p>
+          </div>
+        </details>
+
+        <details class="doc" open>
+          <summary>
+            <span class="num">06</span>
+            <span class="ttl">Application architecture and the engine generator
+              <span class="sub">Source blocks, one verdict pipeline, downloadable engine</span></span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+          </summary>
+          <div class="docbody">
+
+            <h4>6.1. Five sections</h4>
+            <ul>
+              <li><b>Introduction</b> — the document you are reading.</li>
+              <li><b>Locked Position</b> — proves whether a position is an absolute draw. Three outcomes: ABSOLUTE LOCK, NOT LOCKED (evaluated, a breaker was found) and OUT OF SCOPE (the K1 preconditions are not met). The squares that make the difference are highlighted.</li>
+              <li><b>Flag Fall</b> — does the opponent of the side out of time hold mating material. FIDE and USCF can be compared side by side; the ruling appears instantly and the elapsed time is shown in <code>ms</code>.</li>
+              <li><b>Engine Test</b> — a two-player game under the engine's full rules. Mate, stalemate, dead material, 50/75 moves, 3/5-fold and the lock scan are checked in order. The rule set comes from a preset or is built by hand; the flag-fall and resign buttons exercise those rulings directly.</li>
+              <li><b>Engine Generator</b> — configure the arbiter and download it as a single file.</li>
+            </ul>
+
+            <h4>6.2. Source blocks and the single verdict pipeline</h4>
+            <p>The application is one <code>index.html</code>, with the logic split across separate <code>&lt;script&gt;</code> blocks. The first four are the <b>shared core</b> and are copied verbatim into the generated engine.</p>
+            <table>
+              <thead><tr><th>Block</th><th>Contents</th><th>In the engine</th></tr></thead>
+              <tbody>
+                <tr><td><code>src-engine</code></td><td><code>PA</code> — 0x88 board, Zobrist, move generation, <code>legalMoves</code>, <code>perft</code>, forced-mate search, material, FEN in/out</td><td>yes</td></tr>
+                <tr><td><code>src-flag</code></td><td><code>makeFlagClassifier(PA)</code> — the universal layer and the three flag classifiers</td><td>yes</td></tr>
+                <tr><td><code>src-arbiter</code></td><td><code>makeArbiter(PA, CFG, LOCK, describe)</code> — the single rule pipeline</td><td>yes</td></tr>
+                <tr><td><code>src-lock</code></td><td><code>makeLockDetector(PA)</code> — K1–K3 lock detection</td><td>only if selected</td></tr>
+                <tr><td><i>generator</i></td><td><code>buildEngineSource(cfg)</code> — reads the blocks and emits a <code>.js</code> file</td><td>no</td></tr>
+                <tr><td><code>src-i18n</code></td><td>TR/EN dictionary and interface translation</td><td>no</td></tr>
+              </tbody>
+            </table>
+            <p><b>There is one verdict pipeline.</b> The page and the downloaded engine run the same <code>makeArbiter</code>; the only differences are the configuration and how the text is printed. Verdicts come back as <b>code and data</b> rather than prose; the page renders them through the dictionary and the downloaded engine through its embedded English table. A verdict differing between the page and the download is therefore structurally impossible.</p>
+            <p>The language layer engages only <b>at display time</b>. The core returns its reasons in its own language, classification runs on that text, and translation is applied last. Switching languages therefore <b>does not recompute</b> a verdict, only redraws it — which matters, because the lock scan is expensive.</p>
+
+            <h4>6.3. Where the lock scan sits in the pipeline</h4>
+            <p>Draw checks run cheapest first: <b>mate / stalemate → dead material → 75 and 50 moves → 5-fold and 3-fold → lock</b>. The lock is computed only when nothing else has fired, and even then the trigger in 2.2 decides whether the scan happens at all.</p>
+
+            <h4>6.4. The engine generator</h4>
+            <p>Options can be mixed by hand, or one of three presets applied in a click:</p>
+            <ul>
+              <li><b>Claim threshold (50 moves / 3-fold)</b> — on, a player may claim the draw; off, no claim ends the game.</li>
+              <li><b>Automatic ceiling (75 moves / 5-fold)</b> — FIDE's mandatory ceiling, a draw without any claim.</li>
+              <li><b>Resignation counts as a flag fall</b> — on, a draw if the opponent cannot mate; off, a resignation is a straight loss.</li>
+              <li><b>Flag-fall mate criterion</b> — FIDE, USCF or hybrid. FIDE runs no search; the other two take a <b>depth</b> (1–10).</li>
+              <li><b>Lock scan</b> — included or not.</li>
+            </ul>
+            <p><b>Constraint:</b> at least one of the claim threshold and the automatic ceiling must be selected, or the download is locked.</p>
+            <table>
+              <thead><tr><th></th><th>Claim 50/3</th><th>Auto 75/5</th><th>Resign = flag</th><th>Flag criterion</th><th>Lock</th></tr></thead>
+              <tbody>
+                <tr><td><b>FIDE</b></td><td>on</td><td><b>on</b></td><td>yes</td><td>helper mate, no search</td><td>yes</td></tr>
+                <tr><td><b>USCF</b></td><td>on</td><td><b>off</b></td><td>no</td><td>forced mate</td><td>yes</td></tr>
+                <tr><td><b>Hybrid</b></td><td><b>off</b></td><td>on</td><td>yes</td><td>forced mate + single-file pawn rule</td><td>yes</td></tr>
+              </tbody>
+            </table>
+            <p>This table lives in <b>one place</b> in the code and feeds the generator presets, the Engine Test federations and every generated engine alike; the three cannot drift apart. Custom configurations outside the presets can also be produced — Engine Test's "custom" option exposes the same set, so every rule set built there corresponds exactly to a downloadable engine.</p>
+
+            <h4>6.5. The generated engine's API</h4>
+            <ul>
+              <li><code>adjudicate(fen, repCount)</code> — the full position ruling.</li>
+              <li><code>adjudicate(fen, { repCount, prevFen })</code> — the same, but supplying <code>prevFen</code> also runs the en passant trigger.</li>
+              <li><code>lockTrigger(fen, prevFen)</code> — is a lock scan needed.</li>
+              <li><code>flagFall(fen, whiteLostOnTime)</code> — the flag-fall ruling.</li>
+              <li><code>resign(fen, whiteResigns)</code> — the resignation ruling.</li>
+              <li><code>isLocked(fen)</code> — if the lock scan is included.</li>
+            </ul>
+            <p>The code is not displayed on the page, only downloaded. All that is generated is the configuration and a thin wrapper; the rule pipeline is not generated, only bound to the configuration.</p>
+
+            <h4>6.6. Notes and limits</h4>
+            <ul>
+              <li>Lock detection targets locks built on a pawn wall. Positions holding a queen, or more than thirty pieces, are out of scope. Rooks are in scope: an immobile one is evaluated, a mobile one breaks the lock.</li>
+              <li>Scanning is comparatively slow on boards carrying many bishops; all six main spreads always run, so there is no shortcut.</li>
+              <li>All three flag classifiers are complete and available in both Engine Test and the Engine Generator.</li>
+              <li><code>src-lock</code> ports well to a systems language; moving the board representation to bitboards — numeric keys instead of string keys — brings a substantial speed gain.</li>
+            </ul>
+          </div>
+        </details>
+
         </div>
       </section>
 
@@ -2297,7 +4272,7 @@
    and the target holds no friendly piece. King safety (pins, discovered check,
    side to move) is ignored — a relaxation that is safe for soundness.
 
-   THREE CHECKS (in order; the first match ends the run):
+   FOUR CHECKS (in order; the first match ends the run):
    K1: SCOPE — everything decidable from the untouched board, nothing moves. Every
        side-dependent part runs for the side to move first, then the opponent.
        Mobility means locked-legality: "delete the kings and ask for legal moves".
@@ -2309,23 +4284,27 @@
             exactly 1+1 kings, ≥3 pawns a side, promotion-consistent (surplus R/N/B
             charged against the missing-pawn budget).
          b) a mobile knight or rook.
-         c) bishops, in this order:
-              frozen off its home rank (unreachable from real play)
-              one side holding both square colours, both mobile → eliminated
-              one side holding TWO OR MORE bishops on the SAME square colour →
-                eliminated. PROVISIONAL: not a property of locks, a deliberate
-                completeness sacrifice that walls off a known soundness gap in K2's
-                breaker set. See the note above ayniRenkFilCifti.
+         c) a bishop frozen OFF its home rank (unreachable from real play)
          d) pawn bricks — at least 3, splitting the board, on one contact rank, with
             no two adjacent bricks level (which would open a diagonal capture).
-   K2: SPREAD — three main nodes (pawn/bishop/king) × two sides, nested; all breakers
+   K2: MATE POSSIBILITY — the semi-static region analysis (mobility fixpoint, then the
+       intruder / blocker / assistant count). Cheap, runs on the root board only, and it
+       is the one check that asks what the spread structurally cannot: does ANY reachable
+       arrangement let the OPPONENT mate — including the mate the losing side builds for
+       its opponent by sealing its own king with its own bishops or pawns? Every breaker
+       in K3 is a move played by the side that PROFITS from it, so that case is invisible
+       to it. K2 runs before K3 because it is far cheaper and settles most non-locks on
+       its own.
+   K3: SPREAD — three main nodes (pawn/bishop/king) × two sides, nested; all breakers
        at every node + ep + mate. All six branches always run: an earlier bishop-void
        pruning that skipped P and B was removed — it could suppress the ONE branch
        that notices a bishop stepping out of a pawn's way, a proven false positive.
        KNOTTING: knight/rook mobility is retested at EVERY node, so a shuffle that
        frees a buried knight or rook breaks the lock immediately.
-   K3: FINAL KING GUARANTEE — with only the pawn wall left, can one king reach the other?
    Each check tests the SIDE TO MOVE first, then the opponent.
+
+   A NODE BUDGET, not a timeout: a run that exhausts it reports OUT OF SCOPE rather than
+   a verdict. See the note above NODE_BUDGET.
    ═══════════════════════════════════════════════════════════════════════ */
 
       function makeLockDetector(PA) {
@@ -2675,88 +4654,7 @@
           return null;
         }
 
-        // KONTROL 1c (devamı) — MOBILE OPPOSITE-COLOURED BISHOP PAIR ⇒ eliminated.
-        //   If one side holds bishops on BOTH square colours, no square is permanently
-        //   out of that side's reach: whatever the wall's colour parity, one of the two
-        //   operates on it.
-        //
-        //   That argument only holds for bishops that can actually MOVE, so a frozen
-        //   bishop does not count toward the pair. Without this the rule would quietly
-        //   undo the home-rank exemption granted one step earlier: c1+f1 walled in by
-        //   their own unmoved pawns are exempt as frozen, then instantly eliminated as a
-        //   "pair" — even though together they cover nothing at all.
-        //
-        //   BOTH must be mobile, not just one. We no longer do parity analysis, so we
-        //   cannot know which colour the wall needs; claiming coverage while the relevant
-        //   bishop is buried would be unfounded. When only one moves, the position simply
-        //   falls through to K2, which walks real diagonals.
-        function zitRenkFilCifti(b, white) {
-          const slots = [null, null]; // [açık kare, koyu kare] — yalnız hareketli filler
-          for (let r = 0; r < 8; r++)
-            for (let c = 0; c < 8; c++) {
-              const p = b[r][c];
-              if (p !== "B" && p !== "b") continue;
-              if (isWhite(p) !== white) continue;
-              if (pieceMoves(b, r, c, null).length === 0) continue; // donmuş fil kapsamaz
-              const colour = (r + c) & 1; // 0 = açık, 1 = koyu
-              if (!slots[colour]) slots[colour] = FILES[c] + (8 - r);
-              if (slots[0] && slots[1]) return { a: slots[0], b: slots[1] };
-            }
-          return null;
-        }
 
-        // KONTROL 1c (third rule) — TWO OR MORE SAME-COLOURED BISHOPS ON ONE SIDE
-        //   ⇒ OUT OF SCOPE.  *** PROVISIONAL — completeness sacrifice, not a theorem ***
-        //
-        //   Unlike the two rules above, this one is NOT a property of locked positions.
-        //   Two same-coloured bishops are perfectly compatible with a genuine absolute
-        //   lock, and ruling them out of scope throws away real locks. The rule is here
-        //   only because K2's BREAKER SET is incomplete in exactly this material class.
-        //
-        //   THE GAP IT WALLS OFF. A breaker does not have to be played by the side that
-        //   profits from it. In a helpmate the LOSING side walks its own bishop onto a
-        //   square adjacent to its OWN king, sealing the escape, and the opponent's
-        //   opposite-coloured bishop delivers mate. K2's bishop spread does generate that
-        //   quiet move — it is reversible, so it merely becomes a new node — but no
-        //   breaker test ever asks "did this placement hand the OPPONENT a mate?".
-        //   bishopCheckIsMate only examines mates given by the bishop that just moved.
-        //   The error direction is therefore the bad one: a false positive.
-        //
-        //   MEASURED on chasolver's tests/positions.txt (Miguel Ambrona, 3414 labelled
-        //   positions). Adding this rule:
-        //     • closes 32 of the 48 false positives          (soundness)
-        //     • resolves all 27 timeouts instantly           (K1 returns before K2)
-        //     • costs 44 of the 286 correct locks            (completeness)
-        //     • false-positive rate 48/334 = 14.4%  →  16/258 = 6.2%
-        //   The 16 survivors all hold exactly ONE bishop per side on OPPOSITE square
-        //   colours — the same mechanism, outside this rule's reach.
-        //
-        //   Mobility is deliberately NOT consulted here (unlike zitRenkFilCifti, whose
-        //   argument is about reach). A frozen bishop still blocks its own king's escape
-        //   square, so counting it is the conservative choice. Note that any frozen
-        //   bishop reaching this point is on its home rank — frozenBishop already
-        //   eliminated the others — and a home-rank pair sits on opposite colours in both
-        //   the standard setup and Chess960, so neither is touched by this rule.
-        //
-        //   TO BE REPLACED by a proper breaker test: does any reachable placement of the
-        //   DEFENDER's own men create a mate for the opponent? (Equivalently, Ambrona's
-        //   region/mobility analysis: region(defender bishop) ∩ neighbours(own king).)
-        //   Until that exists the trade stands as it is — completeness is the cheaper
-        //   currency, soundness is the claim being made.
-        function ayniRenkFilCifti(b, white) {
-          const first = [null, null]; // [açık kare, koyu kare] — ilk görülen filin karesi
-          for (let r = 0; r < 8; r++)
-            for (let c = 0; c < 8; c++) {
-              const p = b[r][c];
-              if (p !== "B" && p !== "b") continue;
-              if (isWhite(p) !== white) continue;
-              const colour = (r + c) & 1; // 0 = açık, 1 = koyu
-              const sq = FILES[c] + (8 - r);
-              if (!first[colour]) first[colour] = sq;
-              else return { a: first[colour], b: sq };
-            }
-          return null;
-        }
 
         // ─────────────────────────────────────────────────────────────────────
         // LOCK-BREAKER TESTS (locked-legality based, on a given board)
@@ -2806,29 +4704,111 @@
           return p.legalMoves().length === 0; // a real mate?
         }
 
-        const MAX_NODES = 200000; // safety cap for the main and sub spreads
+        /* NODE BUDGET — a valve, not a verdict.
+   Every spread terminates on its own:
+     • each spread dedups boards by placement string and only pushes unseen ones,
+       so between captures the walk is bounded by the finite set of placements;
+     • the only thing that clears `seen` is a CAPTURE, and a capture strictly
+       decreases the piece count (≤30), so resets are bounded too.
+   Termination is therefore guaranteed — but not promptly. A handful of artificial
+   boards (four bishops a side behind an interlocked wall) explode combinatorially
+   and would hang a live arbiter.
 
-        // ── SUB-SPREAD: with all OTHER pieces fixed, can one piece type (P or B) open a
-        //    LOCK-BREAKER through multi-step locked-legality movement?
+   Reporting a BREAKER on overflow would also be sound, but it would misrepresent what
+   happened: a genuinely locked position would come back as NOT LOCKED purely for being
+   slow, and the verdict would depend on the budget rather than on the board. The budget
+   instead ABORTS the run and the position is reported OUT OF SCOPE — no judgement was
+   reached, and the output says exactly that. The count is deterministic, so the same
+   board always gets the same answer on any machine. */
+        // CALIBRATION (chasolver tests/positions.txt, 3414 positions, 719 of them in
+        // scope). The heaviest board that actually REACHED a verdict spent 182,768 node
+        // expansions — 161,434 for the heaviest LOCK. Everything past that is one of a
+        // handful of artificial boards carrying three or four bishops a side behind an
+        // interlocked wall, where the bishop spread explodes combinatorially.
+        //
+        // 200,000 therefore clears every real verdict with headroom while capping the
+        // pathological boards at roughly 25 seconds. Raising it to 1,000,000 was measured
+        // too: it buys three more locks and costs 129 seconds on the worst board. Not a
+        // trade worth making inside a live arbiter, where lockTrigger is what keeps this
+        // scan rare in the first place.
+        const NODE_BUDGET = 200000;
+        var nodeBudget = 0;
+        function BudgetOut() {}
+        function spend() {
+          if (--nodeBudget < 0) throw new BudgetOut();
+        }
+
+
+        // ── SUB-SPREAD: with all OTHER pieces fixed, can one piece type (P, B or K) open
+        //    a LOCK-BREAKER through multi-step locked-legality movement?
         //    (The inner branch: a pawn may walk toward promotion, a bishop may roam and
-        //     capture.)
-        //    kind: 'P' | 'B',  moverWhite: which colour moves it
+        //     capture, a king may walk and uncover a buried knight or rook.)
+        //    kind: 'P' | 'B' | 'K',  moverWhite: which colour moves it
         //    Returns true = a breaker opened.
+        //
+        //    WHY THE KING BRANCH EXISTS. mainSpread('K') walks the king, but with every
+        //    other piece at its ROOT square. The combination "a bishop has moved AND the
+        //    king has since walked somewhere new" needs two piece types to have moved, so
+        //    running the king as a sub-branch at every main node is what covers it. The
+        //    mirror holds for the pawn and bishop branches inside the king main node,
+        //    which is why all types run at every node regardless of which type the main
+        //    node is walking — the main piece's own type included, since a second instance
+        //    of it may move while the first sits somewhere new.
+        //
+        //    The king branch mirrors mainSpread's king rules exactly: the enemy king is
+        //    deleted from the working clone, squares attacked by enemy PAWNS are refused,
+        //    a capture is NOT a breaker but resets the visited set.
         function subSpreadBreaks(board0, kind, moverWhite, epRoot) {
           const seen = new Set();
           const key = (b) => boardToPlacement(b);
+          let root = cloneBoard(board0);
+          if (kind === "K") {
+            const ok = findKing(root, !moverWhite);
+            if (ok) root[ok.r][ok.c] = "";
+            if (!findKing(root, moverWhite)) return false; // no king to walk
+          }
           // Stack: [board, epSq]. Ep rights hold ONLY at the root (they vanish after one
           // move), so epRoot is attached to the root board only; derived boards get null.
-          let stack = [[cloneBoard(board0), epRoot || null]];
-          seen.add(key(board0));
-          let nodes = 0;
+          let stack = [[root, epRoot || null]];
+          seen.add(key(root));
 
           while (stack.length) {
-            if (++nodes > MAX_NODES) return true; // cap → ambiguity → count as a breaker
+            spend();
             const [b, epSq] = stack.pop();
 
             // Does this piece type have a BREAKER move here? + knight legality?
             if (anyKnightOrRookMobile(b)) return true;
+
+            if (kind === "K") {
+              const k = findKing(b, moverWhite);
+              if (!k) continue;
+              for (const [dr, dc] of KING_D) {
+                const nr = k.r + dr,
+                  nc = k.c + dc;
+                if (!inB(nr, nc)) continue;
+                if (sameSide(b[nr][nc], moverWhite)) continue;
+                if (pawnAttacksSquare(b, nr, nc, !moverWhite)) continue; // enemy pawn threat
+                const cap = !!b[nr][nc];
+                const nb = cloneBoard(b);
+                nb[nr][nc] = nb[k.r][k.c];
+                nb[k.r][k.c] = "";
+                if (cap) {
+                  // A king capture is not a breaker (locked-legality lets the king take
+                  // defended men it never could in a real game). Treat the new square as
+                  // a fresh origin, exactly as mainSpread does.
+                  seen.clear();
+                  seen.add(key(nb));
+                  stack = [[nb, null]];
+                  break;
+                }
+                const nk = key(nb);
+                if (!seen.has(nk)) {
+                  seen.add(nk);
+                  stack.push([nb, null]);
+                }
+              }
+              continue;
+            }
 
             for (let r = 0; r < 8; r++)
               for (let c = 0; c < 8; c++) {
@@ -2904,10 +4884,9 @@
           const key = (b) => boardToPlacement(b);
           let stack = [[b0, epSq || null]]; // [board, epSq]; the root carries ep, derived boards null
           seen.add(key(b0));
-          let nodes = 0;
 
           while (stack.length) {
-            if (++nodes > MAX_NODES) return true;
+            spend();
             const [b, ep] = stack.pop();
 
             // At EVERY node: all lock-breakers. Ep is active only at the root (ep!=null).
@@ -2973,8 +4952,11 @@
           return false;
         }
 
-        // ── Are there ANY lock-breakers on a board? (knight + pawn + bishop spread)
-        //    Called at every main node. Pawns and bishops use multi-step sub-spread.
+        // ── Are there ANY lock-breakers on a board? (knight + pawn + bishop + king spread)
+        //    Called at every main node. Pawns, bishops and kings all use multi-step
+        //    sub-spread. Six branches, three types × two sides — the main node's own type
+        //    included, so no combination of "type X has moved, type Y now moves" is left
+        //    unreachable.
         function anyBreakerFull(b, epSq, epWhite) {
           if (anyKnightOrRookMobile(b)) return true;
           // Ep rights belong only to the side to move → pass them to that side's pawn scan.
@@ -2984,65 +4966,335 @@
             return true;
           if (subSpreadBreaks(b, "B", true)) return true;
           if (subSpreadBreaks(b, "B", false)) return true;
+          if (subSpreadBreaks(b, "K", true)) return true;
+          if (subSpreadBreaks(b, "K", false)) return true;
           return false;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // CHECK 3 — FINAL KING GUARANTEE
-        //   Every piece except PAWNS is removed — both sides' kings, bishops, knights
-        //   and rooks go; both sides' PAWNS (the wall) stay. The king under test:
-        //     • cannot enter squares ATTACKED by enemy pawns (the wall),
-        //     • cannot enter squares holding its OWN pawns,
-        //     • cannot enter squares holding enemy pawns either (occupied).
-        //   Can it reach the enemy king's ORIGINAL square? If yes → NOT locked.
-        //   Both kings are tested in turn.
-        //   Soundness: the king is given maximum freedom (only pawn walls block it). If
-        //   it cannot cross even then, it cannot cross in a real game → this is only an
-        //   extra NECESSARY condition (it produces no false positives).
-        //   Returns true = reached the enemy king's square (BREAKER).
-        function kingReachesOpponent(board0, moverWhite) {
-          const myK = findKing(board0, moverWhite);
-          const opK = findKing(board0, !moverWhite);
-          if (!myK || !opK) return true; // ambiguity → fall to the safe side (breaker)
-          const target = opK.r + "," + opK.c;
 
-          // Keep ALL pawns (both sides), delete the pieces.
-          const b = emptyBoard();
+        /* ═══════════════════════════════════════════════════════════════════
+   KONTROL 4 — MATE POSSIBILITY (semi-static region analysis)
+
+   THE GAP THIS CLOSES. Every breaker in K2 is a move played by the side that
+   PROFITS from it: a capture, a promotion, a mate given by the piece that just
+   moved. But a helpmate does not work that way. The losing side walks its OWN
+   bishop — or pushes its OWN pawn — onto a square beside its OWN king, sealing
+   the escape, and the opponent mates. Nobody who profits ever plays a breaker,
+   so K2 stays silent and the position is wrongly called a lock.
+
+   K2 also cannot reach the configuration even in principle: every spread moves
+   ONE piece type of ONE colour with everything else frozen, while such a mate
+   needs the loser's king, the loser's blockers and the winner's mater all to be
+   somewhere new at the same time. No amount of extra sub-branches fixes that —
+   the product is the problem.
+
+   THE ANSWER IS NOT TO SEARCH. Instead of walking configurations, compute for
+   every piece the SET OF SQUARES it could ever reach, then ask whether a mate
+   picture can be assembled inside those sets at all. This is the semi-static
+   algorithm of Miguel Ambrona, "A Practical Algorithm for Chess Unwinnability"
+   (FUN 2022) — Figures 6, 7 and 8 — restated here.
+
+   ERROR DIRECTION. K4 must never miss a possible mate, or we would seal a lock
+   that isn't one. It is therefore built to be sound in the "impossible"
+   direction only: when it cannot prove impossibility it says so, and the
+   position falls to NOT LOCKED. Two facts make that hold:
+     • Mobility OVER-approximates. Believing a piece can go further than it
+       really can only ever adds intruders and helpers, i.e. pushes toward
+       "a mate might exist".
+     • The verdict function is monotone in the mobility solution, so feeding it
+       an over-approximation cannot flip a "possible" into an "impossible".
+   ═══════════════════════════════════════════════════════════════════ */
+
+        // Squares from which a piece of P's kind reaches s in one NON-capturing step.
+        function predOf(p, s) {
+          const r = s >> 3,
+            c = s & 7,
+            out = [];
+          const put = (rr, cc) => {
+            if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) out.push(rr * 8 + cc);
+          };
+          // Board rows run 0 = rank 8 … 7 = rank 1, so a white pawn arrives from BELOW,
+          // i.e. from the higher row index.
+          if (p.t === "P") p.w ? put(r + 1, c) : put(r - 1, c);
+          else if (p.t === "N") for (const [dr, dc] of KNIGHT_D) put(r + dr, c + dc);
+          else if (p.t === "B") for (const [dr, dc] of BISHOP_D) put(r + dr, c + dc);
+          else if (p.t === "R") for (const [dr, dc] of ROOK_D) put(r + dr, c + dc);
+          else for (const [dr, dc] of KING_D) put(r + dr, c + dc); // K, Q
+          return out;
+        }
+        // Squares from which a piece of P's kind CAPTURES onto s in one step.
+        function predCaptOf(p, s) {
+          if (p.t !== "P") return predOf(p, s);
+          const r = s >> 3,
+            c = s & 7,
+            out = [];
+          const put = (rr, cc) => {
+            if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) out.push(rr * 8 + cc);
+          };
+          if (p.w) {
+            put(r + 1, c - 1);
+            put(r + 1, c + 1);
+          } else {
+            put(r - 1, c - 1);
+            put(r - 1, c + 1);
+          }
+          return out;
+        }
+        function orthOf(s) {
+          const r = s >> 3,
+            c = s & 7,
+            out = [];
+          for (const [dr, dc] of ROOK_D) {
+            const rr = r + dr,
+              cc = c + dc;
+            if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) out.push(rr * 8 + cc);
+          }
+          return out;
+        }
+
+        /* MOBILITY — the fixpoint of Figure 7.
+     Three variable families, all monotone (once 1, never 0 again):
+       M[i][s]  piece i can EVENTUALLY stand on square s
+       C[i]     piece i can be cleared from its square (by moving or being taken)
+       R[w][s]  a non-king man of that colour can eventually occupy s
+     Start with M[i][own square] = 1 and open every variable whose rule is
+     satisfied, until a pass opens nothing. A blocked pawn wall shuts itself down
+     here: the pawn cannot advance because the enemy pawn in front is never
+     clearable, and cannot capture because no enemy man ever reaches its capture
+     squares — so most M variables simply never open. */
+        function mobility(b) {
+          const P = [];
           for (let r = 0; r < 8; r++)
-            for (let c = 0; c < 8; c++) {
-              const ch = board0[r][c];
-              if (ch === "P" || ch === "p") b[r][c] = ch; // only pawns remain
-            }
+            for (let c = 0; c < 8; c++)
+              if (b[r][c])
+                P.push({
+                  ch: b[r][c],
+                  w: isWhite(b[r][c]),
+                  t: b[r][c].toUpperCase(),
+                  r,
+                  c,
+                  sq: r * 8 + c,
+                });
+          const n = P.length;
+          const M = P.map(() => new Uint8Array(64));
+          const C = new Uint8Array(n);
+          const R = [new Uint8Array(64), new Uint8Array(64)]; // [0]=white [1]=black
+          const occ = new Int8Array(64).fill(-1);
+          P.forEach((p, i) => {
+            M[i][p.sq] = 1;
+            occ[p.sq] = i;
+          });
+          // Pre-computed predecessor tables, one per piece kind actually present.
+          const pred = P.map((p) => {
+            const a = [];
+            for (let s = 0; s < 64; s++) a.push(predOf(p, s));
+            return a;
+          });
+          const predC = P.map((p) => {
+            const a = [];
+            for (let s = 0; s < 64; s++) a.push(predCaptOf(p, s));
+            return a;
+          });
+          // Direct attackers of s: enemies standing on a capture-predecessor of s.
+          // Only immediate attackers count — those cannot be blocked, they must move
+          // or be taken (Ambrona, footnote on the king rule).
+          const attackersOf = [];
+          for (let s = 0; s < 64; s++) {
+            const a = [];
+            for (let i = 0; i < n; i++)
+              if (predC[i][s].indexOf(P[i].sq) >= 0) a.push(i);
+            attackersOf.push(a);
+          }
+          const promRow = (p) => (p.w ? 0 : 7);
 
-          // BFS: the king starts at myK and spreads to empty squares not attacked by
-          // ENEMY pawns. Its OWN pawns' attacks do not stop it — only their SQUARES do,
-          // as occupied. Target: the enemy king's square.
-          const seen = new Set();
-          let frontier = [[myK.r, myK.c]];
-          seen.add(myK.r + "," + myK.c);
-          let nodes = 0;
-
-          while (frontier.length) {
-            const next = [];
-            for (const [r, c] of frontier) {
-              if (++nodes > MAX_NODES) return true; // cap → ambiguity → breaker
-              for (const [dr, dc] of KING_D) {
-                const nr = r + dr,
-                  nc = c + dc;
-                if (!inB(nr, nc)) continue;
-                const kk = nr + "," + nc;
-                if (seen.has(kk)) continue;
-                if (kk === target) return true; // reached the enemy king's square → breaker
-                if (b[nr][nc]) continue; // occupied (any pawn) → cannot enter
-                // enemy pawn threat (the wall):
-                if (pawnAttacksSquare(b, nr, nc, !moverWhite)) continue;
-                seen.add(kk);
-                next.push([nr, nc]);
+          let changed = true;
+          while (changed) {
+            changed = false;
+            // R — reachability
+            for (let s = 0; s < 64; s++)
+              for (const w of [0, 1]) {
+                if (R[w][s]) continue;
+                for (let i = 0; i < n; i++)
+                  if (P[i].t !== "K" && (P[i].w ? 0 : 1) === w && M[i][s]) {
+                    R[w][s] = 1;
+                    changed = true;
+                    break;
+                  }
+              }
+            // C — clearance
+            for (let i = 0; i < n; i++) {
+              if (C[i]) continue;
+              let ok = false;
+              for (let s = 0; s < 64 && !ok; s++)
+                if (s !== P[i].sq && M[i][s]) ok = true;
+              for (let j = 0; j < n && !ok; j++)
+                if (P[j].w !== P[i].w && M[j][P[i].sq]) ok = true;
+              if (ok) {
+                C[i] = 1;
+                changed = true;
               }
             }
-            frontier = next;
+            // M — movement
+            for (let i = 0; i < n; i++) {
+              const p = P[i];
+              for (let s = 0; s < 64; s++) {
+                if (M[i][s]) continue;
+                // not-self-capture: a friendly man on s must be clearable first
+                const o = occ[s];
+                if (o >= 0 && o !== i && P[o].w === p.w && !C[o]) continue;
+                let ok = false;
+                if (p.t === "P") {
+                  // (a) push — an enemy man on the target must be clearable
+                  const enemyOn = o >= 0 && P[o].w !== p.w;
+                  if (!enemyOn || C[o]) {
+                    for (const u of pred[i][s])
+                      if (M[i][u]) {
+                        ok = true;
+                        break;
+                      }
+                  }
+                  // (b) capture — needs an enemy non-king man able to occupy s
+                  if (!ok && R[p.w ? 1 : 0][s]) {
+                    for (const u of predC[i][s])
+                      if (M[i][u]) {
+                        ok = true;
+                        break;
+                      }
+                  }
+                  // (c) promotion — a pawn that reaches the last rank becomes anything
+                  if (!ok) {
+                    const pr = promRow(p);
+                    for (let c2 = 0; c2 < 8; c2++)
+                      if (M[i][pr * 8 + c2]) {
+                        ok = true;
+                        break;
+                      }
+                  }
+                } else {
+                  for (const u of pred[i][s])
+                    if (M[i][u]) {
+                      ok = true;
+                      break;
+                    }
+                  // a king may not step onto a square an enemy still attacks directly
+                  if (ok && p.t === "K")
+                    for (const j of attackersOf[s])
+                      if (P[j].w !== p.w && !C[j]) {
+                        ok = false;
+                        break;
+                      }
+                }
+                if (ok) {
+                  M[i][s] = 1;
+                  changed = true;
+                }
+              }
+            }
           }
-          return false; // never reached the other side → favours a lock
+          // att-region: squares a piece could ever ATTACK from somewhere in its region
+          const A = P.map((p, i) => {
+            const a = new Uint8Array(64);
+            for (let s = 0; s < 64; s++)
+              for (const u of predCaptOf(p, s))
+                if (M[i][u]) {
+                  a[s] = 1;
+                  break;
+                }
+            return a;
+          });
+          return { P, M, A };
+        }
+
+        /* MATE POSSIBILITY — Figure 8. Returns true only when mate by `winnerWhite`
+     is PROVEN impossible. Anything it cannot settle comes back false. */
+        function matImkansiz(b, winnerWhite, MOB) {
+          const { P, M, A } = MOB;
+          let kW = -1,
+            kL = -1;
+          for (let i = 0; i < P.length; i++)
+            if (P[i].t === "K") (P[i].w === winnerWhite ? (kW = i) : (kL = i));
+          if (kW < 0 || kL < 0) return false;
+          const loserRegion = M[kL];
+
+          // INTRUDERS — the winner's men that can set foot inside the loser king's region.
+          // If any of them is not a bishop, a mate picture can be built: knights, rooks,
+          // pawns and the king can all cover a square of either colour. Two bishops of
+          // DIFFERENT square colours can do it between them, so those are refused too.
+          let intrColour = -1;
+          for (let i = 0; i < P.length; i++) {
+            if (P[i].w !== winnerWhite) continue;
+            let inside = false;
+            for (let s = 0; s < 64; s++)
+              if (M[i][s] && loserRegion[s]) {
+                inside = true;
+                break;
+              }
+            if (!inside) continue;
+            if (P[i].t !== "B") return false;
+            const col = (P[i].r + P[i].c) & 1;
+            if (intrColour < 0) intrColour = col;
+            else if (intrColour !== col) return false;
+          }
+
+          // CANDIDATE MATING SQUARES. For a mate, one square must satisfy all three:
+          //   the loser's king can get there, the winner can attack it, and every
+          //   orthogonal escape beside it can be sealed at the same time. Escapes are
+          //   sealed either by the loser's OWN men standing on them (blockers — the
+          //   two-own-bishops and pawn+own-bishop cases) or by the winner attacking
+          //   them (assistants). Only the orthogonal neighbours are counted: they are
+          //   the opposite square colour to the mating square, so the same-coloured
+          //   bishops that are the only intruders can never cover them, and each
+          //   blocker or assistant is worth at most one of them.
+          for (let s = 0; s < 64; s++) {
+            if (!loserRegion[s]) continue;
+            let attackable = false;
+            for (let i = 0; i < P.length; i++)
+              if (P[i].w === winnerWhite && A[i][s]) {
+                attackable = true;
+                break;
+              }
+            if (!attackable) continue;
+            const N = orthOf(s);
+            let seal = 0;
+            for (let i = 0; i < P.length; i++) {
+              if (P[i].w !== winnerWhite) {
+                if (P[i].t === "K") continue;
+                for (const u of N)
+                  if (M[i][u]) {
+                    seal++;
+                    break;
+                  }
+              } else {
+                for (const u of N)
+                  if (A[i][u]) {
+                    seal++;
+                    break;
+                  }
+              }
+            }
+            if (seal >= N.length) return false; // a mate picture fits here
+          }
+          return true; // no square anywhere can carry a mate
+        }
+
+        /* ── KONTROL 4 — MAT İMKÂNI ────────────────────────────────────────
+     Runs ONCE on the root board, after K3. It needs no spread: the mobility
+     fixpoint already accounts for every square any piece could ever reach, so
+     walking configurations would add nothing. Both sides are asked as the
+     intended winner; a lock requires mate to be impossible for BOTH — that is
+     exactly FIDE 5.2.2's definition of a dead position.
+
+     Castling rights or a live en passant square make the mobility rules unsound
+     (a rook teleports past the king; a pawn leaves a file without a man to take),
+     so K4 declines to rule in that case. */
+        function kontrol2MatImkani(b, sides, hasCastle, hasEp) {
+          if (hasCastle || hasEp)
+            return "K2 — rok hakkı veya geçerken alma var, bölge analizi hüküm veremez";
+          const MOB = mobility(b);
+          for (const w of sides)
+            if (!matImkansiz(b, w, MOB))
+              return "K2 — " + nm(w) + " için mat imkânı elenemedi";
+          return null;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -3064,12 +5316,8 @@
            exactly 1 king each, ≥3 pawns each, promotion-consistent. Board-wide, one
            pass, side-independent.
        1b  a mobile knight or rook (knightOrRookHasMove).
-       1c  bishops, three rules in this order: first a bishop frozen OFF its home rank
-           (frozenBishop — unreachable from real play), then one side holding both
-           square colours with BOTH of those bishops mobile (zitRenkFilCifti), then one
-           side holding two or more bishops on the SAME square colour (ayniRenkFilCifti
-           — PROVISIONAL, a completeness sacrifice covering a known K2 gap; mobility is
-           not consulted there, and the reasoning is in the note above that function).
+       1c  bishops: a bishop frozen OFF its home rank is unreachable from real play
+           (frozenBishop).
        1d  pawn bricks — at least 3, splitting the board, on one contact rank, with no
            two adjacent bricks level (kontrol1dPiyonTuglalari). Board-wide.
      Returns { why, outOfScope } or null. EVERY failure carries outOfScope: true — see
@@ -3116,28 +5364,6 @@
                   ") hiç hamlesi yok, başlangıç yatayında da değil — oyundan doğamaz",
               );
           }
-          for (const w of sides) {
-            const pair = zitRenkFilCifti(b, w);
-            if (pair)
-              return dis(
-                nm(w) + " iki zıt renk fil (" + pair.a + ", " + pair.b + ")",
-              );
-          }
-          // PROVISIONAL rule — a completeness sacrifice, not a property of locks.
-          // Full reasoning and measurements in the note above ayniRenkFilCifti.
-          for (const w of sides) {
-            const same = ayniRenkFilCifti(b, w);
-            if (same)
-              return dis(
-                nm(w) +
-                  " aynı kare renginde iki fil (" +
-                  same.a +
-                  ", " +
-                  same.b +
-                  ") — geçici kapsam kısıtı",
-              );
-          }
-
           // 1d — pawn bricks
           const k = kontrol1dPiyonTuglalari(b);
           if (!k.ok) return dis(k.why);
@@ -3161,24 +5387,14 @@
      bishop — yet 1.Be2 followed by f3-f4-f5-f6-f7-f8=Q promotes. A FALSE POSITIVE, so
      the pruning is gone rather than narrowed. Do not reintroduce it without proving
      that no bishop move can free a pawn. */
-        function kontrol2Yayilim(b, sides, epSq, epWhite) {
+        function kontrol3Yayilim(b, sides, epSq, epWhite) {
           const nodes = ["P", "B", "K"];
           for (const kind of nodes)
             for (const w of sides)
               if (mainSpread(b, kind, w, epSq, epWhite))
                 return (
-                  "K2 — " + nm(w) + " " + kind + " ana düğümünde kilit-kırıcı"
+                  "K3 — " + nm(w) + " " + kind + " ana düğümünde kilit-kırıcı"
                 );
-          return null;
-        }
-
-        /* ── KONTROL 3 — ŞAHIN NİHAİ GARANTİSİ ───────────────────────────────
-     Everything except the pawn wall is deleted and the king is given maximum freedom.
-     If it cannot cross even then, it cannot cross in a real game. Side to move first. */
-        function kontrol3SahGarantisi(b, sides) {
-          for (const w of sides)
-            if (kingReachesOpponent(b, w))
-              return "K3 — " + nm(w) + " şah karşı şaha ulaşabiliyor";
           return null;
         }
 
@@ -3207,13 +5423,34 @@
           const sides = [stm, !stm];
           // Ep belongs to the side to move and holds only at the root of a spread.
           const epSq = p.ep !== -1 ? { r: p.ep >> 4, c: p.ep & 7 } : null;
+          // Castling rights are not carried on the 8x8 board, so read them off the FEN
+          // that the engine normalised — K4 needs them.
+          const fenParts = String(p.getFen()).split(/\s+/);
+          const hasCastle = !!(fenParts[2] && fenParts[2] !== "-");
 
           const k1 = kontrol1Kapsam(b, sides);
           if (k1) return { locked: false, outOfScope: k1.outOfScope, reason: k1.why };
 
-          const why =
-            kontrol2Yayilim(b, sides, epSq, stm) ||
-            kontrol3SahGarantisi(b, sides);
+          // The node budget is reset per call, so a verdict never depends on what was
+          // scanned before it. Running out is not a verdict — it is the absence of one.
+          nodeBudget = NODE_BUDGET;
+          let why;
+          try {
+            why =
+              kontrol2MatImkani(b, sides, hasCastle, !!epSq) ||
+              kontrol3Yayilim(b, sides, epSq, stm);
+          } catch (e) {
+            if (e instanceof BudgetOut)
+              return {
+                locked: false,
+                outOfScope: true,
+                reason:
+                  "K3 — düğüm bütçesi (" +
+                  NODE_BUDGET.toLocaleString("tr-TR") +
+                  ") aşıldı, hüküm verilemedi",
+              };
+            throw e;
+          }
 
           return why
             ? { locked: false, outOfScope: false, reason: why }
@@ -3239,9 +5476,8 @@
           kontrol1Kapsam,
           kontrol1aAritmetik,
           kontrol1dPiyonTuglalari,
-          zitRenkFilCifti,
-          kontrol2Yayilim,
-          kontrol3SahGarantisi,
+          kontrol2MatImkani,
+          kontrol3Yayilim,
           knightOrRookHasMove,
           frozenBishop,
           anyKnightOrRookMobile,
@@ -3250,7 +5486,6 @@
           subSpreadBreaks,
           anyBreakerFull,
           mainSpread,
-          kingReachesOpponent,
           isLocked,
           KNIGHT_D,
           KING_D,
