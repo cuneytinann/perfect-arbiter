@@ -1071,7 +1071,7 @@
         </div>
         </details>
 
-        <!-- ══════════ 2 — VARSAYILAN AÇIK ══════════ -->
+        <!-- ══════════ 2 — OPEN BY DEFAULT ══════════ -->
         <details class="doc" open>
         <summary>
         <span class="num">02</span>
@@ -4376,8 +4376,8 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
        Mobility means locked-legality: "delete the kings and ask for legal moves".
        EVERY K1 failure returns OUT OF SCOPE (outOfScope: true). K1 asks one question
        only — "is this position inside the algorithm's class at all?" — so its answers
-       are uniform. Judging a position ("evaluated it, found a breaker") starts at K2,
-       once pieces actually move; NOT LOCKED therefore only ever comes from K2 or K3.
+       are uniform. Judging a position ("evaluated it, found a breaker") starts at K2;
+       NOT LOCKED therefore only ever comes from K2 or K3, and K3 is where pieces move.
          a) arithmetic — 8 ≤ pieces ≤ 30 (a full army minus both queens), no queen,
             exactly 1+1 kings, ≥3 pawns a side, promotion-consistent (surplus R/N/B
             charged against the missing-pawn budget).
@@ -4629,7 +4629,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
             Math.max(0, c.Q - 1);
           return extra <= 8 - c.P;
         }
-        // KONTROL 1d — PAWN BRICKS + geometric pruning.
+        // CHECK 1d — PAWN BRICKS + geometric pruning.
         //   Brick (direction-sensitive): a black 'p' on row r with a white 'P' directly
         //   below on row r+1. Both are blocked head-on. Contact rank = r + 0.5.
         //   Pruning (only ever toward "not locked" → soundness-safe; avoids the costly
@@ -4701,7 +4701,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
             }
           return { ok: true, bricks: n };
         }
-        // KONTROL 1b — KNIGHT / ROOK IMMOBILITY.
+        // CHECK 1b — KNIGHT / ROOK IMMOBILITY.
         //   A knight jumps the pawn wall and a rook slides along it, so in a genuine lock
         //   BOTH must be completely buried in their own pieces. Pure geometry: no check
         //   safety, no turn order — can the piece reach any square at all (empty square
@@ -4720,7 +4720,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
           return null;
         }
 
-        // KONTROL 1c — FROZEN BISHOP OFF ITS HOME RANK ⇒ OUT OF SCOPE.
+        // CHECK 1c — FROZEN BISHOP OFF ITS HOME RANK ⇒ OUT OF SCOPE.
         //   To bury a bishop every diagonal neighbour must hold a friendly man — but a
         //   bishop can only ever have ENTERED such a square through one of those same
         //   diagonals. Pawns do not retreat, so a pawn sealing the square was already
@@ -4738,7 +4738,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
         //   Note this is scope hygiene, not soundness: "no irreversible move exists here"
         //   is a property of the position itself, however it was reached.
         function frozenBishop(b, white) {
-          const homeRow = white ? 7 : 0; // beyaz 1. yatay, siyah 8. yatay
+          const homeRow = white ? 7 : 0; // White's 1st rank, Black's 8th
           for (let r = 0; r < 8; r++) {
             if (r === homeRow) continue; // may simply never have moved
             for (let c = 0; c < 8; c++) {
@@ -5071,7 +5071,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
 
 
         /* ═══════════════════════════════════════════════════════════════════
-   KONTROL 4 — MATE POSSIBILITY (semi-static region analysis)
+   CHECK 2 — MATE POSSIBILITY (semi-static region analysis)
 
    THE GAP THIS CLOSES. Every breaker in K2 is a move played by the side that
    PROFITS from it: a capture, a promotion, a mate given by the piece that just
@@ -5092,7 +5092,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
    algorithm of Miguel Ambrona, "A Practical Algorithm for Chess Unwinnability"
    (FUN 2022) — Figures 6, 7 and 8 — restated here.
 
-   ERROR DIRECTION. K4 must never miss a possible mate, or we would seal a lock
+   ERROR DIRECTION. K2 must never miss a possible mate, or we would seal a lock
    that isn't one. It is therefore built to be sound in the "impossible"
    direction only: when it cannot prove impossibility it says so, and the
    position falls to NOT LOCKED. Two facts make that hold:
@@ -5375,8 +5375,8 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
           return true; // no square anywhere can carry a mate
         }
 
-        /* ── KONTROL 4 — MAT İMKÂNI ────────────────────────────────────────
-     Runs ONCE on the root board, after K3. It needs no spread: the mobility
+        /* ── CHECK 2 — MATE POSSIBILITY ──────────────────────────────────────
+     Runs ONCE on the root board, before K3. It needs no spread: the mobility
      fixpoint already accounts for every square any piece could ever reach, so
      walking configurations would add nothing. Both sides are asked as the
      intended winner; a lock requires mate to be impossible for BOTH — that is
@@ -5384,7 +5384,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
 
      Castling rights or a live en passant square make the mobility rules unsound
      (a rook teleports past the king; a pawn leaves a file without a man to take),
-     so K4 declines to rule in that case. */
+     so K2 declines to rule in that case. */
         function kontrol2MatImkani(b, sides, hasCastle, hasEp) {
           if (hasCastle || hasEp)
             return "K2 — rok hakkı veya geçerken alma var, bölge analizi hüküm veremez";
@@ -5405,7 +5405,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
      play the breaker next. */
         const nm = (w) => (w ? "beyaz" : "siyah");
 
-        /* ── KONTROL 1 — KAPSAM ─────────────────────────────────────────────
+        /* ── CHECK 1 — SCOPE ────────────────────────────────────────────────
      Everything decidable from the untouched board, no piece ever moves. FOUR parts,
      in this order; each side-dependent one runs for the side to move first, then the
      opponent. Locked-legality means "delete the kings and ask for legal moves" — pure
@@ -5436,8 +5436,8 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
         function kontrol1Kapsam(b, sides) {
           // Every K1 failure reports outOfScope: true. K1's job is a single question —
           // "is this position inside the algorithm's class at all?" — so its answers are
-          // uniform. Judging a position ("we evaluated it and found a breaker") starts at
-          // K2, once pieces actually move.
+          // uniform. Judging a position ("we evaluated it and found a breaker") starts
+          // at K2, and K3 is where pieces actually move.
           const dis = (why) => ({ why: "K1 — " + why, outOfScope: true });
 
           // 1a — arithmetic
@@ -5468,7 +5468,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
           return null;
         }
 
-        /* ── KONTROL 2 — YAYILIM ─────────────────────────────────────────────
+        /* ── CHECK 3 — SPREAD ───────────────────────────────────────────────
      The first check that MOVES anything. Main-node order is fixed: pawn, then bishop,
      then king; within each, the side to move goes first. At every node of every spread
      all other breakers are rescanned (anyBreakerFull), including the knot test.
@@ -5496,7 +5496,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
           return null;
         }
 
-        /* Kontrol 1 returns { why, outOfScope }; kontrol 2 and 3 return a reason string
+        /* Check 1 returns { why, outOfScope }; checks 2 and 3 return a reason string
      (they only ever find real breakers) or null. A lock is the verdict when all three
      stay silent. `outOfScope` travels on the result so the interface never has to
      pattern-match the Turkish text to classify a verdict. */
@@ -5522,7 +5522,7 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
           // Ep belongs to the side to move and holds only at the root of a spread.
           const epSq = p.ep !== -1 ? { r: p.ep >> 4, c: p.ep & 7 } : null;
           // Castling rights are not carried on the 8x8 board, so read them off the FEN
-          // that the engine normalised — K4 needs them.
+          // that the engine normalised — K2 needs them.
           const fenParts = String(p.getFen()).split(/\s+/);
           const hasCastle = !!(fenParts[2] && fenParts[2] !== "-");
 
@@ -5718,8 +5718,8 @@ III  K + xQ + yR + zB  vs  K + tB   (all bishops one colour)</pre>
    ARBITER CORE — the single rule-application pipeline.
 
    Used verbatim by BOTH the page and every downloaded engine, so a ruling can
-   never differ between them. It previously existed twice (once in the interface,
-   once inside the builder's template string) and the two had already drifted.
+   never differ between them. There is exactly one copy of this pipeline; nothing
+   is regenerated for the download, only bound to a different configuration.
 
    Verdicts are returned as a CODE plus data, never as prose: the page renders
    them through its i18n dictionary, a downloaded engine through the built-in
